@@ -1,5 +1,5 @@
 # AmputatorBot
-TL;DR: AmputatorBot is a Reddit bot that replies to comments and submissions containing AMP URLS with the direct and original link because Google's AMP is a major threat to the Open Web and your privacy.
+TL;DR: AmputatorBot is a Reddit bot that replies to comments and submissions containing AMP URLS with the direct and original link.
 
 ## Why AMP is bad for everyone
 TL;DR: Google’s AMP is a major threat to the Open Web and your privacy.
