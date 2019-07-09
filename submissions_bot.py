@@ -7,11 +7,9 @@
 # Import a couple of libraries
 from bs4 import BeautifulSoup
 from urllib.request import urlopen
-from datetime import datetime
 import urllib.request
 import praw
 import config
-import time
 import os
 import re
 import traceback
