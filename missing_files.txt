@@ -10,4 +10,4 @@ Besides, these files will be automatically created by the 2 python scripts.
 And if you're searching for config.py, I've made a template [here](https://github.com/KilledMufasa/AmputatorBot/blob/master/template_config.py)
 
 Love,
-u/Killed_Mufasa
+[u/Killed_Mufasa](https://www.reddit.com/user/Killed_Mufasa)
