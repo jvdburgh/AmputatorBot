@@ -22,7 +22,7 @@ Hit me up on Reddit (u/AmputatorBot) with questions or suggestions and I will tr
 Unfortunately, not everyone likes u/amputatorbot. It's not allowed on these subreddits: r/android, r/conservative, r/news, r/politics, r/worldnews and r/worldpolitics. [Some of these subreddits banned u/AmputatorBot](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot/).
 
 ## Changelog
-The most recent version fixed a recent but annoying bug that would allow for AmputatorBot to reply mutiple times to the same comment or submission. Sorry about that. Check the entite changelog out [here](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot/).
+The most recent version fixed a recent but annoying bug that would allow for AmputatorBot to reply mutiple times to the same comment or submission. Sorry about that. Check out the entire changelog [here](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot/).
 
 ## Support the project
 AmputatorBot is a really important project for me and I want to spend as much time and resources into accomplishing it's goal: to make people aware of the dark side of AMP and to give people a choice. You can support the project in two ways:
