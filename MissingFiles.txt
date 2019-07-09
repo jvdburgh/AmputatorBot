@@ -1,0 +1,13 @@
+You might be searching for these files:
+- submissions_replied_to.txt
+- submissions_unable_to_reply.txt
+- comments_replied_to.txt
+- comments_unable_to_reply.txt
+
+These files will not be shared to prevent spam and doxing.
+Besides, these files will be automatically created by the 2 python scripts.
+
+And if you're searching for config.py, I've made a template [here](https://github.com/KilledMufasa/AmputatorBot/blob/master/template_config.py)
+
+Love,
+u/Killed_Mufasa
