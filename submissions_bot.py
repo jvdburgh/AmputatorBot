@@ -22,7 +22,7 @@ def bot_login():
 					password = config.password,
 					client_id = config.client_id,
 					client_secret = config.client_secret,
-					user_agent = "Windows Local Server:AmputatorBot:v1.0 (by /u/Killed_Mufasa)")
+					user_agent = "eu.pythoneverywhere.com:AmputatorBot:v1.1 (by /u/Killed_Mufasa)")
 	print("Successfully logged in!\n")
 	return r
 
@@ -117,7 +117,7 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 						submission_could_reply = True
 						print("Operation succesfull.\n")
 					
-					# If the reply didn't got through, throw an exception (can occur when comment gets deleted or when ratelimits are exceeded)
+					# If the reply didn't got through, throw an exception (can occur when comment gets deleted or when rate limits are exceeded)
 					except Exception as e:
 						logging.error(traceback.format_exc())
 						print(" [ERROR:Exception] Could not reply to submission.")
@@ -153,11 +153,11 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 			try:
 				print("Submissions_replied_to.txt was found, the array is now as follows:\n"+submissions_replied_to)
 				print("Submissions_unable_to_reply.txt was found, the array is now as follows:\n"+submissions_unable_to_reply)
-				print(len("The bot has no replied "+submissions_replied_to+" times."))
-				print(len("The bot failed to comment "+submissions_unable_to_reply+" times."))
+				print("The bot has now replied "+len(submissions_replied_to)+" times.")
+				print("The bot has now failed to comment "+len(submissions_unable_to_reply)+" times.")
 			except:
 				logging.error(traceback.format_exc())
-				print(" [ERROR:Exception] Something went wrong while printing (damn printers never work when you need them to!")
+				print(" [ERROR:Exception] Something went wrong while printing (those damn printers never work when you need them to!)")
 
 # Get the data of which submissions have been replied to
 def get_saved_submissions_repliedtos():
