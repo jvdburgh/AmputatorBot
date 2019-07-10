@@ -30,10 +30,10 @@ def bot_login():
 
 # Main function. Gets last 2000 comments, scans these for AMP links and replies with the direct link
 def run_bot(r, comments_replied_to, comments_unable_to_reply):
-	print("Obtaining the last 2000 comments in subreddits amputatorbot, audio, bitcoin, chrome, NOT YET conservative, degoogle, europe, gadgets, google, firefox, gaming, history, movies, politicaldiscussion, programming, robotics, security, seo, tech, technology, test, todayilearned and NOT YET worldnews.\n")
+	print("Obtaining the last 2000 comments in subreddits amputatorbot, audio, bitcoin, chrome, conservative, degoogle, europe, google, firefox, gaming, history, movies, politicaldiscussion, programming, robotics, security, seo, tech, technology, test, todayilearned and NOT YET worldnews.\n")
 
 	# Get the latest 2000 comments in select subreddits using Praw.
-	for comment in r.subreddit('amputatorbot+audio+bitcoin+chrome+degoogle+europe+gadgets+google+firefox+gaming+history+movies+politicaldiscussion+programming+robotics+security+seo+tech+technology+test+todayilearned').comments(limit=2000):
+	for comment in r.subreddit('amputatorbot+audio+chrome+conservative+degoogle+europe+google+firefox+gaming+history+movies+politicaldiscussion+programming+robotics+security+seo+tech+technology+test+todayilearned').comments(limit=2000):
 		# Resets for every comment
 		meets_all_criteria = False
 		could_not_reply = False
