@@ -151,10 +151,14 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 
 			# For debugging purposes:
 			try:
-				print("Submissions_replied_to.txt was found, the array is now as follows:\n"+submissions_replied_to)
-				print("Submissions_unable_to_reply.txt was found, the array is now as follows:\n"+submissions_unable_to_reply)
-				print("The bot has now replied "+len(submissions_replied_to)+" times.")
-				print("The bot has now failed to comment "+len(submissions_unable_to_reply)+" times.")
+				print("\nSubmissions_replied_to.txt was found, the array is now as follows:")
+				print(submissions_replied_to)
+				print("\nSubmissions_unable_to_reply.txt was found, the array is now as follows:")
+				print(submissions_unable_to_reply)
+				print("\nThe bot has now replied x times:")
+				print(len(submissions_replied_to))
+				print("\nThe bot has now failed to comment x times:")
+				print(len(submissions_unable_to_reply))
 			except:
 				logging.error(traceback.format_exc())
 				print(" [ERROR:Exception] Something went wrong while printing (those damn printers never work when you need them to!)")
