@@ -28,7 +28,7 @@ def bot_login():
 
 # Main function. Gets the submissions stream, scans these for AMP links and replies with the direct link
 def run_bot(r, comments_replied_to, comments_unable_to_reply):
-	print("Obtaining the last 2000 comments in subreddits amputatorbot, audio, bitcoin, chrome, NOT YET conservative, degoogle, europe, google, firefox, gaming, history, movies, politicaldiscussion, programming, robotics, security, seo, tech, technology, test, todayilearned and NOT YET worldnews.\n")
+	print("Obtaining the stream of submissions in subreddits amputatorbot, audio, bitcoin, chrome, NOT YET conservative, degoogle, europe, google, firefox, gaming, history, movies, politicaldiscussion, programming, robotics, security, seo, tech, technology, test, todayilearned and NOT YET worldnews.\n")
 
 	# Get the submission stream of select subreddits using Praw.
 	for submission in r.subreddit('amputatorbot+audio+chrome+degoogle+europe+google+firefox+gaming+history+movies+politicaldiscussion+programming+robotics+security+seo+tech+technology+test+todayilearned').stream.submissions():
@@ -101,7 +101,7 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 							print("Found the normal link: "+submission_non_amp_url+"\n")
 
 						# Generate a comment	
-						submission_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+submission_non_amp_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)"
+						submission_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+submission_non_amp_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention [u/AmputatorBot](https://www.reddit.com/user/AmputatorBot) in a reply and I'll try to share the direct link.)"
 							
 					# If no direct links were found, throw an exception	
 					except Exception as e:

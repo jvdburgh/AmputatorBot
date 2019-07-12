@@ -128,7 +128,7 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 								print("Found the normal link: "+non_amp_url+"\n")
 
 							# Generate a comment
-							comment_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+non_amp_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)"
+							comment_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+non_amp_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention [u/AmputatorBot](https://www.reddit.com/user/AmputatorBot) in a reply and I'll try to share the direct link.)"
 
 						# If no direct links were found, throw an exception	
 						except Exception as e:
@@ -178,7 +178,7 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 				comments_unable_to_reply.append(comment.id)
 				with open ("comments_unable_to_reply.txt", "a") as f:
 					f.write(comment.id + ",")
-					print("Added the comment id to file: comments_unable_to_reply.txt")
+					print("Added the comment id to file: comments_unable_to_reply.txt\n")
 
 			# For debugging purposes:
 			try:
