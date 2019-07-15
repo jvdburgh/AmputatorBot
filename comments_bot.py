@@ -163,6 +163,7 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 					print(" [ERROR:Exception] Looks like something went wrong trying to find the non_amp url.")
 
 			# If no direct links were found, don't reply
+			comments_non_amps_urls_amount = len(comments_non_amp_urls)
 			if comments_non_amps_urls_amount == 0:
 				print(" [ERROR:If] There were no correct direct links found. There will be no reply made.")
 
@@ -174,14 +175,14 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 
 					# If there was only one url found, generate a simple comment
 					if comments_non_amps_urls_amount == 1:
-						comment_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+comments_non_amp_urls[x]+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention [u/AmputatorBot](https://www.reddit.com/user/AmputatorBot) in a reply and I'll try to share the direct link.)"
+						comment_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+comments_non_amp_urls[x]+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention) [^(u/AmputatorBot)](https://www.reddit.com/user/AmputatorBot) ^(in a reply and I'll try to share the direct link.)"
 
 					# If there were multiple urls found, generate a multi-url comment
 					if comments_non_amps_urls_amount > 1:
 						# Generate string of all found links
 						comment_reply_generated = '\n\n'.join(comments_non_amp_urls)
 						# Generate entire comment
-						comment_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a couple of Google AMP links. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+comment_reply_generated+"\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention [u/AmputatorBot](https://www.reddit.com/user/AmputatorBot) in a reply and I'll try to share the direct link.)"
+						comment_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a couple of Google AMP links. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+comment_reply_generated+"\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention) [^(u/AmputatorBot)](https://www.reddit.com/user/AmputatorBot) ^(in a reply and I'll try to share the direct link.)"
 
 					else:
 						print(" [ERROR:Else] There was a weird amount of non_amps_urls found:"+comments_non_amps_urls_amount)
