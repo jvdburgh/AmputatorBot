@@ -30,16 +30,19 @@ def bot_login():
 
 # Main function. Gets last 2000 comments, scans these for AMP links and replies with the direct link
 def run_bot(r, comments_replied_to, comments_unable_to_reply):
-	print("Obtaining the last 2000 comments in subreddits amputatorbot, audio, bitcoin, chrome, NOT YET conservative, degoogle, europe, google, firefox, gaming, history, movies, politicaldiscussion, programming, robotics, security, seo, tech, technology, test, todayilearned and NOT YET worldnews.\n")
+	print("Obtaining the last 2000 comments in subreddits amputatorbot, audio, bitcoin, chrome, NOT YET conservative, degoogle, europe, google, firefox, gaming, history, movies, programming, robotics, security, seo, tech, technology, test, todayilearned and NOT YET worldnews.\n")
 
 	# Get the latest 2000 comments in select subreddits using Praw.
-	for comment in r.subreddit('amputatorbot+audio+chrome+degoogle+europe+google+firefox+gaming+history+movies+politicaldiscussion+programming+robotics+security+seo+tech+technology+test+todayilearned').comments(limit=2000):
+	for comment in r.subreddit('amputatorbot+audio+chrome+degoogle+europe+google+firefox+gaming+history+movies+programming+robotics+security+seo+tech+technology+test+todayilearned').comments(limit=2000):
 		# Resets for every comment
 		meets_all_criteria = False
-		could_not_reply = False
-		could_reply = False
-
-		# Check: Does the comment contain any amp links?
+		comment_could_not_reply = False
+		comment_could_reply = False
+		comments_urls = []
+		comments_non_amp_urls = []
+		comments_non_amps_urls_amount = 0
+		
+		# Check: Does the comment contain any AMP links?
 		if "/amp" in comment.body or ".amp" in comment.body or "amp." in comment.body and "https://" in comment.body:
 			print(" [ OK ] #" + comment.id + " contains one or more of the keywords.")
 
@@ -63,122 +66,151 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 			else:
 				print(" [ STOP ] #" + comment.id + " has already been tried, but failed.\n")
 
-		# If all criteria are met, try to reply to OP with the direct link
+		# If all conditions are met, start the main part
 		if meets_all_criteria:
 			try:
-				print("String with \"/amp\" and \"https://\" found in the comment body of #"+ comment.id+"\n")
 				print(comment.body)
 				print("Trying to find the submitted url...\n")
-				
-				# Scan the comment body for the (first) link
-				amp_url = re.search("(?P<url>https?://[^\s]+)", comment.body).group("url")
 
-				# Isolate the actual URL (remove markdown) (part 1)
-				try:
-					amp_url = amp_url.split('](')[-1]
-					print("The amp link: "+amp_url+" was stripped of markdown.\n")
-				except Exception as e:
-					logging.error(traceback.format_exc())
-					print("The amp link couldn't of didn't have to be trimmed.\n")
+				# Scan the comment body for the links
+				comments_urls = re.findall("(?P<url>https?://[^\s]+)", comment.body)
+				comments_urls_amount = len(comments_urls)
 
-				# Isolate the actual URL (remove markdown) (part 2)
-				if amp_url.endswith(')?'):
-					amp_url = amp_url[:-2]
-					print("Trimmed the amp link with 2 characters.")
-				if amp_url.endswith(')'):
-					amp_url = amp_url[:-1]
-					print("Trimmed the amp link with 1 characters.")
-				print(amp_url+"\n")
-				
-				# Check: Is the isolated URL really an amp link?
-				if "/amp" in amp_url or ".amp" in amp_url or "amp." in amp_url and "https://" in amp_url:
-					print(" [ OK ] The correct Amp link was found: "+amp_url+"\n")
-					print("Retrieving amp page...\n")
+				# Loop through all submitted links	
+				for x in range(comments_urls_amount):
 
-					# Premake an urllib request (to fetch the submitted amp page)	
-					req = urllib.request.Request(amp_url)
-					req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0')
-					req.add_header('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8')
-					req.add_header('Accept-Charset', 'ISO-8859-1,utf-8;q=0.7,*;q=0.3')
-					req.add_header('Accept-Encoding', 'none')
-					req.add_header('Accept-Language', 'en-US,en;q=0.8')
-					req.add_header('Connection', 'keep-alive')
-					req.add_header('Referer', 'www.reddit.com')
-
-					# Fetch the submitted amp page, if canonical (direct link) was found, generate and post comment
+					# Isolate the actual URL (remove markdown) (part 1)
 					try:
-						# Fetch submitted amp page
-						content = urllib.request.urlopen(req)
-						print("\nNow scanning the Amp link: " + amp_url + "\n")
-						content = urlopen(amp_url)
-						
-						# Make the received data readable
-						print("Making a soup...\n")
-						soup = BeautifulSoup(content, features= "lxml")
-						print("Making a readable soup...\n")
-						soup.prettify()
-
-						# Scan the received data for the direct link
-						print("Scanning for all links...\n")
-						try:
-							# Check for every link on the amp page if it is of the type rel='canonical'
-							for link in soup.find_all(rel='canonical'):
-								# Get the direct link
-								non_amp_url = link.get('href')
-								print("Found the normal link: "+non_amp_url+"\n")
-
-							# Generate a comment
-							comment_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+non_amp_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention [u/AmputatorBot](https://www.reddit.com/user/AmputatorBot) in a reply and I'll try to share the direct link.)"
-
-						# If no direct links were found, throw an exception	
-						except Exception as e:
-							logging.error(traceback.format_exc())
-							print(" [ERROR:Exception] The direct link could not be found.")
-							could_not_reply = True
-
-						# Try to reply to OP
-						try:
-							comment.reply(comment_reply)
-							print("Replied to comment #"+comment.id+".\n")
-							could_reply = True
-							print("Operation succesfull.\n")
-
-						# If the reply didn't got through, throw an exception (can occur when comment gets deleted or when rate limits are exceeded)
-						except Exception as e:
-							logging.error(traceback.format_exc())
-							print(" [ERROR:Exception] Could not reply to post.")
-							could_not_reply = True
-
-					# If the submitted page could't be fetched (or something else went wrong), throw an exception
+						comments_urls[x] = comments_urls[x].split('](')[-1]
+						print("A link: "+ comments_urls[x] +" was stripped of markdown.\n")
 					except Exception as e:
 						logging.error(traceback.format_exc())
-						print(" [ERROR:Exception] Submitted page could not be fetched or something else")
-						could_not_reply = True
+						print("A link couldn't of didn't have to be trimmed.\n")
 
-				# If the program fails to get the correct amp link  (which has to be the first link in the comment body (for now)), ignore it.
-				else:
-					print(" [ERROR:else:] Could not find the correct amp link.")
-					could_not_reply = True
+					# Isolate the actual URL (remove markdown) (part 2)
+					if comments_urls[x].endswith(')?'):
+						comments_urls[x] = comments_urls[x][:-2]
+						print("Trimmed the link with 2 characters.")
+					if comments_urls[x].endswith(')'):
+						comments_urls[x] = comments_urls[x][:-1]
+						print("Trimmed the link with 1 characters.")
+					print(comments_urls[x]+"\n")
+
+					# Check: Is the isolated URL really an amp link?
+					if "/amp" in comments_urls[x] or ".amp" in comments_urls[x] or "amp." in comments_urls[x] and "https://" in comments_urls[x]:
+						print(" [ OK ] The correct Amp link was found: " + comments_urls[x] + "\n")
+						print("Retrieving amp page...\n")
+
+						# Premake an urllib request (to fetch the submitted amp page)	
+						req = urllib.request.Request(comments_urls[x])
+						req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0')
+						req.add_header('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8')
+						req.add_header('Accept-Charset', 'ISO-8859-1,utf-8;q=0.7,*;q=0.3')
+						req.add_header('Accept-Encoding', 'none')
+						req.add_header('Accept-Language', 'en-US,en;q=0.8')
+						req.add_header('Connection', 'keep-alive')
+						req.add_header('Referer', 'www.reddit.com')
+
+						# Fetch the submitted amp page, if canonical (direct link) was found, save these for later
+						try:
+							# Fetch submitted amp page
+							print("\nNow scanning the Amp link: " + comments_urls[x] + "\n")
+							content = urlopen(comments_urls[x])
+							
+							# Make the received data readable
+							print("Making a soup...\n")
+							soup = BeautifulSoup(content, features= "lxml")
+							print("Making a readable soup...\n")
+							soup.prettify()
+
+							# Scan the received data for the direct link
+							print("Scanning for all links...\n")
+							try:
+								# Check for every link on the amp page if it is of the type rel='canonical'
+								for link in soup.find_all(rel='canonical'):
+									# Get the direct link
+									comments_canonical_url = link.get('href')
+									print("Found the normal link: "+comments_canonical_url+"\n")
+
+									# If the canonical url is the same as the submitted url, don't use it
+									if comments_canonical_url == comments_urls[x]:
+										print(" [Error:If] False positive encounterd (comments_canonical_url == comments_urls[x]).")
+
+									# If the canonical url is unique, add the direct link to the array
+									else:
+										comments_non_amps_urls_amount = len(comments_non_amp_urls)
+										comments_canonical_url = "["+str(comments_non_amps_urls_amount+1)+"] **"+comments_canonical_url+"**"
+										comments_non_amp_urls.append(comments_canonical_url)
+										print(comments_non_amp_urls)
+
+							# If no direct links were found, throw an exception	
+							except Exception as e:
+								logging.error(traceback.format_exc())
+								print(" [ERROR:Exception] The direct link could not be found.")
+
+						# If the submitted page could't be fetched (or something else went wrong), throw an exception
+						except Exception as e:
+							logging.error(traceback.format_exc())
+							print(" [ERROR:Exception] Submitted page could not be fetched or something else")
+							
+					# If the program fails to get the correct amp link, ignore it.
+					else:
+						print(" [ERROR:else:] This link is no AMP link: "+comments_urls[x])
 
 			# If the program fails to find any link at all, throw an exception
 			except Exception as e:
 					logging.error(traceback.format_exc())
 					print(" [ERROR:Exception] Looks like something went wrong trying to find the non_amp url.")
-					could_not_reply = True
-			
+
+			# If no direct links were found, don't reply
+			if comments_non_amps_urls_amount == 0:
+				print(" [ERROR:If] There were no correct direct links found. There will be no reply made.")
+
+			# If there were direct links found, reply
+			else:
+
+				# Try to reply to OP
+				try:
+
+					# If there was only one url found, generate a simple comment
+					if comments_non_amps_urls_amount == 1:
+						comment_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+comments_non_amp_urls[x]+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention [u/AmputatorBot](https://www.reddit.com/user/AmputatorBot) in a reply and I'll try to share the direct link.)"
+
+					# If there were multiple urls found, generate a multi-url comment
+					if comments_non_amps_urls_amount > 1:
+						# Generate string of all found links
+						comment_reply_generated = '\n\n'.join(comments_non_amp_urls)
+						# Generate entire comment
+						comment_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a couple of Google AMP links. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+comment_reply_generated+"\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention [u/AmputatorBot](https://www.reddit.com/user/AmputatorBot) in a reply and I'll try to share the direct link.)"
+
+					else:
+						print(" [ERROR:Else] There was a weird amount of non_amps_urls found:"+comments_non_amps_urls_amount)
+
+					# Reply to comment
+					comment.reply(comment_reply)
+					print("Replied to comment #"+comment.id+".\n")
+					comment_could_reply = True
+					print("Operation succesfull.\n")
+
+				# If the reply didn't got through, throw an exception (can occur when comment gets deleted or when rate limits are exceeded)
+				except Exception as e:
+					logging.error(traceback.format_exc())
+					print(" [ERROR:Exception] Could not reply to post.")
+					comment_could_not_reply = True
+
 			# If the reply was successfully send, note this
-			if could_reply:
-				comments_replied_to.append(comment.id)
+			if comment_could_reply:
 				with open ("comments_replied_to.txt", "a") as f:
 					f.write(comment.id + ",")
+					comments_replied_to.append(comment.id)
 					print("Added the comment id to file: comments_replied_to.txt.\n")
 			
 			# If the reply could not be made or send, note this
-			if could_not_reply:
-				comments_unable_to_reply.append(comment.id)
+			if comment_could_not_reply:
 				with open ("comments_unable_to_reply.txt", "a") as f:
 					f.write(comment.id + ",")
-					print("Added the comment id to file: comments_unable_to_reply.txt\n")
+					comments_unable_to_reply.append(comment.id)
+					print("Added the comment id to file: comments_unable_to_reply.txt.\n")
 
 			# For debugging purposes:
 			try:

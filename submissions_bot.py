@@ -27,11 +27,11 @@ def bot_login():
 	return r
 
 # Main function. Gets the submissions stream, scans these for AMP links and replies with the direct link
-def run_bot(r, comments_replied_to, comments_unable_to_reply):
-	print("Obtaining the stream of submissions in subreddits amputatorbot, audio, bitcoin, chrome, NOT YET conservative, degoogle, europe, google, firefox, gaming, history, movies, politicaldiscussion, programming, robotics, security, seo, tech, technology, test, todayilearned and NOT YET worldnews.\n")
+def run_bot(r, submissions_replied_to, submissions_unable_to_reply):
+	print("Obtaining the stream of submissions in subreddits amputatorbot, audio, bitcoin, chrome, NOT YET conservative, degoogle, europe, google, firefox, gaming, history, movies, programming, robotics, security, seo, tech, technology, test, todayilearned and NOT YET worldnews.\n")
 
 	# Get the submission stream of select subreddits using Praw.
-	for submission in r.subreddit('amputatorbot+audio+chrome+degoogle+europe+google+firefox+gaming+history+movies+politicaldiscussion+programming+robotics+security+seo+tech+technology+test+todayilearned').stream.submissions():
+	for submission in r.subreddit('amputatorbot+audio+chrome+degoogle+europe+google+firefox+gaming+history+movies+programming+robotics+security+seo+tech+technology+test+todayilearned').stream.submissions():
 		# Resets for every submission
 		submission_meets_all_criteria = False
 		submission_could_not_reply = False
@@ -100,27 +100,34 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 							submission_non_amp_url = link.get('href')
 							print("Found the normal link: "+submission_non_amp_url+"\n")
 
-						# Generate a comment	
-						submission_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+submission_non_amp_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention [u/AmputatorBot](https://www.reddit.com/user/AmputatorBot) in a reply and I'll try to share the direct link.)"
+							# If the canonical url is the same as the submitted url, don't use it
+							if submission_non_amp_url == submission.url:
+								print(" [Error:If] False positive encounterd (submission_non_amp_url == submission.url.")
+								submission_could_not_reply = True
+
+							# If the canonical url is unique, generate and post a comment
+							else:
+								# Generate a comment	
+								submission_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+submission_non_amp_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention [u/AmputatorBot](https://www.reddit.com/user/AmputatorBot) in a reply and I'll try to share the direct link.)"
+
+								# Try to comment on OP's submission with a top-level comment
+								try:
+									submission.reply(submission_reply)
+									print("REPLY="+submission_reply+"\n")
+									print("Replied to submission #"+submission.id+".\n")
+									submission_could_reply = True
+									print("Operation succesfull.\n")
 							
+								# If the reply didn't got through, throw an exception (can occur when the submisstion gets deleted or when rate limits are exceeded)
+								except Exception as e:
+									logging.error(traceback.format_exc())
+									print(" [ERROR:Exception] Could not reply to submission.")
+									submission_could_not_reply = True
+
 					# If no direct links were found, throw an exception	
 					except Exception as e:
 						logging.error(traceback.format_exc())
 						print(" [ERROR:Exception] The direct link could not be found.")
-						submission_could_not_reply = True
-
-					# Try to comment on OP's submission with a top-level comment
-					try:
-						submission.reply(submission_reply)
-						print("REPLY="+submission_reply+"\n")
-						print("Replied to submission #"+submission.id+".\n")
-						submission_could_reply = True
-						print("Operation succesfull.\n")
-					
-					# If the reply didn't got through, throw an exception (can occur when comment gets deleted or when rate limits are exceeded)
-					except Exception as e:
-						logging.error(traceback.format_exc())
-						print(" [ERROR:Exception] Could not reply to submission.")
 						submission_could_not_reply = True
 						
 				# If the submitted page couldn't be fetched (or something else went wrong), throw an exception

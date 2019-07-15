@@ -39,7 +39,10 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 		mention_could_reply = False
 		parent_is_comment = False
 		parent_is_submission = False
-
+		mentions_urls = []
+		mentions_non_amp_urls = []
+		mentions_non_amps_urls_amount = 0
+		
 		# Print a notice that u/AmputatorBot has been mentioned
 		parent = mention.parent()
 		print("\n\nu/AmputatorBot has been mentioned. Mention comment ID: " + mention.id + "\nParent comment ID: "+ parent.id)
@@ -96,120 +99,140 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 				
 			else:
 				print(" [ STOP ] #" + parent.id + " was called in a subreddit were bot is forbidden.\n")
-				
-			'''else:
-				print("There was no need to find the instance, as not all conditions were met.")'''
 
 		else:
 			print(" [ STOP ] #" + parent.id + " parent did not contain an amp link.\n")
 
 		# If the parent is a comment, try to reply with the direct link
 		if reply_to_parent:
-			print("REPLY NEEDED FOR A COMMENT")
 			try:
 				print(parent_body)
 				print("Trying to find the submitted url...\n")
 
-				# Scan the comment body for the (first) link
-				amp_url = re.search("(?P<url>https?://[^\s]+)", parent_body).group("url")
+				# Scan the comment body for the links
+				mentions_urls = re.findall("(?P<url>https?://[^\s]+)", parent_body)
+				mentions_urls_amount = len(mentions_urls)
 
-				# Isolate the actual URL (remove markdown) (part 1)
-				try:
-					amp_url = amp_url.split('](')[-1]
-					print("The amp link: "+amp_url+" was stripped of markdown.\n")
-				except Exception as e:
-					logging.error(traceback.format_exc())
-					print("The amp link couldn't of didn't have to be trimmed.\n")
+				# Loop through all submitted links	
+				for x in range(mentions_urls_amount):
 
-				# Isolate the actual URL (remove markdown) (part 2)
-				if amp_url.endswith(')?'):
-					amp_url = amp_url[:-2]
-					print("Trimmed the amp link with 2 characters.")
-				if amp_url.endswith(')'):
-					amp_url = amp_url[:-1]
-					print("Trimmed the amp link with 1 characters.")
-				print(amp_url+"\n")
-
-				# Check: Is the isolated URL really an amp link?
-				if "/amp" in amp_url or ".amp" in amp_url or "amp." in amp_url and "https://" in amp_url:
-					print(" [ OK ] The correct Amp link was found: "+amp_url+"\n")
-					print("Retrieving amp page...\n")
-
-					# Premake an urllib request (to fetch the submitted amp page)	
-					req = urllib.request.Request(amp_url)
-					req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0')
-					req.add_header('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8')
-					req.add_header('Accept-Charset', 'ISO-8859-1,utf-8;q=0.7,*;q=0.3')
-					req.add_header('Accept-Encoding', 'none')
-					req.add_header('Accept-Language', 'en-US,en;q=0.8')
-					req.add_header('Connection', 'keep-alive')
-					req.add_header('Referer', 'www.reddit.com')
-
-					# Fetch the submitted amp page, if canonical (direct link) was found, generate and post comment
+					# Isolate the actual URL (remove markdown) (part 1)
 					try:
-						# Fetch submitted amp page
-						content = urllib.request.urlopen(req)
-						print("\nNow scanning the Amp link: " + amp_url + "\n")
-						content = urlopen(amp_url)
-						
-						# Make the received data readable
-						print("Making a soup...\n")
-						soup = BeautifulSoup(content, features= "lxml")
-						print("Making a readable soup...\n")
-						soup.prettify()
-
-						# Scan the received data for the direct link
-						print("Scanning for all links...\n")
-						try:
-							# Check for every link on the amp page if it is of the type rel='canonical'
-							for link in soup.find_all(rel='canonical'):
-								# Get the direct link
-								non_amp_url = link.get('href')
-								print("Found the normal link: "+non_amp_url+"\n")
-
-							# Get the username of the authors
-							mention_author = mention.author
-							mention_author_name = mention_author.name
-							parent_author = parent.author
-							parent_author_name = parent_author.name
-
-							# Generate a comment
-							comment_reply = "Beep boop, I'm a bot.\n\nIt looks like someone shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+non_amp_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention [u/AmputatorBot](https://www.reddit.com/user/AmputatorBot) in a reply and I'll try to share the direct link.)"
-
-						# If no direct links were found, throw an exception	
-						except Exception as e:
-							logging.error(traceback.format_exc())
-							print(" [ERROR:Exception] The direct link could not be found.")
-							mention_could_not_reply = True
-
-						# Try to reply to OP
-						try:
-							mention.reply(comment_reply)
-							print("Replied to comment #"+parent.id+".\n")
-							mention_could_reply = True
-							print("Operation succesfull.\n")
-
-						# If the reply didn't got through, throw an exception (can occur when comment gets deleted or when rate limits are exceeded)
-						except Exception as e:
-							logging.error(traceback.format_exc())
-							print(" [ERROR:Exception] Could not reply to post.")
-							mention_could_not_reply = True
-
-					# If the submitted page could't be fetched (or something else went wrong), throw an exception
+						mentions_urls[x] = mentions_urls[x].split('](')[-1]
+						print("A link: "+ mentions_urls[x] +" was stripped of markdown.\n")
 					except Exception as e:
 						logging.error(traceback.format_exc())
-						print(" [ERROR:Exception] Submitted page could not be fetched or something else")
-						mention_could_not_reply = True
+						print("A link couldn't of didn't have to be trimmed.\n")
 
-				# If the program fails to get the correct amp link  (which has to be the first link in the comment body (for now)), ignore it.
-				else:
-					print(" [ERROR:else:] Could not find the correct amp link.")
-					mention_could_not_reply = True
+					# Isolate the actual URL (remove markdown) (part 2)
+					if mentions_urls[x].endswith(')?'):
+						mentions_urls[x] = mentions_urls[x][:-2]
+						print("Trimmed the link with 2 characters.")
+					if mentions_urls[x].endswith(')'):
+						mentions_urls[x] = mentions_urls[x][:-1]
+						print("Trimmed the link with 1 characters.")
+					print(mentions_urls[x]+"\n")
+
+					# Check: Is the isolated URL really an amp link?
+					if "/amp" in mentions_urls[x] or ".amp" in mentions_urls[x] or "amp." in mentions_urls[x] and "https://" in mentions_urls[x]:
+						print(" [ OK ] The correct Amp link was found: " + mentions_urls[x] + "\n")
+						print("Retrieving amp page...\n")
+
+						# Premake an urllib request (to fetch the submitted amp page)	
+						req = urllib.request.Request(mentions_urls[x])
+						req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0')
+						req.add_header('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8')
+						req.add_header('Accept-Charset', 'ISO-8859-1,utf-8;q=0.7,*;q=0.3')
+						req.add_header('Accept-Encoding', 'none')
+						req.add_header('Accept-Language', 'en-US,en;q=0.8')
+						req.add_header('Connection', 'keep-alive')
+						req.add_header('Referer', 'www.reddit.com')
+
+						# Fetch the submitted amp page, if canonical (direct link) was found, save these for later
+						try:
+							# Fetch submitted amp page
+							print("\nNow scanning the Amp link: " + mentions_urls[x] + "\n")
+							content = urlopen(mentions_urls[x])
+							
+							# Make the received data readable
+							print("Making a soup...\n")
+							soup = BeautifulSoup(content, features= "lxml")
+							print("Making a readable soup...\n")
+							soup.prettify()
+
+							# Scan the received data for the direct link
+							print("Scanning for all links...\n")
+							try:
+								# Check for every link on the amp page if it is of the type rel='canonical'
+								for link in soup.find_all(rel='canonical'):
+									# Get the direct link
+									mentions_canonical_url = link.get('href')
+									print("Found the normal link: "+mentions_canonical_url+"\n")
+
+									# If the canonical url is the same as the submitted url, don't use it
+									if mentions_canonical_url == mentions_urls[x]:
+										print(" [Error:If] False positive encounterd (mentions_canonical_url == mentions_urls[x]).")
+
+									# If the canonical url is unique, add the direct link to the array
+									else:
+										mentions_non_amps_urls_amount = len(mentions_non_amp_urls)
+										mentions_canonical_url = "["+str(mentions_non_amps_urls_amount+1)+"] **"+mentions_canonical_url+"**"
+										mentions_non_amp_urls.append(mentions_canonical_url)
+										print(mentions_non_amp_urls)
+
+							# If no direct links were found, throw an exception	
+							except Exception as e:
+								logging.error(traceback.format_exc())
+								print(" [ERROR:Exception] The direct link could not be found.")
+
+						# If the submitted page could't be fetched (or something else went wrong), throw an exception
+						except Exception as e:
+							logging.error(traceback.format_exc())
+							print(" [ERROR:Exception] Submitted page could not be fetched or something else")
+							
+					# If the program fails to get the correct amp link, ignore it.
+					else:
+						print(" [ERROR:else:] This link is no AMP link: "+mentions_urls[x])
 
 			# If the program fails to find any link at all, throw an exception
 			except Exception as e:
 					logging.error(traceback.format_exc())
 					print(" [ERROR:Exception] Looks like something went wrong trying to find the non_amp url.")
+
+			# If no direct links were found, don't reply
+			if mentions_non_amps_urls_amount == 0:
+				print(" [ERROR:If] There were no correct direct links found. There will be no reply made.")
+
+			# If there were direct links found, reply
+			else:
+
+				# Try to reply to OP
+				try:
+
+					# If there was only one url found, generate a simple comment
+					if mentions_non_amps_urls_amount == 1:
+						mention_reply = "Beep boop, I'm a bot.\n\nIt looks like someone shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+mentions_non_amp_urls[x]+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention [u/AmputatorBot](https://www.reddit.com/user/AmputatorBot) in a reply and I'll try to share the direct link.)"
+
+					# If there were multiple urls found, generate a multi-url comment
+					if mentions_non_amps_urls_amount > 1:
+						# Generate string of all found links
+						mention_reply_generated = '\n\n'.join(mentions_non_amp_urls)
+						# Generate entire comment
+						mention_reply = "Beep boop, I'm a bot.\n\nIt looks like someone shared a couple of Google AMP links. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+mention_reply_generated+"\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention [u/AmputatorBot](https://www.reddit.com/user/AmputatorBot) in a reply and I'll try to share the direct link.)"
+
+					else:
+						print(" [ERROR:Else] There was a weird amount of non_amps_urls found:"+mentions_non_amps_urls_amount)
+
+					# Reply to mention
+					mention.reply(mention_reply)
+					print("Replied to comment #"+parent.id+".\n")
+					mention_could_reply = True
+					print("Operation succesfull.\n")
+
+				# If the reply didn't got through, throw an exception (can occur when comment gets deleted or when rate limits are exceeded)
+				except Exception as e:
+					logging.error(traceback.format_exc())
+					print(" [ERROR:Exception] Could not reply to post.")
 					mention_could_not_reply = True
 
 			# If the reply was successfully send, note this
