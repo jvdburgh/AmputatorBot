@@ -42,6 +42,7 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 		mentions_urls = []
 		mentions_non_amp_urls = []
 		mentions_non_amps_urls_amount = 0
+		mentions_canonical_url = ""
 		
 		# Print a notice that u/AmputatorBot has been mentioned
 		parent = mention.parent()
@@ -130,7 +131,7 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 						print("Trimmed the link with 2 characters.")
 					if mentions_urls[x].endswith(')'):
 						mentions_urls[x] = mentions_urls[x][:-1]
-						print("Trimmed the link with 1 characters.")
+						print("Trimmed the link with 1 character.")
 					print(mentions_urls[x]+"\n")
 
 					# Check: Is the isolated URL really an amp link?
@@ -172,23 +173,26 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 									# If the canonical url is the same as the submitted url, don't use it
 									if mentions_canonical_url == mentions_urls[x]:
 										print(" [Error:If] False positive encounterd (mentions_canonical_url == mentions_urls[x]).")
+										mention_could_not_reply = True
 
 									# If the canonical url is unique, add the direct link to the array
 									else:
 										mentions_non_amps_urls_amount = len(mentions_non_amp_urls)
-										mentions_canonical_url = "["+str(mentions_non_amps_urls_amount+1)+"] **"+mentions_canonical_url+"**"
-										mentions_non_amp_urls.append(mentions_canonical_url)
+										mentions_canonical_url_markdown = "["+str(mentions_non_amps_urls_amount+1)+"] **"+mentions_canonical_url+"**"
+										mentions_non_amp_urls.append(mentions_canonical_url_markdown)
 										print(mentions_non_amp_urls)
 
 							# If no direct links were found, throw an exception	
 							except Exception as e:
 								logging.error(traceback.format_exc())
 								print(" [ERROR:Exception] The direct link could not be found.")
+								mention_could_not_reply = True
 
 						# If the submitted page could't be fetched (or something else went wrong), throw an exception
 						except Exception as e:
 							logging.error(traceback.format_exc())
 							print(" [ERROR:Exception] Submitted page could not be fetched or something else")
+							mention_could_not_reply = True
 							
 					# If the program fails to get the correct amp link, ignore it.
 					else:
@@ -198,11 +202,17 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 			except Exception as e:
 					logging.error(traceback.format_exc())
 					print(" [ERROR:Exception] Looks like something went wrong trying to find the non_amp url.")
+					mention_could_not_reply = True
 
 			# If no direct links were found, don't reply
-			comments_non_amps_urls_amount = len(mentions_non_amp_urls)
+			mentions_non_amps_urls_amount = len(mentions_non_amp_urls)
+			print("The array of submitted urls")
+			print(mentions_non_amp_urls)
+			print("The amount of non amp urls found")
+			print(mentions_non_amps_urls_amount)
 			if mentions_non_amps_urls_amount == 0:
 				print(" [ERROR:If] There were no correct direct links found. There will be no reply made.")
+				submission_could_not_reply = True
 
 			# If there were direct links found, reply
 			else:
@@ -212,7 +222,7 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 
 					# If there was only one url found, generate a simple comment
 					if mentions_non_amps_urls_amount == 1:
-						mention_reply = "Beep boop, I'm a bot.\n\nIt looks like someone shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+mentions_non_amp_urls[x]+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention) [^(u/AmputatorBot)](https://www.reddit.com/user/AmputatorBot) ^(in a reply and I'll try to share the direct link.)"
+						mention_reply = "Beep boop, I'm a bot.\n\nIt looks like someone shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+mentions_canonical_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention) [^(u/AmputatorBot)](https://www.reddit.com/user/AmputatorBot) ^(in a reply and I'll try to share the direct link.)"
 
 					# If there were multiple urls found, generate a multi-url comment
 					if mentions_non_amps_urls_amount > 1:
@@ -220,9 +230,6 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 						mention_reply_generated = '\n\n'.join(mentions_non_amp_urls)
 						# Generate entire comment
 						mention_reply = "Beep boop, I'm a bot.\n\nIt looks like someone shared a couple of Google AMP links. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+mention_reply_generated+"\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention) [^(u/AmputatorBot)](https://www.reddit.com/user/AmputatorBot) ^(in a reply and I'll try to share the direct link.)"
-
-					else:
-						print(" [ERROR:Else] There was a weird amount of non_amps_urls found:"+mentions_non_amps_urls_amount)
 
 					# Reply to mention
 					mention.reply(mention_reply)
@@ -251,6 +258,7 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 					print("Added the mention id to file: mentions_unable_to_reply.txt.\n")
 
 			# For debugging purposes:
+			'''
 			try:
 				print("\nmentions_replied_to.txt was found, the array is now as follows:")
 				print(mentions_replied_to)
@@ -263,6 +271,7 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 			except:
 				logging.error(traceback.format_exc())
 				print(" [ERROR:Exception] Something went wrong while printing (those damn printers never work when you need them to!)")
+			'''
 
 # Get the data of which mentions have been replied to
 def get_saved_mentions_repliedtos():

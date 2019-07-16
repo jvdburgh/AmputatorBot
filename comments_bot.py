@@ -30,10 +30,10 @@ def bot_login():
 
 # Main function. Gets last 2000 comments, scans these for AMP links and replies with the direct link
 def run_bot(r, comments_replied_to, comments_unable_to_reply):
-	print("Obtaining the last 2000 comments in subreddits amputatorbot, audio, bitcoin, chrome, NOT YET conservative, degoogle, europe, google, firefox, gaming, history, movies, programming, robotics, security, seo, tech, technology, test, todayilearned and NOT YET worldnews.\n")
+	print("Obtaining the last 2000 comments in subreddits amputatorbot, audio, bitcoin, chrome, NOT YET conservative, degoogle, europe, google, firefox, gaming, history, programming, robotics, security, seo, tech, technology, test, todayilearned and NOT YET worldnews.\n")
 
 	# Get the latest 2000 comments in select subreddits using Praw.
-	for comment in r.subreddit('amputatorbot+audio+chrome+degoogle+europe+google+firefox+gaming+history+movies+programming+robotics+security+seo+tech+technology+test+todayilearned').comments(limit=2000):
+	for comment in r.subreddit('amputatorbot+audio+chrome+degoogle+europe+google+firefox+gaming+history+programming+robotics+security+seo+tech+technology+test+todayilearned').comments(limit=2000):
 		# Resets for every comment
 		meets_all_criteria = False
 		comment_could_not_reply = False
@@ -41,7 +41,8 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 		comments_urls = []
 		comments_non_amp_urls = []
 		comments_non_amps_urls_amount = 0
-		
+		comments_canonical_url = ""
+
 		# Check: Does the comment contain any AMP links?
 		if "/amp" in comment.body or ".amp" in comment.body or "amp." in comment.body and "https://" in comment.body:
 			print(" [ OK ] #" + comment.id + " contains one or more of the keywords.")
@@ -93,7 +94,7 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 						print("Trimmed the link with 2 characters.")
 					if comments_urls[x].endswith(')'):
 						comments_urls[x] = comments_urls[x][:-1]
-						print("Trimmed the link with 1 characters.")
+						print("Trimmed the link with 1 character.")
 					print(comments_urls[x]+"\n")
 
 					# Check: Is the isolated URL really an amp link?
@@ -135,37 +136,46 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 									# If the canonical url is the same as the submitted url, don't use it
 									if comments_canonical_url == comments_urls[x]:
 										print(" [Error:If] False positive encounterd (comments_canonical_url == comments_urls[x]).")
+										comment_could_not_reply = True
 
 									# If the canonical url is unique, add the direct link to the array
 									else:
 										comments_non_amps_urls_amount = len(comments_non_amp_urls)
-										comments_canonical_url = "["+str(comments_non_amps_urls_amount+1)+"] **"+comments_canonical_url+"**"
-										comments_non_amp_urls.append(comments_canonical_url)
-										print(comments_non_amp_urls)
+										comments_canonical_url_markdowned = "["+str(comments_non_amps_urls_amount+1)+"] **"+comments_canonical_url+"**"
+										comments_non_amp_urls.append(comments_canonical_url_markdowned)
+										print(comments_canonical_url)
 
 							# If no direct links were found, throw an exception	
 							except Exception as e:
 								logging.error(traceback.format_exc())
 								print(" [ERROR:Exception] The direct link could not be found.")
+								comment_could_not_reply = True
 
 						# If the submitted page could't be fetched (or something else went wrong), throw an exception
 						except Exception as e:
 							logging.error(traceback.format_exc())
 							print(" [ERROR:Exception] Submitted page could not be fetched or something else")
+							comment_could_not_reply = True
 							
 					# If the program fails to get the correct amp link, ignore it.
 					else:
-						print(" [ERROR:else:] This link is no AMP link: "+comments_urls[x])
+						print(" [ERROR:Else] This link is no AMP link: "+comments_urls[x])
 
 			# If the program fails to find any link at all, throw an exception
 			except Exception as e:
 					logging.error(traceback.format_exc())
 					print(" [ERROR:Exception] Looks like something went wrong trying to find the non_amp url.")
+					comment_could_not_reply = True
 
 			# If no direct links were found, don't reply
 			comments_non_amps_urls_amount = len(comments_non_amp_urls)
+			print("The array of submitted urls")
+			print(comments_non_amp_urls)
+			print("The amount of non amp urls found")
+			print(comments_non_amps_urls_amount)
 			if comments_non_amps_urls_amount == 0:
 				print(" [ERROR:If] There were no correct direct links found. There will be no reply made.")
+				comment_could_not_reply = True
 
 			# If there were direct links found, reply
 			else:
@@ -175,7 +185,7 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 
 					# If there was only one url found, generate a simple comment
 					if comments_non_amps_urls_amount == 1:
-						comment_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+comments_non_amp_urls[x]+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention) [^(u/AmputatorBot)](https://www.reddit.com/user/AmputatorBot) ^(in a reply and I'll try to share the direct link.)"
+						comment_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+comments_canonical_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention) [^(u/AmputatorBot)](https://www.reddit.com/user/AmputatorBot) ^(in a reply and I'll try to share the direct link.)"
 
 					# If there were multiple urls found, generate a multi-url comment
 					if comments_non_amps_urls_amount > 1:
@@ -183,9 +193,6 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 						comment_reply_generated = '\n\n'.join(comments_non_amp_urls)
 						# Generate entire comment
 						comment_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a couple of Google AMP links. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+comment_reply_generated+"\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention) [^(u/AmputatorBot)](https://www.reddit.com/user/AmputatorBot) ^(in a reply and I'll try to share the direct link.)"
-
-					else:
-						print(" [ERROR:Else] There was a weird amount of non_amps_urls found:"+comments_non_amps_urls_amount)
 
 					# Reply to comment
 					comment.reply(comment_reply)
@@ -214,6 +221,7 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 					print("Added the comment id to file: comments_unable_to_reply.txt.\n")
 
 			# For debugging purposes:
+			'''
 			try:
 				print("\ncomments_replied_to.txt was found, the array is now as follows:")
 				print(comments_replied_to)
@@ -226,6 +234,7 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 			except:
 				logging.error(traceback.format_exc())
 				print(" [ERROR:Exception] Something went wrong while printing (those damn printers never work when you need them to!)")
+			'''
 
 	# Sleep for 90 seconds (to prevent exceeding of rate limits)
 	print("\n"+datetime.now().strftime('%Y-%m-%d %H:%M:%S')+": Sleeping for 90 seconds...\n")

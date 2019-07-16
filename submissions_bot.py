@@ -28,10 +28,10 @@ def bot_login():
 
 # Main function. Gets the submissions stream, scans these for AMP links and replies with the direct link
 def run_bot(r, submissions_replied_to, submissions_unable_to_reply):
-	print("Obtaining the stream of submissions in subreddits amputatorbot, audio, bitcoin, chrome, NOT YET conservative, degoogle, europe, google, firefox, gaming, history, movies, programming, robotics, security, seo, tech, technology, test, todayilearned and NOT YET worldnews.\n")
+	print("Obtaining the stream of in subreddits amputatorbot, audio, bitcoin, chrome, NOT YET conservative, degoogle, europe, google, firefox, gaming, history, programming, robotics, security, seo, tech, technology, test, todayilearned and NOT YET worldnews.\n")
 
 	# Get the submission stream of select subreddits using Praw.
-	for submission in r.subreddit('amputatorbot+audio+chrome+degoogle+europe+google+firefox+gaming+history+movies+programming+robotics+security+seo+tech+technology+test+todayilearned').stream.submissions():
+	for submission in r.subreddit('amputatorbot+audio+chrome+degoogle+europe+google+firefox+gaming+history+programming+robotics+security+seo+tech+technology+test+todayilearned').stream.submissions():
 		# Resets for every submission
 		submission_meets_all_criteria = False
 		submission_could_not_reply = False
@@ -157,6 +157,7 @@ def run_bot(r, submissions_replied_to, submissions_unable_to_reply):
 					print("Added the submission id to file: submissions_unable_to_reply.txt\n")
 
 			# For debugging purposes:
+			'''
 			try:
 				print("\nSubmissions_replied_to.txt was found, the array is now as follows:")
 				print(submissions_replied_to)
@@ -169,6 +170,7 @@ def run_bot(r, submissions_replied_to, submissions_unable_to_reply):
 			except:
 				logging.error(traceback.format_exc())
 				print(" [ERROR:Exception] Something went wrong while printing (those damn printers never work when you need them to!)")
+			'''
 
 # Get the data of which submissions have been replied to
 def get_saved_submissions_repliedtos():
