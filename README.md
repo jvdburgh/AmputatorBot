@@ -14,12 +14,12 @@ And while Google is increasing their control over the internet, **you’re losin
 To protect the Open Web and your privacy, u/AmputatorBot provides the direct link (bypassing Google) by replying to Reddit comments and submissions.
 
 ## Working subreddits
-u/amputatorbot currently works with a select number of subreddits: r/amputatorbot, r/audio, r/bitcoin, r/chrome, r/degoogle, r/europe, r/gadgets, r/google, r/firefox, r/gaming, r/history, r/movies, r/politicaldiscussion, r/programming, r/robotics, r/security, r/seo, r/tech, r/technology, r/test and r/todayilearned.
+u/amputatorbot currently works with a select number of subreddits: r/amputatorbot, r/audio, r/bitcoin, r/chrome, r/degoogle, r/europe, r/gadgets, r/google, r/firefox, r/gaming, r/history, r/programming, r/robotics, r/security, r/seo, r/tech, r/technology, r/test and r/todayilearned.
 
 Hit me up on Reddit (u/AmputatorBot) with questions or suggestions and I will try to respond ASAP! Thanks for the love!
 
 ## Non-working subreddits
-Unfortunately, not everyone likes u/amputatorbot. It's not allowed on these subreddits: r/android, r/conservative, r/news, r/politics, r/worldnews and r/worldpolitics. [Some of these subreddits banned u/AmputatorBot](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot/).
+Unfortunately, not everyone likes u/amputatorbot. It's not allowed on these subreddits: r/android, r/conservative, r/gadgets, r/movies, r/news, r/politicaldiscussion r/politics, r/worldnews and r/worldpolitics. [Some of these subreddits banned u/AmputatorBot](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot/).
 
 ## Changelog
 The most recent version fixed a recent but annoying bug that would allow for AmputatorBot to reply mutiple times to the same comment or submission. Sorry about that. Check out the entire changelog [here](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot/).
