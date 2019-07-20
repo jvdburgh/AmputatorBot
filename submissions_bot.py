@@ -28,10 +28,10 @@ def bot_login():
 
 # Main function. Gets the submissions stream, scans these for AMP links and replies with the direct link
 def run_bot(r, submissions_replied_to, submissions_unable_to_reply):
-	print("Obtaining the stream of in subreddits amputatorbot, audio, bitcoin, chrome, NOT YET conservative, degoogle, europe, google, firefox, gaming, history, programming, robotics, security, seo, tech, technology, test, todayilearned and NOT YET worldnews.\n")
+	print("Obtaining the stream of in subreddits amputatorbot, audio, bitcoin, chrome, NOT YET conservative, degoogle, europe, google, firefox, gaming, history, programming, robotics, security, seo, tech, technology, test, todayilearned and worldnews.\n")
 
 	# Get the submission stream of select subreddits using Praw.
-	for submission in r.subreddit('amputatorbot+audio+chrome+degoogle+europe+google+firefox+gaming+history+programming+robotics+security+seo+tech+technology+test+todayilearned').stream.submissions():
+	for submission in r.subreddit('amputatorbot+audio+chrome+degoogle+europe+google+firefox+gaming+history+programming+robotics+security+seo+tech+technology+test+todayilearned+worldnews').stream.submissions():
 		# Resets for every submission
 		submission_meets_all_criteria = False
 		submission_could_not_reply = False
