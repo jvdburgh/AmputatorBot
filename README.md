@@ -14,10 +14,10 @@ And while Google is increasing their control over the internet, **you’re losin
 To protect the Open Web and your privacy, u/AmputatorBot provides the direct link (bypassing Google) by replying to Reddit comments and submissions.
 
 ## Working and non-working subreddits
-u/amputatorbot currently works with a [Select number of subreddits](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot/).
+u/amputatorbot currently works with a [select number of subreddits](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot/).
 
 ## Changelog
-Check out the entire changelog [here](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot/).
+Check out the changelog [here](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot/).
 
 ## Support the project
 AmputatorBot is a really important project for me and I want to spend as much time and resources into accomplishing it's goal: to make people aware of the dark side of AMP and to give people a choice. You can support the project in two ways:
