@@ -38,7 +38,7 @@ def run_bot(r, submissions_replied_to, submissions_unable_to_reply):
 		submission_could_reply = False
 
 		# Check: Does the submitted URL contain any amp links?
-		if "/amp" in submission.url or ".amp" in submission.url or "amp." in submission.url and "https://" in submission.url:
+		if "/amp" in submission.url or ".amp" in submission.url or "amp." in submission.url or "?amp" in submission.url or "amp?" in submission.url and "https://" in submission.url:
 			print(" [ OK ] #" + submission.id + " contains one or more of the keywords.")
 			
 			# Check: Has AmputatorBot tried (and failed) to respond to this submission already?

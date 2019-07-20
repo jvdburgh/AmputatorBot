@@ -44,7 +44,7 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 		comments_canonical_url = ""
 
 		# Check: Does the comment contain any AMP links?
-		if "/amp" in comment.body or ".amp" in comment.body or "amp." in comment.body and "https://" in comment.body:
+		if "/amp" in comment.body or ".amp" in comment.body or "amp." in comment.body or "?amp" in comment.body or "amp?" in comment.body and "https://" in comment.body:
 			print(" [ OK ] #" + comment.id + " contains one or more of the keywords.")
 
 			# Check: Has AmputatorBot tried (and failed) to respond to this comment already?

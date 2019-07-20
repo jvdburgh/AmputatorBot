@@ -69,7 +69,7 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 			mention_could_not_reply = True
 
 		# Check if the parent comment contains an AMP link
-		if "/amp" in parent_body or ".amp" in parent_body or "amp." in parent_body and "https://" in parent_body:
+		if "/amp" in parent_body or ".amp" in parent_body or "amp." in parent_body or "?amp" in parent_body or "amp?" in parent_body and "https://" in parent_body:
 			print(" [ OK ] #" + parent.id + " (the parent comment) contains one or more of the keywords.")
 
 			# Check: Is AmputatorBot allowed in called subreddit?
