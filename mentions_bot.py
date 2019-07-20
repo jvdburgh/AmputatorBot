@@ -135,7 +135,7 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 					print(mentions_urls[x]+"\n")
 
 					# Check: Is the isolated URL really an amp link?
-					if "/amp" in mentions_urls[x] or ".amp" in mentions_urls[x] or "amp." in mentions_urls[x] and "https://" in mentions_urls[x]:
+					if "/amp" in mentions_urls[x] or ".amp" in mentions_urls[x] or "amp." in mentions_urls[x] or "?amp" in mentions_urls[x] or "amp" in mentions_urls[x] and "https://" in mentions_urls[x]:
 						print(" [ OK ] The correct Amp link was found: " + mentions_urls[x] + "\n")
 						print("Retrieving amp page...\n")
 

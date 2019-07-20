@@ -98,7 +98,7 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 					print(comments_urls[x]+"\n")
 
 					# Check: Is the isolated URL really an amp link?
-					if "/amp" in comments_urls[x] or ".amp" in comments_urls[x] or "amp." in comments_urls[x] and "https://" in comments_urls[x]:
+					if "/amp" in comments_urls[x] or ".amp" in comments_urls[x] or "amp." in comments_urls[x] or "?amp" in comments_urls[x] or "amp?" in comments_urls[x] and "https://" in comments_urls[x]:
 						print(" [ OK ] The correct Amp link was found: " + comments_urls[x] + "\n")
 						print("Retrieving amp page...\n")
 
