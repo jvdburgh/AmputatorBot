@@ -1,1 +1,2 @@
-android,conservative,gadgets,history,movies,news,politicaldiscussion,politics,worldpolitics
+# The bot doesn't work in these subreddits for reasons I can't go into detail to due to the Bottiquette.
+android,conservative,futurology,gadgets,history,movies,news,politicaldiscussion,politics,worldpolitics
