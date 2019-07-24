@@ -44,7 +44,7 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 		comments_canonical_url = ""
 
 		# Check: Does the comment contain any AMP links?
-		if "/amp" in comment.body or ".amp" in comment.body or "amp." in comment.body or "?amp" in comment.body or "amp?" in comment.body and "https://" in comment.body:
+		if "/amp" in comment.body or ".amp" in comment.body or "amp." in comment.body or "?amp" in comment.body or "amp?" in comment.body or "=amp" in comment.body or "amp=" in comment.body and "https://" in comment.body:
 			print(" [ OK ] #" + comment.id + " contains one or more of the keywords.")
 
 			# Check: Has AmputatorBot tried (and failed) to respond to this comment already?
@@ -185,14 +185,14 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 
 					# If there was only one url found, generate a simple comment
 					if comments_non_amps_urls_amount == 1:
-						comment_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+comments_canonical_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention) [^(u/AmputatorBot)](https://www.reddit.com/user/AmputatorBot) ^(in a reply and I'll try to share the direct link.)"
+						comment_reply = "Beep boop, I'm a bot. It looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+comments_canonical_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention to summon)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
 
 					# If there were multiple urls found, generate a multi-url comment
 					if comments_non_amps_urls_amount > 1:
 						# Generate string of all found links
 						comment_reply_generated = '\n\n'.join(comments_non_amp_urls)
 						# Generate entire comment
-						comment_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a couple of Google AMP links. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+comment_reply_generated+"\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention) [^(u/AmputatorBot)](https://www.reddit.com/user/AmputatorBot) ^(in a reply and I'll try to share the direct link.)"
+						comment_reply = "Beep boop, I'm a bot. It looks like you shared a couple of Google AMP links. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+comment_reply_generated+"\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention to summon)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
 
 					# Reply to comment
 					comment.reply(comment_reply)

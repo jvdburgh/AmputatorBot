@@ -38,7 +38,7 @@ def run_bot(r, submissions_replied_to, submissions_unable_to_reply):
 		submission_could_reply = False
 
 		# Check: Does the submitted URL contain any amp links?
-		if "/amp" in submission.url or ".amp" in submission.url or "amp." in submission.url or "?amp" in submission.url or "amp?" in submission.url and "https://" in submission.url:
+		if "/amp" in submission.url or ".amp" in submission.url or "amp." in submission.url or "?amp" in submission.url or "amp?" in submission.url or "=amp" in submission.url or "amp=" in submission.url and "https://" in submission.url:
 			print(" [ OK ] #" + submission.id + " contains one or more of the keywords.")
 			
 			# Check: Has AmputatorBot tried (and failed) to respond to this submission already?
@@ -108,7 +108,7 @@ def run_bot(r, submissions_replied_to, submissions_unable_to_reply):
 							# If the canonical url is unique, generate and post a comment
 							else:
 								# Generate a comment	
-								submission_reply = "Beep boop, I'm a bot.\n\nIt looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+submission_non_amp_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( - By )^(Killed_Mufasa)^(, feedback welcome!)\n\n^(Spotted an AMP link in a comment or submission? Mention) [^(u/AmputatorBot)](https://www.reddit.com/user/AmputatorBot) ^(in a reply and I'll try to share the direct link.)"
+								submission_reply = "Beep boop, I'm a bot. It looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+submission_non_amp_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention to summon)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
 
 								# Try to comment on OP's submission with a top-level comment
 								try:
