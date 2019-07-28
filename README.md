@@ -17,13 +17,22 @@ To protect the Open Web and your privacy, u/AmputatorBot provides the direct lin
 u/amputatorbot currently works with a [select number of subreddits](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot/).
 
 ## Changelog
-Check out the changelog [here](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot/).
+Check out the changelog [here](https://www.reddit.com/r/AmputatorBot/comments/ch9fxp/changelog_of_amputatorbot/).
 
 ## Support the project
-AmputatorBot is a really important project for me and I want to spend as much time and resources into accomplishing it's goal: to make people aware of the dark side of AMP and to give people a choice. You can support the project in two ways:
+AmputatorBot is a really important project for me and I want to spend as much time and resources into accomplishing it's goal: to make people aware of the dark side of AMP and to give people a choice. You can support the project in a couple of ways:
 
-If you have some spare change laying around, you could make a small donation. You can donate via PayPal by clicking on this link: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2&source=url. It costs €8.26 per month to host the bot 24/7. You can fill in any amount of money, but don't feel obligated to donate much, I'm just trying to cover the costs.
+**Donate to cover the costs**
+If you have some spare change laying around, you could make a small donation to keep the servers running. You can donate via PayPal by clicking on this link: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2&source=url. It costs €8.26 per month to host the bot 24/7. You can fill in any amount of money, but don't feel obligated to donate much, I'm just trying to cover the costs.
 
-If you have some spare time laying around, please give me feedback, critism or create a pull request! Are you aware of a sub where a lot of AMPs are shared and where bots are allowed? Let me know! You can reply to this post or send me (u/Killed_Mufasa) a DM via Reddit.
+**Give feedback and contribute**
+If you have some spare time laying around, please give me feedback! You can:
+- [Reply in the FAQ post on Reddit](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot/)
+- [Submit a post with a feature request or bug report](https://www.reddit.com/r/AmputatorBot/submit)
+- [Fill an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues)
+- [Make a pull request on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues)
+
+**Summon the bot**
+Have you spotted an AMP link in a submitted page or comment? Mention u/AmputatorBot in a reply and I'll do my best to share the direct source (just remember that this won't work on the non-working subreddits).
 
 Thanks for the tremendous support you've given me and u/AmputatorBot <3
