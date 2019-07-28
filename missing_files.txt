@@ -3,6 +3,8 @@ You might be searching for these files:
 - submissions_unable_to_reply.txt
 - comments_replied_to.txt
 - comments_unable_to_reply.txt
+- mentions_replied_to.txt
+- mentions_unable_to_reply.txt
 
 These files will not be shared to prevent spam and doxing.
 Besides, these files will be automatically created by the 2 python scripts.
