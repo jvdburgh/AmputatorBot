@@ -1,4 +1,4 @@
-# AmputatorBot
+![Alt text](/logo/amputatorbot-v3.2.1.png)
 TL;DR: AmputatorBot is a Reddit bot that replies to comments and submissions containing AMP URLS with the direct and original link.
 
 ## Why AMP is bad for everyone
@@ -12,6 +12,7 @@ And while Google is increasing their control over the internet, **you’re losin
 > When you use the Google AMP Viewer, **Google and the publisher that made the AMP page may each collect data about you.**
 
 To protect the Open Web and your privacy, u/AmputatorBot provides the direct link (bypassing Google) by replying to Reddit comments and submissions.
+
 
 ## Working and non-working subreddits
 u/amputatorbot currently works with a [select number of subreddits](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot/).
