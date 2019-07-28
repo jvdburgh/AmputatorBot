@@ -26,19 +26,30 @@ def bot_login():
 	print("Successfully logged in!\n")
 	return r
 
+def contains_amp_url(string_to_check):
+	# If the string contains an AMP link, return True
+	if "/amp" in string_to_check or ".amp" in string_to_check or "amp." in string_to_check or "?amp" in string_to_check or "amp?" in string_to_check or "=amp" in string_to_check or "amp=" in string_to_check and "https://" in string_to_check:
+		string_contains_amp_url = True
+		return string_contains_amp_url
+	
+	# If no AMP link was found in the string, return False
+	string_contains_amp_url = False
+	return string_contains_amp_url
+
 # Main function. Gets the submissions stream, scans these for AMP links and replies with the direct link
-def run_bot(r, submissions_replied_to, submissions_unable_to_reply):
-	print("Obtaining the stream of in subreddits amputatorbot, audio, bitcoin, chrome, NOT YET conservative, degoogle, europe, google, firefox, gaming, history, programming, robotics, security, seo, tech, technology, test, todayilearned and worldnews.\n")
+def run_bot(r, allowed_subreddits, submissions_replied_to, submissions_unable_to_reply):
+	print("Obtaining the stream of in subreddits: "+("+".join(allowed_subreddits)))
 
 	# Get the submission stream of select subreddits using Praw.
-	for submission in r.subreddit('amputatorbot+audio+chrome+degoogle+europe+google+firefox+gaming+history+programming+robotics+security+seo+tech+technology+test+todayilearned+worldnews').stream.submissions():
+	for submission in r.subreddit(("+").join(allowed_subreddits)).stream.submissions():
 		# Resets for every submission
 		submission_meets_all_criteria = False
 		submission_could_not_reply = False
 		submission_could_reply = False
 
 		# Check: Does the submitted URL contain any amp links?
-		if "/amp" in submission.url or ".amp" in submission.url or "amp." in submission.url or "?amp" in submission.url or "amp?" in submission.url or "=amp" in submission.url or "amp=" in submission.url and "https://" in submission.url:
+		string_contains_amp_url = contains_amp_url(submission.url)
+		if string_contains_amp_url:
 			print(" [ OK ] #" + submission.id + " contains one or more of the keywords.")
 			
 			# Check: Has AmputatorBot tried (and failed) to respond to this submission already?
@@ -108,7 +119,7 @@ def run_bot(r, submissions_replied_to, submissions_unable_to_reply):
 							# If the canonical url is unique, generate and post a comment
 							else:
 								# Generate a comment	
-								submission_reply = "Beep boop, I'm a bot. It looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+submission_non_amp_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention to summon)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
+								submission_reply = "Beep boop, I'm a bot. It looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+submission_non_amp_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
 
 								# Try to comment on OP's submission with a top-level comment
 								try:
@@ -175,15 +186,14 @@ def run_bot(r, submissions_replied_to, submissions_unable_to_reply):
 # Get the data of which submissions have been replied to
 def get_saved_submissions_repliedtos():
 	if not os.path.isfile("submissions_replied_to.txt"):
-		submissions_replied_to = ['empty']
-		print("ERROR: Submissions_replied_to.txt could not be found, the array is now as follows:")
-		print(submissions_replied_to)
+		submissions_replied_to = []
+		print("ERROR: submissions_replied_to.txt could not be found.")
 
 	else:
 		with open("submissions_replied_to.txt", "r") as f:
 			submissions_replied_to = f.read()
 			submissions_replied_to = submissions_replied_to.split(",")
-			print("Submissions_replied_to.txt was found, the array is now as follows:")
+			print("submissions_replied_to.txt was found, the array is now as follows:")
 			print(submissions_replied_to)
 
 	return submissions_replied_to
@@ -191,24 +201,40 @@ def get_saved_submissions_repliedtos():
 # Get the data of which submissions could not be replied to (for any reason)
 def get_saved_submissions_unabletos():
 	if not os.path.isfile("submissions_unable_to_reply.txt"):
-		submissions_unable_to_reply = ['empty']
-		print("ERROR: Submissions_unable_to_reply.txt could not be found, the array is now as follows:")
-		print(submissions_unable_to_reply)
+		submissions_unable_to_reply = []
+		print("ERROR: Submissions_unable_to_reply.txt could not be found.")
 
 	else:
 		with open("submissions_unable_to_reply.txt", "r") as f:
 			submissions_unable_to_reply = f.read()
 			submissions_unable_to_reply = submissions_unable_to_reply.split(",")
-			print("Submissions_unable_to_reply.txt was found, the array is now as follows:")
+			print("submissions_unable_to_reply.txt was found, the array is now as follows:")
 			print(submissions_unable_to_reply)
 
 	return submissions_unable_to_reply
+
+# Get list of subreddits where the bot is allowed
+def get_allowed_subreddits():
+	if not os.path.isfile("allowed_subreddits.txt"):
+		allowed_subreddits = []
+		print("ERROR: allowed_subreddits.txt could not be found.")
+
+	else:
+		with open("allowed_subreddits.txt", "r") as f:
+			allowed_subreddits = f.read()
+			allowed_subreddits = allowed_subreddits.split(",")
+			print("allowed_subreddits.txt was found, the array is now as follows:")
+			print(allowed_subreddits)
+			print("The bot is allowed in these subreddits:", ", ".join(allowed_subreddits))
+
+	return allowed_subreddits
 
 # Uses these functions to run the bot
 r = bot_login()
 submissions_replied_to = get_saved_submissions_repliedtos()
 submissions_unable_to_reply = get_saved_submissions_unabletos()
+allowed_subreddits = get_allowed_subreddits()
 
 # Run the program
 while True:
-	run_bot(r, submissions_replied_to, submissions_unable_to_reply)
+	run_bot(r, allowed_subreddits, submissions_replied_to, submissions_unable_to_reply)

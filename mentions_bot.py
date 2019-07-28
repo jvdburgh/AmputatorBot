@@ -26,8 +26,18 @@ def bot_login():
 	print("Successfully logged in!\n")
 	return r
 
+def contains_amp_url(string_to_check):
+	# If the string contains an AMP link, return True
+	if "/amp" in string_to_check or ".amp" in string_to_check or "amp." in string_to_check or "?amp" in string_to_check or "amp?" in string_to_check or "=amp" in string_to_check or "amp=" in string_to_check and "https://" in string_to_check:
+		string_contains_amp_url = True
+		return string_contains_amp_url
+	
+	# If no AMP link was found in the string, return False
+	string_contains_amp_url = False
+	return string_contains_amp_url
+
 # Main function. Gets the inbox stream, filters for mentions, scans the context for AMP links and replies with the direct link (https://praw.readthedocs.io/en/latest/code_overview/reddit/inbox.html)
-def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddits):
+def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_reply):
 	print("Obtaining the stream of inbox items as they become available.")
 	
 	# Get the inbox stream using Praw (initially returns 100 historical items).
@@ -69,7 +79,8 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 			mention_could_not_reply = True
 
 		# Check if the parent comment contains an AMP link
-		if "/amp" in parent_body or ".amp" in parent_body or "amp." in parent_body or "?amp" in parent_body or "amp?" in parent_body or "=amp" in parent_body or "amp=" in parent_body and "https://" in parent_body:
+		string_contains_amp_url = contains_amp_url(parent_body)
+		if string_contains_amp_url:
 			print(" [ OK ] #" + parent.id + " (the parent comment) contains one or more of the keywords.")
 
 			# Check: Is AmputatorBot allowed in called subreddit?
@@ -135,7 +146,8 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 					print(mentions_urls[x]+"\n")
 
 					# Check: Is the isolated URL really an amp link?
-					if "/amp" in mentions_urls[x] or ".amp" in mentions_urls[x] or "amp." in mentions_urls[x] or "?amp" in mentions_urls[x] or "amp" in mentions_urls[x] and "https://" in mentions_urls[x]:
+					string_contains_amp_url = contains_amp_url(mentions_urls[x])
+					if string_contains_amp_url:
 						print(" [ OK ] The correct Amp link was found: " + mentions_urls[x] + "\n")
 						print("Retrieving amp page...\n")
 
@@ -222,13 +234,13 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 
 					# If there was only one url found, generate a simple comment
 					if mentions_non_amps_urls_amount == 1:
-						mention_reply = "Beep boop, I'm a bot. It looks like someone shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+mentions_canonical_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention to summon)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
+						mention_reply = "Beep boop, I'm a bot. It looks like someone shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+mentions_canonical_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
 					# If there were multiple urls found, generate a multi-url comment
 					if mentions_non_amps_urls_amount > 1:
 						# Generate string of all found links
 						mention_reply_generated = '\n\n'.join(mentions_non_amp_urls)
 						# Generate entire comment
-						mention_reply = "Beep boop, I'm a bot. It looks like someone shared a couple of Google AMP links. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+mention_reply_generated+"\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention to summon)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
+						mention_reply = "Beep boop, I'm a bot. It looks like someone shared a couple of Google AMP links. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+mention_reply_generated+"\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
 
 					# Reply to mention
 					mention.reply(mention_reply)
@@ -272,12 +284,27 @@ def run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddi
 				print(" [ERROR:Exception] Something went wrong while printing (those damn printers never work when you need them to!)")
 			'''
 
+# Get the data of which subreddits the bot is forbidden to post in
+def get_forbidden_subreddits():
+	if not os.path.isfile("forbidden_subreddits.txt"):
+		forbidden_subreddits = []
+		print("ERROR: forbidden_subreddits.txt could not be found.")
+
+	else:
+		with open("forbidden_subreddits.txt", "r") as f:
+			forbidden_subreddits = f.read()
+			forbidden_subreddits = forbidden_subreddits.split(",")
+			print("forbidden_subreddits.txt was found, the array is now as follows:")
+			print(forbidden_subreddits)
+			print("The bot is not allowed in these subreddits:", ", ".join(forbidden_subreddits))
+
+	return forbidden_subreddits
+
 # Get the data of which mentions have been replied to
 def get_saved_mentions_repliedtos():
 	if not os.path.isfile("mentions_replied_to.txt"):
-		mentions_replied_to = ['empty']
-		print("ERROR: mentions_replied_to.txt could not be found, the array is now as follows:")
-		print(mentions_replied_to)
+		mentions_replied_to = []
+		print("ERROR: mentions_replied_to.txt could not be found")
 
 	else:
 		with open("mentions_replied_to.txt", "r") as f:
@@ -291,9 +318,8 @@ def get_saved_mentions_repliedtos():
 # Get the data of which mentions could not be replied to (for any reason)
 def get_saved_mentions_unabletos():
 	if not os.path.isfile("mentions_unable_to_reply.txt"):
-		mentions_unable_to_reply = ['empty']
-		print("ERROR: mentions_unable_to_reply.txt could not be found, the array is now as follows:")
-		print(mentions_unable_to_reply)
+		mentions_unable_to_reply = []
+		print("ERROR: mentions_unable_to_reply.txt could not be found.")
 
 	else:
 		with open("mentions_unable_to_reply.txt", "r") as f:
@@ -304,30 +330,12 @@ def get_saved_mentions_unabletos():
 
 	return mentions_unable_to_reply
 
-# Get the data of which subreddits the bot is forbidden to post in
-def get_forbidden_subreddits():
-	if not os.path.isfile("forbidden_subreddits.txt"):
-		forbidden_subreddits = ['empty']
-		print("ERROR: forbidden_subreddits.txt could not be found, the array is now as follows:")
-		print(forbidden_subreddits)
-
-	else:
-		with open("forbidden_subreddits.txt", "r") as f:
-			forbidden_subreddits = f.read()
-			forbidden_subreddits = forbidden_subreddits.split(",")
-			print("forbidden_subreddits.txt was found, the array is now as follows:")
-			print(forbidden_subreddits)
-
-	return forbidden_subreddits
-
-
 # Uses these functions to run the bot
 r = bot_login()
+forbidden_subreddits = get_forbidden_subreddits()
 mentions_replied_to = get_saved_mentions_repliedtos()
 mentions_unable_to_reply = get_saved_mentions_unabletos()
-forbidden_subreddits = get_forbidden_subreddits()
-
 
 # Run the program
 while True:
-	run_bot(r, mentions_replied_to, mentions_unable_to_reply, forbidden_subreddits)
+	run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_reply)

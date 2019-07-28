@@ -28,12 +28,22 @@ def bot_login():
 	print("Successfully logged in!\n")
 	return r
 
+def contains_amp_url(string_to_check):
+	# If the string contains an AMP link, return True
+	if "/amp" in string_to_check or ".amp" in string_to_check or "amp." in string_to_check or "?amp" in string_to_check or "amp?" in string_to_check or "=amp" in string_to_check or "amp=" in string_to_check and "https://" in string_to_check:
+		string_contains_amp_url = True
+		return string_contains_amp_url
+	
+	# If no AMP link was found in the string, return False
+	string_contains_amp_url = False
+	return string_contains_amp_url
+
 # Main function. Gets last 2000 comments, scans these for AMP links and replies with the direct link
-def run_bot(r, comments_replied_to, comments_unable_to_reply):
-	print("Obtaining the last 2000 comments in subreddits amputatorbot, audio, bitcoin, chrome, NOT YET conservative, degoogle, europe, google, firefox, gaming, history, programming, robotics, security, seo, tech, technology, test, todayilearned and worldnews.\n")
+def run_bot(r, allowed_subreddits, comments_replied_to, comments_unable_to_reply):
+	print("Obtaining the last 2000 comments in subreddits: "+("+".join(allowed_subreddits)))
 
 	# Get the latest 2000 comments in select subreddits using Praw.
-	for comment in r.subreddit('amputatorbot+audio+chrome+degoogle+europe+google+firefox+gaming+history+programming+robotics+security+seo+tech+technology+test+todayilearned+worldnews').comments(limit=2000):
+	for comment in r.subreddit(("+").join(allowed_subreddits)).comments(limit=2000):
 		# Resets for every comment
 		meets_all_criteria = False
 		comment_could_not_reply = False
@@ -44,7 +54,8 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 		comments_canonical_url = ""
 
 		# Check: Does the comment contain any AMP links?
-		if "/amp" in comment.body or ".amp" in comment.body or "amp." in comment.body or "?amp" in comment.body or "amp?" in comment.body or "=amp" in comment.body or "amp=" in comment.body and "https://" in comment.body:
+		string_contains_amp_url = contains_amp_url(comment.body)
+		if string_contains_amp_url:
 			print(" [ OK ] #" + comment.id + " contains one or more of the keywords.")
 
 			# Check: Has AmputatorBot tried (and failed) to respond to this comment already?
@@ -98,7 +109,8 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 					print(comments_urls[x]+"\n")
 
 					# Check: Is the isolated URL really an amp link?
-					if "/amp" in comments_urls[x] or ".amp" in comments_urls[x] or "amp." in comments_urls[x] or "?amp" in comments_urls[x] or "amp?" in comments_urls[x] and "https://" in comments_urls[x]:
+					string_contains_amp_url = contains_amp_url(comments_urls[x])
+					if string_contains_amp_url:
 						print(" [ OK ] The correct Amp link was found: " + comments_urls[x] + "\n")
 						print("Retrieving amp page...\n")
 
@@ -185,14 +197,14 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 
 					# If there was only one url found, generate a simple comment
 					if comments_non_amps_urls_amount == 1:
-						comment_reply = "Beep boop, I'm a bot. It looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+comments_canonical_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention to summon)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
+						comment_reply = "Beep boop, I'm a bot. It looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+comments_canonical_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
 
 					# If there were multiple urls found, generate a multi-url comment
 					if comments_non_amps_urls_amount > 1:
 						# Generate string of all found links
 						comment_reply_generated = '\n\n'.join(comments_non_amp_urls)
 						# Generate entire comment
-						comment_reply = "Beep boop, I'm a bot. It looks like you shared a couple of Google AMP links. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+comment_reply_generated+"\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention to summon)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
+						comment_reply = "Beep boop, I'm a bot. It looks like you shared a couple of Google AMP links. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+comment_reply_generated+"\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
 
 					# Reply to comment
 					comment.reply(comment_reply)
@@ -240,18 +252,33 @@ def run_bot(r, comments_replied_to, comments_unable_to_reply):
 	print("\n"+datetime.now().strftime('%Y-%m-%d %H:%M:%S')+": Sleeping for 90 seconds...\n")
 	time.sleep(90)
 
+# Get list of subreddits where the bot is allowed
+def get_allowed_subreddits():
+	if not os.path.isfile("allowed_subreddits.txt"):
+		allowed_subreddits = []
+		print("ERROR: allowed_subreddits.txt could not be found.")
+
+	else:
+		with open("allowed_subreddits.txt", "r") as f:
+			allowed_subreddits = f.read()
+			allowed_subreddits = allowed_subreddits.split(",")
+			print("allowed_subreddits.txt was found, the array is now as follows:")
+			print(allowed_subreddits)
+			print("The bot is allowed in these subreddits:", ", ".join(allowed_subreddits))
+
+	return allowed_subreddits
+
 # Get the data of which comments have been replied to
 def get_saved_comments():
 	if not os.path.isfile("comments_replied_to.txt"):
-		comments_replied_to = ['empty']
-		print("ERROR: Comments_replied_to.txt could not be found, the array is now as follows:")
-		print(comments_replied_to)
+		comments_replied_to = []
+		print("ERROR: comments_replied_to.txt could not be found.")
 
 	else:
 		with open("comments_replied_to.txt", "r") as f:
 			comments_replied_to = f.read()
 			comments_replied_to = comments_replied_to.split(",")
-			print("Comments_replied_to.txt was found, the array is now as follows:")
+			print("comments_replied_to.txt was found, the array is now as follows:")
 			print(comments_replied_to)
 
 	return comments_replied_to
@@ -259,24 +286,24 @@ def get_saved_comments():
 # Get the data of which comments could not be replied to (for any reason)
 def get_saved_unabletos():
 	if not os.path.isfile("comments_unable_to_reply.txt"):
-		comments_unable_to_reply = ['empty']
-		print("ERROR: Comments_unable_to_reply.txt could not be found, the array is now as follows:")
-		print(comments_unable_to_reply)
+		comments_unable_to_reply = []
+		print("ERROR: comments_unable_to_reply.txt could not be found.")
 
 	else:
 		with open("comments_unable_to_reply.txt", "r") as f:
 			comments_unable_to_reply = f.read()
 			comments_unable_to_reply = comments_unable_to_reply.split(",")
-			print("Comments_unable_to_reply.txt could was found, the array is now as follows:")
+			print("comments_unable_to_reply.txt was found, the array is now as follows:")
 			print(comments_unable_to_reply)
 
 	return comments_unable_to_reply
 
 # Uses these functions to run the bot
 r = bot_login()
+allowed_subreddits = get_allowed_subreddits()
 comments_replied_to = get_saved_comments()
 comments_unable_to_reply = get_saved_unabletos()
 
 # Run the program
 while True:
-	run_bot(r, comments_replied_to, comments_unable_to_reply)
+	run_bot(r, allowed_subreddits, comments_replied_to, comments_unable_to_reply)
