@@ -1,4 +1,4 @@
-![Alt text](/logo/amputatorbot-v3.2.1.png)
+![#AmputatorBot](/img/amputatorbot-v3.2.1.png)
 TL;DR: AmputatorBot is a Reddit bot that replies to comments and submissions containing AMP URLS with the direct and original link.
 
 ## Why AMP is bad for everyone
