@@ -39,7 +39,7 @@ def contains_amp_url(string_to_check):
 # Main function. Gets the inbox stream, filters for mentions, scans the context for AMP links and replies with the direct link (https://praw.readthedocs.io/en/latest/code_overview/reddit/inbox.html)
 def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_reply):
 	print("Obtaining the stream of inbox items as they become available.")
-	
+
 	# Get the inbox stream using Praw (initially returns 100 historical items).
 	for mention in praw.models.util.stream_generator(r.inbox.mentions):
 
@@ -234,19 +234,22 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
 
 					# If there was only one url found, generate a simple comment
 					if mentions_non_amps_urls_amount == 1:
-						mention_reply = "Beep boop, I'm a bot. It looks like someone shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+mentions_canonical_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
+						mention_reply = "Beep boop, I'm a bot. It looks like someone shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+mentions_canonical_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | Summoned by a good human )[^(here)](https://www.reddit.com"+mention.context+")^."
 					# If there were multiple urls found, generate a multi-url comment
 					if mentions_non_amps_urls_amount > 1:
 						# Generate string of all found links
 						mention_reply_generated = '\n\n'.join(mentions_non_amp_urls)
 						# Generate entire comment
-						mention_reply = "Beep boop, I'm a bot. It looks like someone shared a couple of Google AMP links. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+mention_reply_generated+"\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
+						mention_reply = "Beep boop, I'm a bot. It looks like someone shared a couple of Google AMP links. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+mention_reply_generated+"\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | Summoned by a good human )[^(here)](https://www.reddit.com"+mention.context+")^."
 
 					# Reply to mention
-					mention.reply(mention_reply)
+					parent.reply(mention_reply)
 					print("Replied to comment #"+parent.id+".\n")
 					mention_could_reply = True
 					print("Operation succesfull.\n")
+					
+					# Reply to summoner with confirmation and link.
+					r.redditor(str(mention.author)).message("Thx for summoning me!", "The bot has successfully replied to this comment: https://www.reddit.com"+parent.permalink+". Which was entirely possible thanks to you! Thank you! Oh and you might be unable to see the reply, but it's really there, just check my comment history!")
 
 				# If the reply didn't got through, throw an exception (can occur when comment gets deleted or when rate limits are exceeded)
 				except Exception as e:
@@ -268,21 +271,8 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
 					mentions_unable_to_reply.append(parent.id)
 					print("Added the mention id to file: mentions_unable_to_reply.txt.\n")
 
-			# For debugging purposes:
-			'''
-			try:
-				print("\nmentions_replied_to.txt was found, the array is now as follows:")
-				print(mentions_replied_to)
-				print("\nmentions_unable_to_reply.txt was found, the array is now as follows:")
-				print(mentions_unable_to_reply)
-				print("\nThe bot has now replied x times:")
-				print(len(mentions_replied_to))
-				print("\nThe bot has now failed to comment x times:")
-				print(len(mentions_unable_to_reply))
-			except:
-				logging.error(traceback.format_exc())
-				print(" [ERROR:Exception] Something went wrong while printing (those damn printers never work when you need them to!)")
-			'''
+					# Reply to summoner with confirmation and link.
+					r.redditor(str(mention.author)).message("AmputatorBot ran into an error..", "AmputatorBot couldn't reply to the comment you summoned it for: https://www.reddit.com"+parent.permalink+". Sometimes, the amp link redirects to the amp page, which is just one example of when the bot can fail. Sorry! But thx for trying! Contact u/Killed_Mufasa or via r/AmputatorBot for questions and feedback, make sure to share the comment thread!")
 
 # Get the data of which subreddits the bot is forbidden to post in
 def get_forbidden_subreddits():
