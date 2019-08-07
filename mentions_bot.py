@@ -153,7 +153,7 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
 
 						# Premake an urllib request (to fetch the submitted amp page)	
 						req = urllib.request.Request(mentions_urls[x])
-						req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0')
+						req.add_header('User-Agent', 'Mozilla/5.0 (Android 7.0; Mobile; rv:54.0) Gecko/54.0 Firefox/54.0')
 						req.add_header('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8')
 						req.add_header('Accept-Charset', 'ISO-8859-1,utf-8;q=0.7,*;q=0.3')
 						req.add_header('Accept-Encoding', 'none')
@@ -272,7 +272,7 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
 					print("Added the mention id to file: mentions_unable_to_reply.txt.\n")
 
 					# Reply to summoner with confirmation and link.
-					r.redditor(str(mention.author)).message("AmputatorBot ran into an error..", "AmputatorBot couldn't reply to the comment you summoned it for: https://www.reddit.com"+parent.permalink+". Sometimes, the amp link redirects to the amp page, which is just one example of when the bot can fail. Sorry! But thx for trying! Contact u/Killed_Mufasa or via r/AmputatorBot for questions and feedback, make sure to share the comment thread!")
+					r.redditor(str(mention.author)).message("AmputatorBot ran into an error..", "AmputatorBot couldn't reply to the comment you summoned it for: https://www.reddit.com"+parent.permalink+". This error has been logged and will be investigated. Sorry! But thx for trying! Contact u/Killed_Mufasa or via r/AmputatorBot for questions and feedback, make sure to share the comment thread!")
 
 # Get the data of which subreddits the bot is forbidden to post in
 def get_forbidden_subreddits():

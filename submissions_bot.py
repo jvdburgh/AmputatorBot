@@ -81,7 +81,7 @@ def run_bot(r, allowed_subreddits, submissions_replied_to, submissions_unable_to
 				# Premake an urllib request (to fetch the submitted amp page)	
 				print("\nRetrieving amp page...\n")
 				req = urllib.request.Request(submission.url)
-				req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0')
+				req.add_header('User-Agent', 'Mozilla/5.0 (Android 7.0; Mobile; rv:54.0) Gecko/54.0 Firefox/54.0')
 				req.add_header('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8')
 				req.add_header('Accept-Charset', 'ISO-8859-1,utf-8;q=0.7,*;q=0.3')
 				req.add_header('Accept-Encoding', 'none')
