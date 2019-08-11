@@ -6,14 +6,26 @@
 
 # Import a couple of libraries
 from bs4 import BeautifulSoup
-from urllib.request import urlopen
-import urllib.request
+from random import choice
+import requests
 import praw
 import config
 import os
 import re
 import traceback
 import logging
+
+# Set default variables
+headers = ['Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:69.0) Gecko/20100101 Firefox/69.0',
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
+		'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36',
+		'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36',
+		'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/21.0.1180.83 Safari/537.1',
+		'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.1',
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:66.0) Gecko/20100101 Firefox/66.0',
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.157 Safari/537.36',
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0']
 
 # Login to Reddit API using Praw. Reads configuration details out of config.py (not public)
 def bot_login():
@@ -25,6 +37,10 @@ def bot_login():
 					user_agent = "eu.pythoneverywhere.com:AmputatorBot:v1.1 (by /u/Killed_Mufasa)")
 	print("Successfully logged in!\n")
 	return r
+
+def random_headers():
+	# Get randomized user agent, set default accept and request English page, all of this is done to prevent 403 errors.
+	return {'User-Agent': choice(headers),'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8','Accept-Language':'en-US'}
 
 def contains_amp_url(string_to_check):
 	# If the string contains an AMP link, return True
@@ -151,26 +167,16 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
 						print(" [ OK ] The correct Amp link was found: " + mentions_urls[x] + "\n")
 						print("Retrieving amp page...\n")
 
-						# Premake an urllib request (to fetch the submitted amp page)	
-						req = urllib.request.Request(mentions_urls[x])
-						req.add_header('User-Agent', 'Mozilla/5.0 (Android 7.0; Mobile; rv:54.0) Gecko/54.0 Firefox/54.0')
-						req.add_header('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8')
-						req.add_header('Accept-Charset', 'ISO-8859-1,utf-8;q=0.7,*;q=0.3')
-						req.add_header('Accept-Encoding', 'none')
-						req.add_header('Accept-Language', 'en-US,en;q=0.8')
-						req.add_header('Connection', 'keep-alive')
-						req.add_header('Referer', 'www.reddit.com')
-
 						# Fetch the submitted amp page, if canonical (direct link) was found, save these for later
 						try:
 							# Fetch submitted amp page
 							print("\nNow scanning the Amp link: " + mentions_urls[x] + "\n")
-							content = urlopen(mentions_urls[x])
-							
-							# Make the received data readable
+							req = requests.get(mentions_urls[x],headers=random_headers())
+
+							# Make the received data searchable
 							print("Making a soup...\n")
-							soup = BeautifulSoup(content, features= "lxml")
-							print("Making a readable soup...\n")
+							soup = BeautifulSoup(req.text, features= "lxml")
+							print("Making a searchable soup...\n")
 							soup.prettify()
 
 							# Scan the received data for the direct link
@@ -249,7 +255,7 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
 					print("Operation succesfull.\n")
 					
 					# Reply to summoner with confirmation and link.
-					r.redditor(str(mention.author)).message("Thx for summoning me!", "The bot has successfully replied to this comment: https://www.reddit.com"+parent.permalink+". Which was entirely possible thanks to you! Thank you! Oh and you might be unable to see the reply, but it's really there, just check my comment history!")
+					r.redditor(str(mention.author)).message("Thx for summoning me!", "The bot has successfully replied to your comment: https://www.reddit.com"+parent.permalink+".\n\nAn easy way to find the comment, is by checking my comment history. Thanks for summoning me, I couldn't do this without you (no but literally). You're a very good human.\n\nYou can leave feedback by contacting u/killed_mufasa, by posting on r/AmputatorBot or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).")
 
 				# If the reply didn't got through, throw an exception (can occur when comment gets deleted or when rate limits are exceeded)
 				except Exception as e:
@@ -272,7 +278,7 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
 					print("Added the mention id to file: mentions_unable_to_reply.txt.\n")
 
 					# Reply to summoner with confirmation and link.
-					r.redditor(str(mention.author)).message("AmputatorBot ran into an error..", "AmputatorBot couldn't reply to the comment you summoned it for: https://www.reddit.com"+parent.permalink+". This error has been logged and will be investigated. Sorry! But thx for trying! Contact u/Killed_Mufasa or via r/AmputatorBot for questions and feedback, make sure to share the comment thread!")
+					r.redditor(str(mention.author)).message("AmputatorBot ran into an error..", "AmputatorBot couldn't reply to the comment or submission you summoned it for: https://www.reddit.com"+parent.permalink+".\n\nThis error has been logged and is being investigated.\n\nThat said, you can leave feedback by contacting u/killed_mufasa, by posting on r/AmputatorBot or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nYou're a very good human for trying <3")
 
 # Get the data of which subreddits the bot is forbidden to post in
 def get_forbidden_subreddits():

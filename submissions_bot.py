@@ -6,14 +6,26 @@
 
 # Import a couple of libraries
 from bs4 import BeautifulSoup
-from urllib.request import urlopen
-import urllib.request
+from random import choice
+import requests
 import praw
 import config
 import os
 import re
 import traceback
 import logging
+
+# Set default variables
+headers = ['Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:69.0) Gecko/20100101 Firefox/69.0',
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
+		'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36',
+		'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36',
+		'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/21.0.1180.83 Safari/537.1',
+		'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.1',
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:66.0) Gecko/20100101 Firefox/66.0',
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.157 Safari/537.36',
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0']
 
 # Login to Reddit API using Praw. Reads configuration details out of config.py (not public)
 def bot_login():
@@ -25,6 +37,10 @@ def bot_login():
 					user_agent = "eu.pythoneverywhere.com:AmputatorBot:v1.1 (by /u/Killed_Mufasa)")
 	print("Successfully logged in!\n")
 	return r
+
+def random_headers():
+	# Get randomized user agent, set default accept and request English page, all of this is done to prevent 403 errors.
+	return {'User-Agent': choice(headers),'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8','Accept-Language':'en-US'}
 
 def contains_amp_url(string_to_check):
 	# If the string contains an AMP link, return True
@@ -78,27 +94,15 @@ def run_bot(r, allowed_subreddits, submissions_replied_to, submissions_unable_to
 				print("String with \"/amp\" and \"https://\" found in the submitted URL of submission: #"+ submission.id+"\n")
 				print("\nSubmission Title: "+submission.title+"\nSubmission ID: "+submission.id+"\nSubmission Body: "+submission.selftext+"\nSubmission URL: "+submission.url)
 
-				# Premake an urllib request (to fetch the submitted amp page)	
-				print("\nRetrieving amp page...\n")
-				req = urllib.request.Request(submission.url)
-				req.add_header('User-Agent', 'Mozilla/5.0 (Android 7.0; Mobile; rv:54.0) Gecko/54.0 Firefox/54.0')
-				req.add_header('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8')
-				req.add_header('Accept-Charset', 'ISO-8859-1,utf-8;q=0.7,*;q=0.3')
-				req.add_header('Accept-Encoding', 'none')
-				req.add_header('Accept-Language', 'en-US,en;q=0.8')
-				req.add_header('Connection', 'keep-alive')
-				req.add_header('Referer', 'www.reddit.com')
-
 				# Fetch the submitted amp page, if canonical (direct link) was found, generate and post comment
 				try:
 					# Fetch submitted amp page
-					submission_content = urllib.request.urlopen(req)
 					print("\nNow scanning the submitted Amp link: " + submission.url + "\n")
-					submission_content = urlopen(submission.url)
+					req = requests.get(submission.url,headers=random_headers())
 
 					# Make the received data readable
 					print("Making a soup...\n")
-					soup = BeautifulSoup(submission_content, features= "lxml")
+					soup = BeautifulSoup(req.text, features= "lxml")
 					print("Making a readable soup...\n")
 					soup.prettify()
 
