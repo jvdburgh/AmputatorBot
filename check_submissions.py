@@ -1,8 +1,15 @@
 # This Python file uses the following encoding: utf-8
 # License: GPL-3 (https://choosealicense.com/licenses/gpl-3.0/)
-# Original author: Killed_Mufasa (https://twitter.com/Killed_Mufasa | https://www.reddit.com/user/Killed_Mufasa | https://github.com/KilledMufasa)
+# Original author: Killed_Mufasa
+# Twitter:https://twitter.com/Killed_Mufasa
+# Reddit: https://www.reddit.com/user/Killed_Mufasa
+# GitHub: https://github.com/KilledMufasa
+# Donate: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2
 
-# This wonderfull little program is used by u/AmputatorBot (https://www.reddit.com/user/AmputatorBot) to scan submissions for AMP links and to comment the direct link.
+# This wonderfull little program is used by u/AmputatorBot
+# (https://www.reddit.com/user/AmputatorBot) to scan submissions
+# in certain subreddits for AMP links. If AmputatorBot detects an
+# AMP link, a reply is made with the direct link
 
 # Import a couple of libraries
 from bs4 import BeautifulSoup
@@ -15,223 +22,222 @@ import re
 import traceback
 import logging
 
-# Set default variables
-headers = ['Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:69.0) Gecko/20100101 Firefox/69.0',
-		'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
-		'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36',
-		'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
-		'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36',
-		'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/21.0.1180.83 Safari/537.1',
-		'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:40.0) Gecko/20100101 Firefox/40.1',
-		'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:66.0) Gecko/20100101 Firefox/66.0',
-		'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.157 Safari/537.36',
-		'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:65.0) Gecko/20100101 Firefox/65.0']
+# Configure logging
+logging.basicConfig(
+    filename="v1.4_check_submissions.log",
+    level=logging.DEBUG,
+    format="%(asctime)s:%(levelname)s:%(message)s"
+)
 
-# Login to Reddit API using Praw. Reads configuration details out of config.py (not public)
+# Login to Reddit API using Praw.
+# Reads configuration details out of config.py (not public)
 def bot_login():
-	print("Loggin in...")
-	r = praw.Reddit(username = config.username,
-					password = config.password,
-					client_id = config.client_id,
-					client_secret = config.client_secret,
-					user_agent = "eu.pythoneverywhere.com:AmputatorBot:v1.1 (by /u/Killed_Mufasa)")
-	print("Successfully logged in!\n")
-	return r
+    logging.debug("Logging in..")
+    r = praw.Reddit(username=config.username,
+                    password=config.password,
+                    client_id=config.client_id,
+                    client_secret=config.client_secret,
+                    user_agent="eu.pythoneverywhere.com:AmputatorBot:v1.4 (by /u/Killed_Mufasa)")
+    logging.debug("Successfully logged in!\n")
+    return r
+
 
 def random_headers():
-	# Get randomized user agent, set default accept and request English page, all of this is done to prevent 403 errors.
-	return {'User-Agent': choice(headers),'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8','Accept-Language':'en-US'}
+    # Get randomized user agent, set default accept and request English page
+    # This is done to prevent 403 errors.
+    return {
+        'User-Agent': choice(config.headers),
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US'
+    }
+
 
 def contains_amp_url(string_to_check):
-	# If the string contains an AMP link, return True
-	if "/amp" in string_to_check or ".amp" in string_to_check or "amp." in string_to_check or "?amp" in string_to_check or "amp?" in string_to_check or "=amp" in string_to_check or "amp=" in string_to_check and "https://" in string_to_check:
-		string_contains_amp_url = True
-		return string_contains_amp_url
-	
-	# If no AMP link was found in the string, return False
-	string_contains_amp_url = False
-	return string_contains_amp_url
+    # If the string contains an AMP link, return True
+    if "/amp" in string_to_check or ".amp" in string_to_check or "amp." in string_to_check or "?amp" in string_to_check or "amp?" in string_to_check or "=amp" in string_to_check or "amp=" in string_to_check and "https://" in string_to_check:
+        string_contains_amp_url = True
+        return string_contains_amp_url
+    
+    # If no AMP link was found in the string, return False
+    string_contains_amp_url = False
+    return string_contains_amp_url
 
-# Main function. Gets the submissions stream, scans these for AMP links and replies with the direct link
+
+# Main function. Gets the stream for submissions in certain subreddits,
+# scans the context for AMP links and replies with the direct link
 def run_bot(r, allowed_subreddits, submissions_replied_to, submissions_unable_to_reply):
-	print("Obtaining the stream of in subreddits: "+("+".join(allowed_subreddits)))
+    logging.info("Praw: obtaining stream of submissions")
 
-	# Get the submission stream of select subreddits using Praw.
-	for submission in r.subreddit(("+").join(allowed_subreddits)).stream.submissions():
-		# Resets for every submission
-		submission_meets_all_criteria = False
-		submission_could_not_reply = False
-		submission_could_reply = False
+    # Get the submission stream of select subreddits using Praw.
+    for submission in r.subreddit(("+").join(allowed_subreddits)).stream.submissions():
+        
+        # Resets for every submission
+        submission_meets_all_criteria = False
+        submission_could_not_reply = False
+        submission_could_reply = False
 
-		# Check: Does the submitted URL contain any amp links?
-		string_contains_amp_url = contains_amp_url(submission.url)
-		if string_contains_amp_url:
-			print(" [ OK ] #" + submission.id + " contains one or more of the keywords.")
-			
-			# Check: Has AmputatorBot tried (and failed) to respond to this submission already?
-			if submission.id not in submissions_unable_to_reply: 
-				print(" [ OK ] #" + submission.id + " hasn't been tried and failed yet.")
+        # Check: Does the submitted URL contain any amp links?
+        string_contains_amp_url = contains_amp_url(submission.url)
+        if string_contains_amp_url:
+            logging.debug(
+                "#{} contains one or more '%%amp%%' strings".format(submission.id))
 
-				# Check: Has AmputatorBot replied to this submission already?
-				if submission.id not in submissions_replied_to:
-					print(" [ OK ] #" + submission.id + " hasn't been replied to yet.")
+            # Check: Has AmputatorBot tried (and failed) to respond to this submission already?
+            if submission.id not in submissions_unable_to_reply: 
+                logging.debug(
+                    "#{} hasn't been tried before".format(submission.id))
 
-					# Check: Is the submission posted by u/AmputatorBot?
-					if not submission.author == r.user.me():
-						submission_meets_all_criteria = True
-						print(" [ OK ] #" + submission.id + " isn't posted by me.\n")
-						
-					else:
-						print(" [ STOP ] #" + submission.id + " is posted by me.\n")
-				else:
-					print(" [ STOP ] #" + submission.id + " has already been replied to.\n")
-			else:
-				print(" [ STOP ] #" + submission.id + " has already been tried, but failed.\n")
+                # Check: Has AmputatorBot replied to this submission already?
+                if submission.id not in submissions_replied_to:
+                    logging.debug(
+                        "#{} hasn't been replied to yet".format(submission.id))
 
-		# If all criteria are met, try to comment with the direct link
-		if submission_meets_all_criteria:
-			try:
-				print("String with \"/amp\" and \"https://\" found in the submitted URL of submission: #"+ submission.id+"\n")
-				print("\nSubmission Title: "+submission.title+"\nSubmission ID: "+submission.id+"\nSubmission Body: "+submission.selftext+"\nSubmission URL: "+submission.url)
+                    # Check: Is the submission posted by u/AmputatorBot?
+                    if not submission.author == r.user.me():
+                        submission_meets_all_criteria = True
+                        logging.debug(
+                            "#{} hasn't been posted by AmputatorBot".format(submission.id))
+                        
+                    else:
+                        logging.debug(
+                            "#{} was posted by AmputatorBot".format(submission.id))
 
-				# Fetch the submitted amp page, if canonical (direct link) was found, generate and post comment
-				try:
-					# Fetch submitted amp page
-					print("\nNow scanning the submitted Amp link: " + submission.url + "\n")
-					req = requests.get(submission.url,headers=random_headers())
+                else:
+                    logging.debug(
+                        "#{} has already been replied to".format(submission.id))
 
-					# Make the received data readable
-					print("Making a soup...\n")
-					soup = BeautifulSoup(req.text, features= "lxml")
-					print("Making a readable soup...\n")
-					soup.prettify()
+            else:
+                logging.debug(
+                    "#{} has already been tried before".format(submission.id))
 
-					# Scan the received data for the direct link
-					print("Scanning for the original link...\n")
-					try:
-						# Check for every link on the amp page if it is of the type rel='canonical'
-						for link in soup.find_all(rel='canonical'):
-							# Get the direct link
-							submission_non_amp_url = link.get('href')
-							print("Found the normal link: "+submission_non_amp_url+"\n")
+        # If no %amp% strings were found, don't do nor log anything
 
-							# If the canonical url is the same as the submitted url, don't use it
-							if submission_non_amp_url == submission.url:
-								print(" [Error:If] False positive encounterd (submission_non_amp_url == submission.url.")
-								submission_could_not_reply = True
+        # If all criteria are met, try to comment with the direct link
+        if submission_meets_all_criteria:
+            try:
+                logging.debug("All criteria were met.\nSubmission ID:{}\nSubmission Title:{}\nSubmission Body:{}\nSubmission URL:{}".format(submission.id,submission.title,submission.selftext,submission.url))
 
-							# If the canonical url is unique, generate and post a comment
-							else:
-								# Generate a comment	
-								submission_reply = "Beep boop, I'm a bot. It looks like you shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+submission_non_amp_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
+                # Fetch the submitted amp page, if canonical (direct link) was found, generate and post comment
+                try:
+                    # Fetch submitted amp page
+                    logging.debug("Started fetching {}..".format(submission.url))
+                    req = requests.get(submission.url,headers=random_headers())
 
-								# Try to comment on OP's submission with a top-level comment
-								try:
-									submission.reply(submission_reply)
-									print("REPLY="+submission_reply+"\n")
-									print("Replied to submission #"+submission.id+".\n")
-									submission_could_reply = True
-									print("Operation succesfull.\n")
-							
-								# If the reply didn't got through, throw an exception (can occur when the submisstion gets deleted or when rate limits are exceeded)
-								except Exception as e:
-									logging.error(traceback.format_exc())
-									print(" [ERROR:Exception] Could not reply to submission.")
-									submission_could_not_reply = True
+                    # Make the received data readable
+                    logging.info("Making a soup..")
+                    soup = BeautifulSoup(req.text, features= "lxml")
+                    logging.info("Making a searchable soup..")
+                    soup.prettify()
 
-					# If no direct links were found, throw an exception	
-					except Exception as e:
-						logging.error(traceback.format_exc())
-						print(" [ERROR:Exception] The direct link could not be found.")
-						submission_could_not_reply = True
-						
-				# If the submitted page couldn't be fetched (or something else went wrong), throw an exception
-				except Exception as e:
-					logging.error(traceback.format_exc())
-					print(" [ERROR:Exception] Submitted page could not be fetched or something else.")
-					submission_could_not_reply = True
+                    # Scan the received data for the direct link
+                    logging.info("Scanning for all links..")
+                    try:
+                        # Check for every link on the amp page if it is of the type rel='canonical'
+                        for link in soup.find_all(rel='canonical'):
+                            # Get the direct link
+                            submission_non_amp_url = link.get('href')
+                            logging.debug("Found the direct link: {}".format(
+                                        submission_non_amp_url))
+                            # If the canonical url is the same as the submitted url, don't use it
+                            if submission_non_amp_url == submission.url:
+                                logging.warning(
+                                    "False positive encounterd! (submission_non_amp_url == submission.url)")
+                                submission_could_not_reply = True
 
-			# If something else went wrong, throw an exception
-			except Exception as e:
-					logging.error(traceback.format_exc())
-					print(" [ERROR:Exception] Something went wrong on a weird spot.")
-					submission_could_not_reply = True
-					
-			# If the comment was successfully send, note this
-			if submission_could_reply:
-				submissions_replied_to.append(submission.id)
-				with open ("submissions_replied_to.txt", "a") as f:
-					f.write(submission.id + ",")
-					print("Added the submission id to the file: submissions_replied_to.txt\n")
+                            # If the canonical url is unique, generate and post a comment
+                            else:
+                                # Generate a comment	
+                                submission_reply = "Beep boop, I'm a bot. It looks like OP posted a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+submission_non_amp_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
 
-			# If the comment could not be made or send, note this
-			if submission_could_not_reply:
-				submissions_unable_to_reply.append(submission.id)
-				with open ("submissions_unable_to_reply.txt", "a") as f:
-					f.write(submission.id + ",")
-					print("Added the submission id to file: submissions_unable_to_reply.txt\n")
+                                # Try to comment on OP's submission with a top-level comment
+                                try:
+                                    submission.reply(submission_reply)
+                                    logging.debug("Replied to #{}\n".format(submission.id))
+                                    submission_could_reply = True
+                            
+                                # If the reply didn't got through, throw an exception (can occur when the submisstion gets deleted or when rate limits are exceeded)
+                                except Exception as e:
+                                    logging.error(traceback.format_exc())
+                                    logging.warning("Could not reply to post.\n\n\n")
+                                    submission_could_not_reply = True
 
-			# For debugging purposes:
-			'''
-			try:
-				print("\nSubmissions_replied_to.txt was found, the array is now as follows:")
-				print(submissions_replied_to)
-				print("\nSubmissions_unable_to_reply.txt was found, the array is now as follows:")
-				print(submissions_unable_to_reply)
-				print("\nThe bot has now replied x times:")
-				print(len(submissions_replied_to))
-				print("\nThe bot has now failed to comment x times:")
-				print(len(submissions_unable_to_reply))
-			except:
-				logging.error(traceback.format_exc())
-				print(" [ERROR:Exception] Something went wrong while printing (those damn printers never work when you need them to!)")
-			'''
+                    # If no direct links were found, throw an exception
+                    except Exception as e:
+                        logging.error(traceback.format_exc())
+                        logging.warning("The direct link could not be found.\n")
+                        submission_could_not_reply = True
+                        
+                # If the submitted page couldn't be fetched, throw an exception
+                except Exception as e:
+                    logging.error(traceback.format_exc())
+                    logging.warning("The page could not be fetched.\n")
+                    submission_could_not_reply = True
+
+            # If something else went wrong, throw an exception
+            except Exception as e:
+                logging.error(traceback.format_exc())
+                logging.warning("Something went wrong while logging meta info.\n")
+                submission_could_not_reply = True
+                    
+            # If the comment was successfully send, note this
+            if submission_could_reply:
+                submissions_replied_to.append(submission.id)
+                with open ("submissions_replied_to.txt", "a") as f:
+                    f.write(submission.id + ",")
+                    logging.info("Added the parent id to file: submissions_replied_to.txt\n\n\n")
+
+            # If the reply could not be made or send, note this
+            if submission_could_not_reply:
+                submissions_unable_to_reply.append(submission.id)
+                with open ("submissions_unable_to_reply.txt", "a") as f:
+                    f.write(submission.id + ",")
+                    logging.info("Added the parent id to file: submissions_unable_to_reply.txt.")
+        
 
 # Get the data of which submissions have been replied to
 def get_saved_submissions_repliedtos():
-	if not os.path.isfile("submissions_replied_to.txt"):
-		submissions_replied_to = []
-		print("ERROR: submissions_replied_to.txt could not be found.")
+    if not os.path.isfile("submissions_replied_to.txt"):
+        submissions_replied_to = []
+        logging.warning("submissions_replied_to.txt could not be found.\n")
 
-	else:
-		with open("submissions_replied_to.txt", "r") as f:
-			submissions_replied_to = f.read()
-			submissions_replied_to = submissions_replied_to.split(",")
-			print("submissions_replied_to.txt was found, the array is now as follows:")
-			print(submissions_replied_to)
+    else:
+        with open("submissions_replied_to.txt", "r") as f:
+            submissions_replied_to = f.read()
+            submissions_replied_to = submissions_replied_to.split(",")
+            logging.info("submissions_replied_to.txt was found.")
 
-	return submissions_replied_to
+    return submissions_replied_to
+
 
 # Get the data of which submissions could not be replied to (for any reason)
 def get_saved_submissions_unabletos():
-	if not os.path.isfile("submissions_unable_to_reply.txt"):
-		submissions_unable_to_reply = []
-		print("ERROR: Submissions_unable_to_reply.txt could not be found.")
+    if not os.path.isfile("submissions_unable_to_reply.txt"):
+        submissions_unable_to_reply = []
+        logging.warning("submissions_unable_to_reply.txt could not be found.\n")
 
-	else:
-		with open("submissions_unable_to_reply.txt", "r") as f:
-			submissions_unable_to_reply = f.read()
-			submissions_unable_to_reply = submissions_unable_to_reply.split(",")
-			print("submissions_unable_to_reply.txt was found, the array is now as follows:")
-			print(submissions_unable_to_reply)
+    else:
+        with open("submissions_unable_to_reply.txt", "r") as f:
+            submissions_unable_to_reply = f.read()
+            submissions_unable_to_reply = submissions_unable_to_reply.split(",")
+            logging.info("submissions_unable_to_reply.txt was found.")
 
-	return submissions_unable_to_reply
+    return submissions_unable_to_reply
+
 
 # Get list of subreddits where the bot is allowed
 def get_allowed_subreddits():
-	if not os.path.isfile("allowed_subreddits.txt"):
-		allowed_subreddits = []
-		print("ERROR: allowed_subreddits.txt could not be found.")
+    if not os.path.isfile("allowed_subreddits.txt"):
+        allowed_subreddits = []
+        logging.warning("allowed_subreddits.txt could not be found.\n")
 
-	else:
-		with open("allowed_subreddits.txt", "r") as f:
-			allowed_subreddits = f.read()
-			allowed_subreddits = allowed_subreddits.split(",")
-			print("allowed_subreddits.txt was found, the array is now as follows:")
-			print(allowed_subreddits)
-			print("The bot is allowed in these subreddits:", ", ".join(allowed_subreddits))
+    else:
+        with open("allowed_subreddits.txt", "r") as f:
+            allowed_subreddits = f.read()
+            allowed_subreddits = allowed_subreddits.split(",")
+            logging.info("allowed_subreddits.txt was found.")
 
-	return allowed_subreddits
+    return allowed_subreddits
+
 
 # Uses these functions to run the bot
 r = bot_login()
@@ -239,6 +245,8 @@ submissions_replied_to = get_saved_submissions_repliedtos()
 submissions_unable_to_reply = get_saved_submissions_unabletos()
 allowed_subreddits = get_allowed_subreddits()
 
+
 # Run the program
 while True:
-	run_bot(r, allowed_subreddits, submissions_replied_to, submissions_unable_to_reply)
+    run_bot(r, allowed_subreddits, submissions_replied_to,
+            submissions_unable_to_reply)
