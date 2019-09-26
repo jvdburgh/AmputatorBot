@@ -24,7 +24,7 @@ import logging
 
 # Configure logging
 logging.basicConfig(
-    filename="v1.4_check_submissions.log",
+    filename="v1.5_check_submissions.log",
     level=logging.DEBUG,
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
@@ -37,7 +37,7 @@ def bot_login():
                     password=config.password,
                     client_id=config.client_id,
                     client_secret=config.client_secret,
-                    user_agent="eu.pythoneverywhere.com:AmputatorBot:v1.4 (by /u/Killed_Mufasa)")
+                    user_agent="eu.pythoneverywhere.com:AmputatorBot:v1.5 (by /u/Killed_Mufasa)")
     logging.debug("Successfully logged in!\n")
     return r
 
@@ -54,7 +54,7 @@ def random_headers():
 
 def contains_amp_url(string_to_check):
     # If the string contains an AMP link, return True
-    if "/amp" in string_to_check or ".amp" in string_to_check or "amp." in string_to_check or "?amp" in string_to_check or "amp?" in string_to_check or "=amp" in string_to_check or "amp=" in string_to_check and "https://" in string_to_check:
+    if "/amp" in string_to_check or "/AMP" in string_to_check or "amp/" in string_to_check or "AMP/" in string_to_check or ".amp" in string_to_check or ".AMP" in string_to_check or "amp." in string_to_check or "AMP." in string_to_check or "?amp" in string_to_check or "?AMP" in string_to_check or "amp?" in string_to_check or "AMP?" in string_to_check or "=amp" in string_to_check or "=AMP" in string_to_check or "amp=" in string_to_check or "AMP/" in string_to_check and "https://" in string_to_check:
         string_contains_amp_url = True
         return string_contains_amp_url
     
@@ -94,9 +94,18 @@ def run_bot(r, allowed_subreddits, submissions_replied_to, submissions_unable_to
 
                     # Check: Is the submission posted by u/AmputatorBot?
                     if not submission.author == r.user.me():
-                        submission_meets_all_criteria = True
                         logging.debug(
                             "#{} hasn't been posted by AmputatorBot".format(submission.id))
+                        
+                        # Check: Is the submission posted by a user who opted out?
+                        with open("forbidden_users.txt", "r") as f:
+                            forbidden_users = f.read()
+                            forbidden_users = forbidden_users.split(",")
+                            logging.info("forbidden_users.txt was found.")
+
+                        if not str(submission.author) in forbidden_users:
+                            logging.debug("#{} hasn't been posted by a user who opted out".format(submission.id))
+                            submission_meets_all_criteria = True
                         
                     else:
                         logging.debug(

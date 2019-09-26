@@ -26,7 +26,7 @@ import logging
 
 # Configure logging
 logging.basicConfig(
-    filename="v1.4_check_comments.log",
+    filename="v1.5_check_comments.log",
     level=logging.DEBUG,
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
@@ -39,7 +39,7 @@ def bot_login():
                     password = config.password,
                     client_id = config.client_id,
                     client_secret = config.client_secret,
-                    user_agent = "eu.pythoneverywhere.com:AmputatorBot:v1.4 (by /u/Killed_Mufasa)")
+                    user_agent = "eu.pythoneverywhere.com:AmputatorBot:v1.5 (by /u/Killed_Mufasa)")
     logging.debug("Successfully logged in!\n")
     return r
 
@@ -56,7 +56,7 @@ def random_headers():
 
 def contains_amp_url(string_to_check):
     # If the string contains an AMP link, return True
-    if "/amp" in string_to_check or ".amp" in string_to_check or "amp." in string_to_check or "?amp" in string_to_check or "amp?" in string_to_check or "=amp" in string_to_check or "amp=" in string_to_check and "https://" in string_to_check:
+    if "/amp" in string_to_check or "/AMP" in string_to_check or "amp/" in string_to_check or "AMP/" in string_to_check or ".amp" in string_to_check or ".AMP" in string_to_check or "amp." in string_to_check or "AMP." in string_to_check or "?amp" in string_to_check or "?AMP" in string_to_check or "amp?" in string_to_check or "AMP?" in string_to_check or "=amp" in string_to_check or "=AMP" in string_to_check or "amp=" in string_to_check or "AMP/" in string_to_check and "https://" in string_to_check:
         string_contains_amp_url = True
         return string_contains_amp_url
     
@@ -100,9 +100,18 @@ def run_bot(r, allowed_subreddits, comments_replied_to, comments_unable_to_reply
 
                     # Check: Is the comment written by u/AmputatorBot?
                     if not comment.author == r.user.me():
-                        meets_all_criteria = True
                         logging.debug(
                             "#{} hasn't been posted by AmputatorBot".format(comment.id))
+                        
+                        # Check: Is the submission posted by a user who opted out?
+                        with open("forbidden_users.txt", "r") as f:
+                            forbidden_users = f.read()
+                            forbidden_users = forbidden_users.split(",")
+                            logging.info("forbidden_users.txt was found.")
+
+                            if not str(comment.author) in forbidden_users:
+                                logging.debug("#{} hasn't been posted by a user who opted out".format(comment.id))
+                                meets_all_criteria = True
                         
                     else:
                         logging.debug(
