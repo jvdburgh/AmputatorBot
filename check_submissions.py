@@ -25,7 +25,7 @@ import logging
 # Configure logging
 logging.basicConfig(
     filename="v1.5_check_submissions.log",
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
 
