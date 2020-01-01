@@ -83,7 +83,7 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
         mentions_non_amps_urls_amount = 0
         mentions_canonical_url = ""
 
-        # Get the subject of the message (can be username mention, 
+        # Get the subject of the message (can be username mention,
         # a comment reply notification, an opt-out request, an opt-in request
         # or another type of inbox message. Mark the item as read afterwards.
         try:
@@ -210,12 +210,12 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
                                     mentions_urls[x] = mentions_urls[x][:-2]
                                     logging.debug("{} was stripped of this string: ')?'".format(
                                         mentions_urls[x]))
-                                        
+
                                 if mentions_urls[x].endswith(')'):
                                     mentions_urls[x] = mentions_urls[x][:-1]
                                     logging.debug("{} was stripped of this string: ')'".format(
                                         mentions_urls[x]))
-                                        
+
                                 # Check: Is the isolated URL really an amp link?
                                 string_contains_amp_url = contains_amp_url(
                                     mentions_urls[x])
@@ -301,14 +301,14 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
 
                                 # If there was only one url found, generate a simple comment
                                 if mentions_non_amps_urls_amount == 1:
-                                    mention_reply = "Beep boop, I'm a bot. It looks like OP shared a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+mentions_canonical_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | **Summoned by a** )[^(**good human here!**)](https://www.reddit.com"+mention.context+")"
+                                    mention_reply = "It looks like OP shared a Google AMP link. These pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **["+mentions_canonical_url+"]("+mentions_canonical_url+")**.\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | **Summoned by a** )[^(**good human here!**)](https://www.reddit.com"+mention.context+")"
 
                                 # If there were multiple urls found, generate a multi-url comment
                                 if mentions_non_amps_urls_amount > 1:
                                     # Generate string of all found links
                                     mention_reply_generated = '\n\n'.join(mentions_non_amp_urls)
                                     # Generate entire comment
-                                    mention_reply = "Beep boop, I'm a bot. It looks like OP shared a couple of Google AMP links. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+mention_reply_generated+"\n\n*****\n\n[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | **Summoned by a** )[^(**good human here!**)](https://www.reddit.com"+mention.context+")"
+                                    mention_reply = "It looks like OP shared a couple of Google AMP links. These pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+mention_reply_generated+"\n\n*****\n\n^(I'm a bot | )[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | **Summoned by a** )[^(**good human here!**)](https://www.reddit.com"+mention.context+")"
 
                                 # Reply to mention
                                 parent.reply(mention_reply)
@@ -316,7 +316,7 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
                                 item_could_reply = True
 
                                 # Send a DM to the summoner with confirmation and link to parent comment
-                                r.redditor(str(mention.author)).message("Thx for summoning me!", "The bot has successfully replied to this comment: https://www.reddit.com"+parent.permalink+".\n\nAn easy way to find the comment is by checking my comment history. Thanks for summoning me, I couldn't do this without you (no but literally). You're a very good human <3\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).")
+                                r.redditor(str(mention.author)).message("Thx for summoning me!", "The bot has successfully replied to this comment: https://www.reddit.com"+parent.permalink+".\n\nAn easy way to find the comment is by checking my comment history. Thanks for summoning me, I couldn't do this without you (no but literally). You're a very good human <3\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\n\nProtip: You can now also use https://AmputatorBot.com to remove AMP from your URLs. You can copy-paste it manually or use it like this: https://AmputatorBot.com/?"+mentions_urls[0])
 
                                 logging.info("Confirmed the reply to the summoner.\n")
 
@@ -341,7 +341,7 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
                                 logging.info("Added the parent id to file: mentions_unable_to_reply.txt.")
 
                                 # Send a DM about the error to the summoner
-                                r.redditor(str(mention.author)).message("AmputatorBot ran into an error..", "AmputatorBot couldn't reply to the comment or submission you summoned it for: https://www.reddit.com"+parent.permalink+".\n\nThis error has been logged and is being investigated. Common causes for this error are: bot- and geoblocking websites, badly implemented AMP specs and the disallowance of the bot in [certain subreddits](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot/).\n\nThat said, you can leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nYou're a very good human for trying <3")
+                                r.redditor(str(mention.author)).message("AmputatorBot ran into an error..", "AmputatorBot couldn't reply to the comment or submission you summoned it for: https://www.reddit.com"+parent.permalink+".\n\nThis error has been logged and is being investigated. Common causes for this error are: bot- and geoblocking websites, badly implemented AMP specs and the disallowance of the bot in [certain subreddits](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot).\n\nThat said, you can leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nYou're a very good human for trying <3\n\n\nProtip: You can now also use https://AmputatorBot.com to remove AMP from your URLs. Visit https://AmputatorBot.com/?"+mentions_urls[0]+" to try again or to see more detailed debug-info.")
 
                                 logging.info("Notified the summoner of the error.\n")
 
@@ -360,7 +360,7 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
 
                     # Convert Redditor to username string
                     user_opting_out = str(message.author)
-                    
+
                     # If the username is already opted out, notify the user
                     with open("forbidden_users.txt", "r") as f:
                         forbidden_users = f.read()
@@ -378,7 +378,7 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
                             f.write(user_opting_out + ",")
                             forbidden_users.append(user_opting_out)
                             logging.debug("Added the username to file: forbidden_users.txt\n\n\n")
-                        
+
                         # Send a DM to the summoner with confirmation
                         r.redditor(user_opting_out).message("You have successfully opted out of AmputatorBot","The bot won't reply to your comments and submissions anymore, but you will still see my replies to other peoples content. Block u/AmputatorBot if you don't want to see those either.\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).")
 
@@ -403,7 +403,7 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
 
                     if user_opting_in not in forbidden_users:
                         logging.warning('This user never opted-out.')
-                        
+
                         # Send a DM to the summoner with confirmation
                         r.redditor(user_opting_in).message("You don't have to opt-in","This opt-in feature is only meant for users who choose to opt out earlier and now regret that decision. According to our systems, you didn't opt out of AmputatorBot so there's no need for you to opt in.\n\nRemember that the bot only works in a couple of subreddits. You can summon the bot almost everywhere else by mentioning u/AmputatorBot in a direct reply to a submission or comment containing an AMP link.\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).")
 
@@ -429,7 +429,7 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
                     logging.error(traceback.format_exc())
                     logging.warning("Something went wrong while processing an opt-in request.\n\n")
                     item_could_not_reply = True
-        
+
         except:
             logging.error(traceback.format_exc())
             logging.warning("Unexpected instance\n\n")

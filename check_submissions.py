@@ -57,7 +57,7 @@ def contains_amp_url(string_to_check):
     if "/amp" in string_to_check or "/AMP" in string_to_check or "amp/" in string_to_check or "AMP/" in string_to_check or ".amp" in string_to_check or ".AMP" in string_to_check or "amp." in string_to_check or "AMP." in string_to_check or "?amp" in string_to_check or "?AMP" in string_to_check or "amp?" in string_to_check or "AMP?" in string_to_check or "=amp" in string_to_check or "=AMP" in string_to_check or "amp=" in string_to_check or "AMP/" in string_to_check and "https://" in string_to_check:
         string_contains_amp_url = True
         return string_contains_amp_url
-    
+
     # If no AMP link was found in the string, return False
     string_contains_amp_url = False
     return string_contains_amp_url
@@ -70,7 +70,7 @@ def run_bot(r, allowed_subreddits, submissions_replied_to, submissions_unable_to
 
     # Get the submission stream of select subreddits using Praw.
     for submission in r.subreddit(("+").join(allowed_subreddits)).stream.submissions():
-        
+
         # Resets for every submission
         submission_meets_all_criteria = False
         submission_could_not_reply = False
@@ -83,7 +83,7 @@ def run_bot(r, allowed_subreddits, submissions_replied_to, submissions_unable_to
                 "#{} contains one or more '%%amp%%' strings".format(submission.id))
 
             # Check: Has AmputatorBot tried (and failed) to respond to this submission already?
-            if submission.id not in submissions_unable_to_reply: 
+            if submission.id not in submissions_unable_to_reply:
                 logging.debug(
                     "#{} hasn't been tried before".format(submission.id))
 
@@ -96,7 +96,7 @@ def run_bot(r, allowed_subreddits, submissions_replied_to, submissions_unable_to
                     if not submission.author == r.user.me():
                         logging.debug(
                             "#{} hasn't been posted by AmputatorBot".format(submission.id))
-                        
+
                         # Check: Is the submission posted by a user who opted out?
                         with open("forbidden_users.txt", "r") as f:
                             forbidden_users = f.read()
@@ -106,7 +106,7 @@ def run_bot(r, allowed_subreddits, submissions_replied_to, submissions_unable_to
                         if not str(submission.author) in forbidden_users:
                             logging.debug("#{} hasn't been posted by a user who opted out".format(submission.id))
                             submission_meets_all_criteria = True
-                        
+
                     else:
                         logging.debug(
                             "#{} was posted by AmputatorBot".format(submission.id))
@@ -155,15 +155,15 @@ def run_bot(r, allowed_subreddits, submissions_replied_to, submissions_unable_to
 
                             # If the canonical url is unique, generate and post a comment
                             else:
-                                # Generate a comment	
-                                submission_reply = "Beep boop, I'm a bot. It looks like OP posted a Google AMP link. Google AMP pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **"+submission_non_amp_url+"**.\n\n*****\n\n​[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/c88zm3/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
+                                # Generate a comment
+                                submission_reply = "It looks like OP posted a Google AMP link. These pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **["+submission_non_amp_url+"]("+submission_non_amp_url+")**.\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
 
                                 # Try to comment on OP's submission with a top-level comment
                                 try:
                                     submission.reply(submission_reply)
                                     logging.debug("Replied to #{}\n".format(submission.id))
                                     submission_could_reply = True
-                            
+
                                 # If the reply didn't got through, throw an exception (can occur when the submisstion gets deleted or when rate limits are exceeded)
                                 except Exception as e:
                                     logging.error(traceback.format_exc())
@@ -175,7 +175,7 @@ def run_bot(r, allowed_subreddits, submissions_replied_to, submissions_unable_to
                         logging.error(traceback.format_exc())
                         logging.warning("The direct link could not be found.\n")
                         submission_could_not_reply = True
-                        
+
                 # If the submitted page couldn't be fetched, throw an exception
                 except Exception as e:
                     logging.error(traceback.format_exc())
@@ -187,7 +187,7 @@ def run_bot(r, allowed_subreddits, submissions_replied_to, submissions_unable_to
                 logging.error(traceback.format_exc())
                 logging.warning("Something went wrong while logging meta info.\n")
                 submission_could_not_reply = True
-                    
+
             # If the comment was successfully send, note this
             if submission_could_reply:
                 submissions_replied_to.append(submission.id)
@@ -201,7 +201,7 @@ def run_bot(r, allowed_subreddits, submissions_replied_to, submissions_unable_to
                 with open ("submissions_unable_to_reply.txt", "a") as f:
                     f.write(submission.id + ",")
                     logging.info("Added the parent id to file: submissions_unable_to_reply.txt.")
-        
+
 
 # Get the data of which submissions have been replied to
 def get_saved_submissions_repliedtos():
