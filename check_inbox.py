@@ -26,7 +26,7 @@ import logging
 
 # Configure logging
 logging.basicConfig(
-    filename="v1.5_check_inbox.log",
+    filename="v1.6_check_inbox.log",
     level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
@@ -39,7 +39,7 @@ def bot_login():
                     password=config.password,
                     client_id=config.client_id,
                     client_secret=config.client_secret,
-                    user_agent="eu.pythoneverywhere.com:AmputatorBot:v1.5 (by /u/Killed_Mufasa)")
+                    user_agent="eu.pythoneverywhere.com:AmputatorBot:v1.6 (by /u/Killed_Mufasa)")
     logging.debug("Successfully logged in!\n")
     return r
 
@@ -57,13 +57,134 @@ def random_headers():
 def contains_amp_url(string_to_check):
     # If the string contains an AMP link, return True
     if "/amp" in string_to_check or "/AMP" in string_to_check or "amp/" in string_to_check or "AMP/" in string_to_check or ".amp" in string_to_check or ".AMP" in string_to_check or "amp." in string_to_check or "AMP." in string_to_check or "?amp" in string_to_check or "?AMP" in string_to_check or "amp?" in string_to_check or "AMP?" in string_to_check or "=amp" in string_to_check or "=AMP" in string_to_check or "amp=" in string_to_check or "AMP/" in string_to_check and "https://" in string_to_check:
-        string_contains_amp_url = True
-        return string_contains_amp_url
+        return True
 
     # If no AMP link was found in the string, return False
-    string_contains_amp_url = False
-    return string_contains_amp_url
+    return False
 
+def remove_markdown(url):    
+    # Isolate the actual URL (remove markdown) (part 1)
+    try:
+        url = url.split('](')[-1]
+        logging.debug(
+            "{} was stripped of this string: ']('".format(url))
+
+    except Exception as e:
+        logging.error(traceback.format_exc())
+        logging.debug(
+            "{} couldn't or didn't have to be stripped of this string: ']('.".format(url))
+
+    # Isolate the actual URL (remove markdown) (part 2)
+    if url.endswith(')?'):
+        url = url[:-2]
+        logging.debug("{} was stripped of this string: ')?'".format(url))
+
+    if url.endswith('),'):
+        url = url[:-2]
+        logging.debug("{} was stripped of this string: ')'".format(url))
+    
+    if url.endswith(').'):
+        url = url[:-2]
+        logging.debug("{} was stripped of this string: ')'".format(url))
+    
+    if url.endswith(')'):
+        url = url[:-1]
+        logging.debug("{} was stripped of this string: ')'".format(url))
+    
+    return url
+
+
+def get_canonical(url):
+# Fetch the submitted amp page, search for the canonical link
+    try:
+        # Fetch submitted amp page
+        logging.info("Started fetching..")
+        req = requests.get(url, headers=random_headers())
+
+        # Make the received data searchable
+        logging.info("Making a soup..")
+        soup = BeautifulSoup(req.text, features="lxml")
+        logging.info("Making a searchable soup..")
+        soup.prettify()
+
+        # Scan the received data for the direct link
+        logging.info("Scanning for all links..")
+        try:
+            # Check for every link on the amp page if it is of the type rel='canonical'
+            for link in soup.find_all(rel='canonical'):
+                # Get the direct link
+                found_canonical_url = link.get('href')
+                logging.debug("Found the direct link: {}".format(
+                    found_canonical_url))
+
+                # If the canonical url is the same as the submitted url, don't use it
+                if found_canonical_url == url:
+                    fatal_error_message = "The canonical URL was found but was the same AMP URL (the AMP specs were badly implemented on this website)"
+                    logging.warning(fatal_error_message + "\n\n")
+                    return None
+
+                # If the canonical url is unique, return it
+                else:
+                    return found_canonical_url
+
+        # If no canonical links were found, throw an exception
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            fatal_error_message = "the canonical URL could not be found (the AMP specs were badly implemented on this website)"
+            logging.warning(fatal_error_message + "\n\n")
+            return None
+
+    # If the submitted page couldn't be fetched, throw an exception
+    except Exception as e:
+        logging.error(traceback.format_exc())
+        fatal_error_message = "the page could not be fetched (the website is probably blocking bots or geo-blocking)"
+        logging.warning(fatal_error_message + "\n\n")
+        return None
+
+def check_criteria(mention, parent, isAmp):
+    # Check: Is AmputatorBot allowed in called subreddit?
+    if mention.subreddit.display_name not in forbidden_subreddits:
+        logging.debug("#{} may post in this subreddit".format(parent.id))
+
+        # Check: Has AmputatorBot tried (and failed) to respond to this mention already?
+        if parent.id not in mentions_unable_to_reply:
+            logging.debug("#{} hasn't been tried before".format(parent.id))
+
+            # Check: Has AmputatorBot replied to this mention already?
+            if parent.id not in mentions_replied_to:
+                logging.debug("#{} hasn't been replied to yet".format(parent.id))
+
+                # Check: Is the mention posted by u/AmputatorBot?
+                if not parent.author == r.user.me():
+                    logging.debug("#{} hasn't been posted by AmputatorBot".format(parent.id))
+
+                    # Check: Is the mention posted by a user who opted out?
+                    with open("forbidden_users.txt", "r") as f:
+                        forbidden_users = f.read()
+                        forbidden_users = forbidden_users.split(",")
+
+                    if not str(parent.author) in forbidden_users:
+                        logging.debug("#{} hasn't been posted by a user who opted out".format(parent.id))
+                        return True
+
+                else:
+                    logging.debug("#{} was posted by AmputatorBot".format(parent.id))
+
+            else:
+                logging.debug("#{} has already been replied to".format(parent.id))
+
+        else:
+            logging.debug("#{} has already been tried before".format(parent.id))
+
+    else:
+        logging.debug(
+            "#{} the bot may not post in this subreddit".format(parent.id))
+        if isAmp:
+            # Send a DM about the error to the summoner
+            r.redditor(str(mention.author)).message("AmputatorBot ran into an error: Disallowed subreddit", "AmputatorBot couldn't reply to the comment or submission you summoned it for: https://www.reddit.com" + parent.permalink + " because the bot is disallowed and/or banned [in a couple of subreddits](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot), including r/" + mention.subreddit.display_name + ". This means that it can't post there. However, you can head over to https://www.AmputatorBot.com/ to remove AMP from URLs in just one click. Maybe you could post it instead? I'm sorry I couldn't be of more help this time..\n\nYou can leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nYou're a very good human for trying <3")
+            logging.info("Notified the summoner of the error.\n")
+    
+    return False
 
 # Main function. Gets the inbox stream, filters for mentions,
 # scans the context for AMP links and replies with the direct link
@@ -73,16 +194,14 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
         # Resets for every inbox item
         user_opting_in = ""
         user_opting_out = ""
-        reply_to_parent = False
-        item_could_not_reply = False
-        item_could_reply = False
-        parent_is_comment = False
-        parent_is_submission = False
         mentions_urls = []
-        mentions_non_amp_urls = []
-        mentions_non_amps_urls_amount = 0
-        mentions_canonical_url = ""
-
+        found_canonical_url = None
+        canonical_url = ""
+        canonical_urls_amount = 0
+        canonical_urls = []
+        fatal_error_message = "a not so common one"
+        reply = ""
+        success = False
         # Get the subject of the message (can be username mention,
         # a comment reply notification, an opt-out request, an opt-in request
         # or another type of inbox message. Mark the item as read afterwards.
@@ -113,167 +232,57 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
                         if(isinstance(parent, praw.models.Comment)):
                             logging.debug("The parent #{} is a comment".format(parent.id))
                             parent_body = parent.body
-                            parent_is_comment = True
 
                         # Check if the parent is a submission, if yes get submission body
                         if(isinstance(parent, praw.models.Submission)):
                             logging.debug("The parent #{} is a submission".format(parent.id))
                             parent_body = parent.url
-                            parent_is_submission = True
 
                     except:
                         logging.error(traceback.format_exc())
                         logging.warning("Unexpected instance\n\n")
-                        item_could_not_reply = True
 
-                    # Check if the parent comment contains an AMP link
+                    # Check if the parent item contains an AMP link
                     string_contains_amp_url = contains_amp_url(parent_body)
                     if string_contains_amp_url:
-                        logging.debug(
-                            "#{} contains one or more '%%amp%%' strings".format(parent.id))
-
-                        # Check: Is AmputatorBot allowed in called subreddit?
-                        if mention.subreddit.display_name not in forbidden_subreddits:
-                            logging.debug(
-                                "#{} may post in this subreddit".format(parent.id))
-
-                            # Check: Has AmputatorBot tried (and failed) to respond to this mention already?
-                            if parent.id not in mentions_unable_to_reply:
-                                logging.debug(
-                                    "#{} hasn't been tried before".format(parent.id))
-
-                                # Check: Has AmputatorBot replied to this mention already?
-                                if parent.id not in mentions_replied_to:
-                                    logging.debug(
-                                        "#{} hasn't been replied to yet".format(parent.id))
-
-                                    # Check: Is the mention posted by u/AmputatorBot?
-                                    if not parent.author == r.user.me():
-                                        logging.debug(
-                                            "#{} hasn't been posted by AmputatorBot".format(parent.id))
-
-                                        # Check: Is the mention posted by a user who opted out?
-                                        with open("forbidden_users.txt", "r") as f:
-                                            forbidden_users = f.read()
-                                            forbidden_users = forbidden_users.split(",")
-
-                                        if not str(parent.author) in forbidden_users:
-                                            logging.debug("#{} hasn't been posted by a user who opted out".format(parent.id))
-                                            reply_to_parent = True
-
-                                    else:
-                                        logging.debug(
-                                            "#{} was posted by AmputatorBot".format(parent.id))
-
-                                else:
-                                    logging.debug(
-                                        "#{} has already been replied to".format(parent.id))
-
-                            else:
-                                logging.debug(
-                                    "#{} has already been tried before".format(parent.id))
-
-                        else:
-                            logging.debug(
-                                "#{} the bot may not post in this subreddit".format(parent.id))
-
+                        logging.debug("#{} contains one or more '%%amp%%' strings".format(parent.id))
                     else:
-                        logging.debug(
-                            "#{} doesn't contain any '%%amp%%' strings".format(parent.id))
+                        logging.debug("#{} doesn't contain any '%%amp%%' strings".format(parent.id))
 
-                    # If the parent is a comment, try to reply with the direct link
-                    if reply_to_parent:
+                    # Check if the parent item fits all criteria
+                    fits_criteria = check_criteria(mention, parent, string_contains_amp_url)
+
+                    # If the item fits the criteria and the item contains an AMP link, fetch the canonical link
+                    if fits_criteria and string_contains_amp_url:
                         try:
-                            logging.debug(
-                                "#{}'s body: {}\nScanning for urls..".format(parent.id, parent_body))
+                            logging.debug("#{}'s body: {}\nScanning for urls..".format(parent.id, parent_body))
 
                             # Scan the comment body for the links
                             mentions_urls = re.findall("(?P<url>https?://[^\s]+)", parent_body)
-                            mentions_urls_amount = len(mentions_urls)
-
+                            
                             # Loop through all submitted links
-                            for x in range(mentions_urls_amount):
-
-                                # Isolate the actual URL (remove markdown) (part 1)
-                                try:
-                                    mentions_urls[x] = mentions_urls[x].split('](')[-1]
-                                    logging.debug(
-                                        "{} was stripped of this string: ']('".format(mentions_urls[x]))
-
-                                except Exception as e:
-                                    logging.error(traceback.format_exc())
-                                    logging.debug(
-                                        "{} couldn't or didn't have to be stripped of this string: ']('.".format(mentions_urls[x]))
-
-                                # Isolate the actual URL (remove markdown) (part 2)
-                                if mentions_urls[x].endswith(')?'):
-                                    mentions_urls[x] = mentions_urls[x][:-2]
-                                    logging.debug("{} was stripped of this string: ')?'".format(
-                                        mentions_urls[x]))
-
-                                if mentions_urls[x].endswith(')'):
-                                    mentions_urls[x] = mentions_urls[x][:-1]
-                                    logging.debug("{} was stripped of this string: ')'".format(
-                                        mentions_urls[x]))
+                            for x in range(len(mentions_urls)):
+                                # Remove the markdown from the URL
+                                mentions_urls[x] = remove_markdown(mentions_urls[x])
 
                                 # Check: Is the isolated URL really an amp link?
-                                string_contains_amp_url = contains_amp_url(
-                                    mentions_urls[x])
+                                string_contains_amp_url = contains_amp_url(mentions_urls[x])
+
                                 if string_contains_amp_url:
-                                    logging.debug("\nAn amp link was found: {}".format(
-                                        mentions_urls[x]))
+                                    logging.debug("\nAn amp link was found: {}".format(mentions_urls[x]))
 
-                                    # Fetch the submitted amp page, search for the canonical link
-                                    try:
-                                        # Fetch submitted amp page
-                                        logging.info("Started fetching..")
-                                        req = requests.get(
-                                            mentions_urls[x], headers=random_headers())
-
-                                        # Make the received data searchable
-                                        logging.info("Making a soup..")
-                                        soup = BeautifulSoup(req.text, features="lxml")
-                                        logging.info("Making a searchable soup..")
-                                        soup.prettify()
-
-                                        # Scan the received data for the direct link
-                                        logging.info("Scanning for all links..")
-                                        try:
-                                            # Check for every link on the amp page if it is of the type rel='canonical'
-                                            for link in soup.find_all(rel='canonical'):
-                                                # Get the direct link
-                                                mentions_canonical_url = link.get('href')
-                                                logging.debug("Found the direct link: {}".format(
-                                                    mentions_canonical_url))
-
-                                                # If the canonical url is the same as the submitted url, don't use it
-                                                if mentions_canonical_url == mentions_urls[x]:
-                                                    logging.warning(
-                                                        "False positive encounterd! (mentions_canonical_url == mentions_urls[x])")
-                                                    item_could_not_reply = True
-
-                                                # If the canonical url is unique, add the direct link to the array
-                                                else:
-                                                    mentions_non_amps_urls_amount = len(
-                                                        mentions_non_amp_urls)
-                                                    mentions_canonical_url_markdown = "["+str(
-                                                        mentions_non_amps_urls_amount+1)+"] **"+mentions_canonical_url+"**"
-                                                    mentions_non_amp_urls.append(
-                                                        mentions_canonical_url_markdown)
-                                                    logging.debug("The array of canonical urls is now: {}".format(
-                                                        mentions_non_amp_urls))
-
-                                        # If no direct links were found, throw an exception
-                                        except Exception as e:
-                                            logging.error(traceback.format_exc())
-                                            logging.warning("The direct link could not be found.\n")
-                                            item_could_not_reply = True
-
-                                    # If the submitted page could't be fetched, throw an exception
-                                    except Exception as e:
-                                        logging.error(traceback.format_exc())
-                                        logging.warning("The page could not be fetched.\n")
-                                        item_could_not_reply = True
+                                    # Get the canonical link
+                                    canonical_url = get_canonical(mentions_urls[x])
+                                    if canonical_url is not None:
+                                        logging.debug("Canonical_url returned is not None")
+                                        # Add markdown in case there are multiple URLs
+                                        canonical_urls_amount = len(canonical_urls)
+                                        canonical_url_markdown = "["+str(canonical_urls_amount+1)+"] **"+canonical_url+"**"
+                                        canonical_urls.append(canonical_url_markdown)
+                                        logging.debug("The array of canonical urls is now: {}".format(
+                                            canonical_urls))
+                                    else:
+                                        logging.debug("No canonical URLs were found, skipping this one")
 
                                 # If the program fails to get the correct amp link, ignore it.
                                 else:
@@ -283,65 +292,60 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
                         except Exception as e:
                             logging.error(traceback.format_exc())
                             logging.warning("No links were found.\n")
-                            item_could_not_reply = True
-
-                        # Count the canonical urls
-                        mentions_non_amps_urls_amount = len(mentions_non_amp_urls)
 
                         # If no canonical urls were found, don't reply
-                        if mentions_non_amps_urls_amount == 0:
-                            logging.warning("[STOPPED] There were no canonical urls found.\n\n\n")
-                            item_could_not_reply = True
+                        if len(canonical_urls) == 0:
+                            fatal_error_message = "there were no canonical URLs found"
+                            logging.warning("[STOPPED] " + fatal_error_message + "\n\n")
 
                         # If there were direct links found, reply!
                         else:
-
                             # Try to reply to OP
                             try:
+                                canonical_urls_amount = len(canonical_urls)
 
                                 # If there was only one url found, generate a simple comment
-                                if mentions_non_amps_urls_amount == 1:
-                                    mention_reply = "It looks like OP shared a Google AMP link. These pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **["+mentions_canonical_url+"]("+mentions_canonical_url+")**.\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | **Summoned by a** )[^(**good human here!**)](https://www.reddit.com"+mention.context+")"
+                                if canonical_urls_amount == 1:
+                                    reply = "It looks like OP shared a Google AMP link. These pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal page** instead: **["+canonical_url+"]("+canonical_url+")**.\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | **Summoned by a** )[^(**good human here!**)](https://www.reddit.com"+mention.context+")"
 
                                 # If there were multiple urls found, generate a multi-url comment
-                                if mentions_non_amps_urls_amount > 1:
+                                if canonical_urls_amount > 1:
                                     # Generate string of all found links
-                                    mention_reply_generated = '\n\n'.join(mentions_non_amp_urls)
+                                    reply_generated = '\n\n'.join(canonical_urls)
                                     # Generate entire comment
-                                    mention_reply = "It looks like OP shared a couple of Google AMP links. These pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+mention_reply_generated+"\n\n*****\n\n^(I'm a bot | )[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | **Summoned by a** )[^(**good human here!**)](https://www.reddit.com"+mention.context+")"
+                                    reply = "It looks like OP shared a couple of Google AMP links. These pages often load faster, but AMP is a [major threat to the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot).\n\nYou might want to visit **the normal pages** instead: \n\n"+reply_generated+"\n\n*****\n\n^(I'm a bot | )[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | **Summoned by a** )[^(**good human here!**)](https://www.reddit.com"+mention.context+")"
 
                                 # Reply to mention
-                                parent.reply(mention_reply)
+                                parent.reply(reply)
                                 logging.debug("Replied to #{}\n".format(parent.id))
-                                item_could_reply = True
 
                                 # Send a DM to the summoner with confirmation and link to parent comment
-                                r.redditor(str(mention.author)).message("Thx for summoning me!", "The bot has successfully replied to this comment: https://www.reddit.com"+parent.permalink+".\n\nAn easy way to find the comment is by checking my comment history. Thanks for summoning me, I couldn't do this without you (no but literally). You're a very good human <3\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\n\nProtip: You can now also use https://AmputatorBot.com to remove AMP from your URLs. You can copy-paste it manually or use it like this: https://AmputatorBot.com/?"+mentions_urls[0])
+                                r.redditor(str(mention.author)).message("Thx for summoning me!", "The bot has successfully replied the comment or submission you summoned it for: https://www.reddit.com"+parent.permalink+".\n\nAn easy way to find the comment is by checking my comment history. Thanks for summoning me, I couldn't do this without you (no but literally). You're a very good human <3\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\n\nProtip: You can now also use https://AmputatorBot.com to remove AMP from your URLs. You can copy-paste it manually or use it like this: https://AmputatorBot.com/?"+mentions_urls[0])
 
                                 logging.info("Confirmed the reply to the summoner.\n")
+
+                                # If the reply was successfully send, note this
+                                success = True
+                                with open("mentions_replied_to.txt", "a") as f:
+                                    f.write(parent.id + ",")
+                                    mentions_replied_to.append(parent.id)
+                                    logging.info("Added the parent id to file: mentions_replied_to.txt\n\n\n")
 
                             # If the reply didn't got through, throw an exception (can occur when comment gets deleted or when rate limits are exceeded)
                             except Exception as e:
                                 logging.error(traceback.format_exc())
-                                logging.warning("Could not reply to post.\n\n\n")
-                                item_could_not_reply = True
-
-                        # If the reply was successfully send, note this
-                        if item_could_reply:
-                            with open("mentions_replied_to.txt", "a") as f:
-                                f.write(parent.id + ",")
-                                mentions_replied_to.append(parent.id)
-                                logging.info("Added the parent id to file: mentions_replied_to.txt\n\n\n")
-
+                                fatal_error_message = "could not reply to item, it either got deleted or the rate-limits have been exceeded"
+                                logging.warning("[STOPPED] " + fatal_error_message + "\n\n")
+                                
                         # If the reply could not be made or send, note this
-                        if item_could_not_reply:
+                        if not success:
                             with open("mentions_unable_to_reply.txt", "a") as f:
                                 f.write(parent.id + ",")
                                 mentions_unable_to_reply.append(parent.id)
                                 logging.info("Added the parent id to file: mentions_unable_to_reply.txt.")
 
                                 # Send a DM about the error to the summoner
-                                r.redditor(str(mention.author)).message("AmputatorBot ran into an error..", "AmputatorBot couldn't reply to the comment or submission you summoned it for: https://www.reddit.com"+parent.permalink+".\n\nThis error has been logged and is being investigated. Common causes for this error are: bot- and geoblocking websites, badly implemented AMP specs and the disallowance of the bot in [certain subreddits](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot).\n\nThat said, you can leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nYou're a very good human for trying <3\n\n\nProtip: You can now also use https://AmputatorBot.com to remove AMP from your URLs. Visit https://AmputatorBot.com/?"+mentions_urls[0]+" to try again or to see more detailed debug-info.")
+                                r.redditor(str(mention.author)).message("AmputatorBot ran into an error..", "AmputatorBot couldn't reply to the comment or submission you summoned it for: https://www.reddit.com"+parent.permalink+".\n\nAmputatorBot ran into the following error: >("+ fatal_error_message + ")\n\nThis error has been logged and is being investigated.\n\nCommon causes for errors are: bot- and geoblocking websites, badly implemented AMP specs and the disallowance of the bot in [certain subreddits](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot).\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nYou're a very good human for trying <3\n\nProtip: You can now also use https://AmputatorBot.com to remove AMP from your URLs. Visit https://AmputatorBot.com/?" + mentions_urls[0] + " to try again or to see more detailed debug-info.")
 
                                 logging.info("Notified the summoner of the error.\n")
 
@@ -417,7 +421,7 @@ def run_bot(r, forbidden_subreddits, mentions_replied_to, mentions_unable_to_rep
                         with open("forbidden_users.txt", "w") as f:
                             f.write(updatedList)
 
-                        logging.info("Removed the username to file: forbidden_users.txt and removed user from opted-out list\n\n\n")
+                        logging.info("Removed the username from file: forbidden_users.txt and removed user from opted-out list\n\n\n")
                         forbidden_users.remove(user_opting_in)
 
                         # Send a DM to the summoner with confirmation

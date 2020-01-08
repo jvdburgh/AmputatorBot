@@ -26,7 +26,7 @@ import logging
 
 # Configure logging
 logging.basicConfig(
-    filename="v1.5_check_comments.log",
+    filename="v1.6_check_comments.log",
     level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
@@ -153,13 +153,19 @@ def run_bot(r, allowed_subreddits, comments_replied_to, comments_unable_to_reply
                     # Isolate the actual URL (remove markdown) (part 2)
                     if comments_urls[x].endswith(')?'):
                         comments_urls[x] = comments_urls[x][:-2]
-                        logging.debug("{} was stripped of this string: ')?'".format(
-                            comments_urls[x]))
+                        logging.debug("{} was stripped of this string: ')?'".format(comments_urls[x]))
+
+                    if comments_urls[x].endswith('),'):
+                        comments_urls[x] = comments_urls[x][:-2]
+                        logging.debug("{} was stripped of this string: ')'".format(comments_urls[x]))
+
+                    if comments_urls[x].endswith(').'):
+                        comments_urls[x] = comments_urls[x][:-2]
+                        logging.debug("{} was stripped of this string: ')'".format(comments_urls[x]))
 
                     if comments_urls[x].endswith(')'):
                         comments_urls[x] = comments_urls[x][:-1]
-                        logging.debug("{} was stripped of this string: ')'".format(
-                            comments_urls[x]))
+                        logging.debug("{} was stripped of this string: ')'".format(comments_urls[x]))
 
                     # Check: Is the isolated URL really an amp link?
                     string_contains_amp_url = contains_amp_url(comments_urls[x])
