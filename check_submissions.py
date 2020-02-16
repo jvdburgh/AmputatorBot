@@ -11,10 +11,11 @@
 # in certain subreddits for AMP links. If AmputatorBot detects an
 # AMP link, a reply is made with the direct link
 
+import logging
 # Import a couple of libraries
 import traceback
-import logging
 from time import sleep
+
 import util
 
 logging.basicConfig(
@@ -25,7 +26,7 @@ logging.basicConfig(
 
 # Main function. Gets the stream for submissions in certain subreddits,
 # scans the context for AMP links and replies with the direct link
-def run_bot(r, allowed_subreddits, forbidden_users, submissions_replied_to, submissions_unable_to_reply):
+def run_bot(r, allowed_subreddits, forbidden_users, np_subreddits, submissions_replied_to, submissions_unable_to_reply):
     logging.info("Praw: obtaining stream of subreddits")
 
     # Get the submission stream of select subreddits using Praw.
@@ -34,6 +35,7 @@ def run_bot(r, allowed_subreddits, forbidden_users, submissions_replied_to, subm
         item = submission
         success = False
         note = "\n\n"
+        domain = "www"
         try:
             # Check if the item fits all criteria
             fits_criteria = check_criteria(item)
@@ -51,7 +53,12 @@ def run_bot(r, allowed_subreddits, forbidden_users, submissions_replied_to, subm
                         canonical_url = util.get_canonical(item.url, 2)
                         if canonical_url is not None:
                             logging.debug("Canonical_url returned is not None")
-                            reply = "It looks like OP posted an AMP link. These will often load faster, but Google's AMP [threatens the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)." + note + "You might want to visit **the normal page** instead: **["+canonical_url+"]("+canonical_url+")**.\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
+
+                            # If the subreddit encourages the use of NP, make it NP
+                            if item.subreddit in np_subreddits:
+                                domain = "np"
+
+                            reply = "It looks like OP posted an AMP link. These will often load faster, but Google's AMP [threatens the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)." + note + "You might want to visit **the normal page** instead: **["+canonical_url+"]("+canonical_url+")**.\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
 
                             # Try to comment on OP's submission with a top-level comment
                             try:
@@ -127,6 +134,7 @@ def check_criteria(item):
 r = util.bot_login()
 forbidden_users = util.get_forbidden_users()
 allowed_subreddits = util.get_allowed_subreddits()
+np_subreddits = util.get_np_subreddits()
 submissions_replied_to = util.get_submissions_replied()
 submissions_unable_to_reply = util.get_submissions_errors()
 
@@ -134,7 +142,7 @@ submissions_unable_to_reply = util.get_submissions_errors()
 # Run the program
 while True:
     try:
-        run_bot(r, allowed_subreddits, forbidden_users, submissions_replied_to,
+        run_bot(r, allowed_subreddits, forbidden_users, np_subreddits, submissions_replied_to,
                 submissions_unable_to_reply)
     except:
         logging.warning("Couldn't log in or find the necessary files! Waiting 120 seconds")

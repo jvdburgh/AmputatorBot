@@ -10,16 +10,18 @@
 # to perform a couple of tasks: log in, generate a random header, check for amp links,
 # check for google amp links, remove markdown, getting the canonical url,
 
+import logging
 # Import a couple of libraries
 import os
 import re
 import traceback
 from random import choice
+
+import praw
 import requests
 from bs4 import BeautifulSoup
+
 import config
-import logging
-import praw
 
 
 # Login to Reddit API using Praw.
@@ -55,14 +57,9 @@ def random_headers():
 
 
 def check_if_amp(string):
-    if "/amp" in string or "/AMP" in string \
-            or "amp/" in string or "AMP/" in string \
-            or ".amp" in string or ".AMP" in string \
-            or "amp." in string or "AMP." in string \
-            or "?amp" in string or "?AMP" in string \
-            or "amp?" in string or "AMP?" in string \
-            or "=amp" in string or "=AMP" in string \
-            or "amp=" in string or "AMP/" in string \
+    string = string.lower()  # Make string lowercase
+    if "/amp" in string or "amp/" in string or ".amp" in string or "amp." in string or "?amp" in string \
+            or "amp?" in string or "=amp" in string or "amp=" in string or "&amp" in string or "amp&" in string \
             and "https://" in string:
         return True
 
@@ -71,6 +68,8 @@ def check_if_amp(string):
 
 
 def check_if_google(string):
+    string = string.lower()  # Make string lowercase
+
     # If the string contains an Google AMP link, return True
     if "www.google." in string or "ampproject.net" in string or "ampproject.org" in string:
         return True
@@ -299,6 +298,21 @@ def get_forbidden_subreddits():
             logging.info("forbidden_subreddits.txt was found.")
 
     return forbidden_subreddits
+
+
+# Get the data of which subreddits the bot should use NP URLs
+def get_np_subreddits():
+    if not os.path.isfile("np_subreddits.txt"):
+        np_subreddits = []
+        logging.warning("np_subreddits.txt could not be found.\n")
+
+    else:
+        with open("np_subreddits.txt", "r") as f:
+            np_subreddits = f.read()
+            np_subreddits = np_subreddits.split(",")
+            logging.info("np_subreddits.txt was found.")
+
+    return np_subreddits
 
 
 # Get list of users who opted out

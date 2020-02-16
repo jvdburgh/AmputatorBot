@@ -8,10 +8,11 @@ You might be searching for these files:
 - mentions_unable_to_reply.txt
 - forbidden_subreddits.txt
 - forbidden_users.txt
+- np_subreddits.txt
 - log files
 
 These files will not be shared to prevent spam and doxing.
-Besides, these files will be automatically created by the 3 python scripts (except for the forbidden_users.txt one, since this file is used dynamically by all scripts).
+Besides, these files should be automatically created by the 3 python scripts.
 
 And if you're lost on config.py, I've made a template for you: https://github.com/KilledMufasa/AmputatorBot/blob/master/config.py
 

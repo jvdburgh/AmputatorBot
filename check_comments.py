@@ -11,10 +11,11 @@
 # in certain subreddits for AMP links. If AmputatorBot detects an
 # AMP link, a reply is made with the direct link
 
+import logging
 # Import a couple of libraries
 import traceback
-import logging
 from time import sleep
+
 import util
 
 logging.basicConfig(
@@ -25,7 +26,7 @@ logging.basicConfig(
 
 # Main function. Gets the stream for comments in certain subreddits,
 # scans the context for AMP links and replies with the direct link
-def run_bot(r, allowed_subreddits, forbidden_users, comments_replied_to, comments_unable_to_reply):
+def run_bot(r, allowed_subreddits, forbidden_users, np_subreddits, comments_replied_to, comments_unable_to_reply):
     logging.info("Praw: obtaining stream of subreddits")
     # Get a stream of comments in select subreddits using Praw
     for comment in r.subreddit("+".join(allowed_subreddits)).stream.comments():
@@ -36,6 +37,7 @@ def run_bot(r, allowed_subreddits, forbidden_users, comments_replied_to, comment
         reply_generated = ""
         success = False
         item = comment
+        domain = "www"
         note = "\n\n"
         note_alt = "\n\n"
 
@@ -81,14 +83,18 @@ def run_bot(r, allowed_subreddits, forbidden_users, comments_replied_to, comment
                 try:
                     canonical_urls_amount = len(canonical_urls)
 
+                    # If the subreddit encourages the use of NP, make it NP
+                    if item.subreddit in np_subreddits:
+                        domain = "np"
+
                     # If there was only one url found, generate a simple comment
                     if canonical_urls_amount == 1:
-                        reply = "It looks like you shared an AMP link. These will often load faster, but Google's AMP [threatens the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)." + note + "You might want to visit **the normal page** instead: **[" + canonical_urls[0] + "](" + canonical_urls[0] + ")**.\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
+                        reply = "It looks like you shared an AMP link. These will often load faster, but Google's AMP [threatens the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)." + note + "You might want to visit **the normal page** instead: **[" + canonical_urls[0] + "](" + canonical_urls[0] + ")**.\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
 
                     # If there were multiple urls found, generate a multi-url comment
                     if canonical_urls_amount > 1:
                         # Generate entire comment
-                        reply = "It looks like you shared a couple of AMP links. These will often load faster, but Google's AMP [threatens the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)." + note_alt + "You might want to visit **the normal pages** instead: \n\n" + reply_generated + "\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
+                        reply = "It looks like you shared a couple of AMP links. These will often load faster, but Google's AMP [threatens the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)." + note_alt + "You might want to visit **the normal pages** instead: \n\n" + reply_generated + "\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
 
                     # Reply to item
                     item.reply(reply)
@@ -145,13 +151,14 @@ def check_criteria(item):
 r = util.bot_login()
 allowed_subreddits = util.get_allowed_subreddits()
 forbidden_users = util.get_forbidden_users()
+np_subreddits = util.get_np_subreddits()
 comments_replied_to = util.get_comments_replied()
 comments_unable_to_reply = util.get_comments_errors()
 
 # Run the program
 while True:
     try:
-        run_bot(r, allowed_subreddits, forbidden_users, comments_replied_to, comments_unable_to_reply)
+        run_bot(r, allowed_subreddits, forbidden_users, np_subreddits, comments_replied_to, comments_unable_to_reply)
     except:
         logging.warning("Couldn't log in or find the necessary files! Waiting 120 seconds")
         sleep(120)

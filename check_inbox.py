@@ -14,11 +14,13 @@
 # If a user opts out, the username will be added to a dynamic file
 # which will be confirmed with a DM.
 
+import logging
+import traceback
 # Import a couple of libraries
 from time import sleep
+
 import praw
-import traceback
-import logging
+
 import util
 
 logging.basicConfig(
@@ -30,17 +32,17 @@ logging.basicConfig(
 
 # Main function. Gets the inbox stream, filters for mentions,
 # scans the context for AMP links and replies with the direct link
-def run_bot(r, forbidden_subreddits, forbidden_users, mentions_replied_to, mentions_unable_to_reply):
+def run_bot(r, forbidden_subreddits, forbidden_users, np_subreddits, mentions_replied_to, mentions_unable_to_reply):
     # Get the inbox stream using Praw
     for message in r.inbox.unread(limit=None):
         # Resets for every inbox item
-        item_urls = []
         canonical_urls = []
         fatal_error_message = "a not so common one"
         parent_body = ""
         reply = ""
         reply_generated = ""
         success = False
+        domain = "www"
         note = "\n\n"
         note_alt = "\n\n"
         # Get the subject of the message (can be username mention,
@@ -57,13 +59,13 @@ def run_bot(r, forbidden_subreddits, forbidden_users, mentions_replied_to, menti
             # Check if the inbox item is a mention
             if subject == "username mention" and isinstance(message, praw.models.Comment):
                 logging.debug("The bot was mentioned in this message: #" + message.id)
-                mention = message
+                item = message
 
                 try:
                     # Log that and where u/AmputatorBot has been mentioned
-                    parent = mention.parent()
+                    parent = item.parent()
                     logging.debug("Mention detected (comment ID: {} & parent ID: {})".format(
-                        mention.id, parent.id))
+                        item.id, parent.id))
 
                     # Figure out if parent is a submission or comment
                     logging.info("Checking instance of parent..")
@@ -77,7 +79,7 @@ def run_bot(r, forbidden_subreddits, forbidden_users, mentions_replied_to, menti
                         logging.warning("Unexpected instance\n\n")
 
                     # Check if the parent item fits all criteria
-                    fits_criteria = check_criteria(mention, parent)
+                    fits_criteria = check_criteria(item, parent)
 
                     # If the item fits the criteria and the item contains an AMP link, fetch the canonical link
                     if fits_criteria:
@@ -91,7 +93,7 @@ def run_bot(r, forbidden_subreddits, forbidden_users, mentions_replied_to, menti
                                     for x in range(len(amp_urls)):
                                         if util.check_if_google(amp_urls[x]):
                                             note = " This page is even entirely hosted on Google's servers (!).\n\n"
-                                            note_alt = " Some of those pages are even entirely hosted on Google's servers (!).\n\n"
+                                            note_alt = " Some of these pages are even entirely hosted on Google's servers (!).\n\n"
                                             break
                                     canonical_urls = util.get_canonicals(amp_urls, True)
                                     if canonical_urls:
@@ -118,22 +120,26 @@ def run_bot(r, forbidden_subreddits, forbidden_users, mentions_replied_to, menti
                             try:
                                 canonical_urls_amount = len(canonical_urls)
 
+                                # If the subreddit encourages the use of NP, make it NP
+                                if item.subreddit in np_subreddits:
+                                    domain = "np"
+
                                 # If there was only one url found, generate a simple comment
                                 if canonical_urls_amount == 1:
-                                    reply = "It looks like OP shared an AMP link. These will often load faster, but Google's AMP [threatens the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)." + note + "You might want to visit **the normal page** instead: **[" + canonical_urls[0] + "](" + canonical_urls[0] + ")**.\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | **Summoned by a** )[^(**good human here!**)](https://www.reddit.com" + mention.context + ")"
+                                    reply = "It looks like OP shared an AMP link. These will often load faster, but Google's AMP [threatens the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)." + note + "You might want to visit **the normal page** instead: **[" + canonical_urls[0] + "](" + canonical_urls[0] + ")**.\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | **Summoned by a** )[^(**good human here!**)](https://" + domain + ".reddit.com" + item.context + ")"
 
                                 # If there were multiple urls found, generate a multi-url comment
                                 if canonical_urls_amount > 1:
                                     # Generate entire comment
-                                    reply = "It looks like OP shared a couple of AMP links. These will often load faster, but Google's AMP [threatens the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)." + note_alt + "You might want to visit **the normal pages** instead: \n\n" + reply_generated + "\n\n*****\n\n^(I'm a bot | )[^(Why & About)](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | **Summoned by a** )[^(**good human here!**)](https://www.reddit.com" + mention.context + ")"
+                                    reply = "It looks like OP shared a couple of AMP links. These will often load faster, but Google's AMP [threatens the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)." + note_alt + "You might want to visit **the normal pages** instead: \n\n" + reply_generated + "\n\n*****\n\n^(I'm a bot | )[^(Why & About)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | **Summoned by a** )[^(**good human here!**)](https://" + domain + ".reddit.com" + item.context + ")"
 
                                 # Reply to mention
                                 parent.reply(reply)
                                 logging.debug("Replied to #{}\n".format(parent.id))
 
                                 # Send a DM to the summoner with confirmation and link to parent comment
-                                r.redditor(str(mention.author)).message("Thx for summoning me!", "The bot has successfully replied the comment or submission you summoned it for: https://www.reddit.com" + parent.permalink + ".\n\nAn easy way to find the comment is by checking my comment history. Thanks for summoning me, I couldn't do this without you (no but literally). You're a very good human <3\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\n\nProtip: You can now also use https://AmputatorBot.com to remove AMP from your URLs. You can copy-paste it manually or use it like this: https://AmputatorBot.com/?" +
-                                                                        item_urls[0])
+                                r.redditor(str(item.author)).message("Thx for summoning me!", "The bot has successfully replied the comment or submission you summoned it for: https://www.reddit.com" + parent.permalink + ".\n\nAn easy way to find the comment is by checking my comment history. Thanks for summoning me, I couldn't do this without you (no but literally). You're a very good human <3\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\n\nProtip: You can now also use https://AmputatorBot.com to remove AMP from your URLs. You can copy-paste it manually or use it like this: https://AmputatorBot.com/?" +
+                                                                        amp_urls[0])
 
                                 logging.info("Confirmed the reply to the summoner.\n")
 
@@ -159,9 +165,9 @@ def run_bot(r, forbidden_subreddits, forbidden_users, mentions_replied_to, menti
                             logging.info("Added the parent id to file: mentions_unable_to_reply.txt.")
 
                             # Send a DM about the error to the summoner
-                            r.redditor(str(mention.author)).message("AmputatorBot ran into an error..",
+                            r.redditor(str(item.author)).message("AmputatorBot ran into an error..",
                                                                     "AmputatorBot couldn't reply to the comment or submission you summoned it for: https://www.reddit.com" + parent.permalink + ".\n\nAmputatorBot ran into the following error: " + fatal_error_message + ".\n\nThis error has been logged and is being investigated. Common causes for this error are: bot- and geoblocking websites and badly implemented AMP specs.\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nYou're a very good human for trying <3\n\nProtip: You can now also use https://AmputatorBot.com to remove AMP from your URLs. Visit https://AmputatorBot.com/?" +
-                                                                    item_urls[0] + " to try again or to see more detailed debug-info.")
+                                                                    amp_urls[0] + " to try again or to see more detailed debug-info.")
 
                             logging.info("Notified the summoner of the error.\n")
 
@@ -249,9 +255,9 @@ def run_bot(r, forbidden_subreddits, forbidden_users, mentions_replied_to, menti
             logging.warning("Unexpected instance\n\n")
 
 
-def check_criteria(mention, parent):
+def check_criteria(item, parent):
     # Must not be in forbidden_subreddits
-    if mention.subreddit.display_name in forbidden_subreddits:
+    if item.subreddit.display_name in forbidden_subreddits:
         try:
             # Set body in accordance to the instance
             parent_body = util.get_instance(parent)
@@ -269,9 +275,9 @@ def check_criteria(mention, parent):
                             # Generate string of all found links
                             reply_generated = '\n\n'.join(canonical_urls)
                             # Send a DM about the error to the summoner
-                            r.redditor(str(mention.author)).message(
+                            r.redditor(str(item.author)).message(
                                 "AmputatorBot ran into an error: Disallowed subreddit",
-                                "AmputatorBot couldn't reply to the [comment or submission you summoned it for](https://www.reddit.com" + parent.permalink + ") because AmputatorBot is disallowed and/or banned in r/" + mention.subreddit.display_name + ", just like it is in [some others](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot). Unfortunately, this means that it can't post there. But that doesn't stop us! Here are the canonical URLs you requested:\n\n" + reply_generated + "\n\nMaybe _you_ could post it instead?\n\nYou can leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nProtip: You can now also use https://AmputatorBot.com to remove AMP from your URLs. You can even use it like this: https://AmputatorBot.com/?" +
+                                "AmputatorBot couldn't reply to the [comment or submission you summoned it for](https://www.reddit.com" + parent.permalink + ") because AmputatorBot is disallowed and/or banned in r/" + item.subreddit.display_name + ", just like it is in [some others](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot). Unfortunately, this means that it can't post there. But that doesn't stop us! Here are the canonical URLs you requested:\n\n" + reply_generated + "\n\nMaybe _you_ could post it instead?\n\nYou can leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nProtip: You can now also use https://AmputatorBot.com to remove AMP from your URLs. You can even use it like this: https://AmputatorBot.com/?" +
                                 amp_urls[0])
                             logging.info("Notified the summoner of the error.\n")
                         else:
@@ -308,13 +314,14 @@ def check_criteria(mention, parent):
 r = util.bot_login()
 forbidden_subreddits = util.get_forbidden_subreddits()
 forbidden_users = util.get_forbidden_users()
+np_subreddits = util.get_np_subreddits()
 mentions_replied_to = util.get_mentions_replied()
 mentions_unable_to_reply = util.get_mentions_errors()
 
 # Run the program
 while True:
     try:
-        run_bot(r, forbidden_subreddits, forbidden_users, mentions_replied_to, mentions_unable_to_reply)
+        run_bot(r, forbidden_subreddits, forbidden_users, np_subreddits, mentions_replied_to, mentions_unable_to_reply)
     except:
         logging.warning("Couldn't log in or find the necessary files! Waiting 120 seconds")
         sleep(120)
