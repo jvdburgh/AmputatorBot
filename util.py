@@ -10,8 +10,8 @@
 # to perform a couple of tasks: log in, generate a random header, check for amp links,
 # check for google amp links, remove markdown, getting the canonical url,
 
-import logging
 # Import a couple of libraries
+import logging
 import os
 import re
 import traceback
@@ -207,16 +207,19 @@ def get_canonical(url, depth):
         return None
 
 
-def get_instance(item):
+def get_body(item):
     # Check if the parent is a comment, if yes get comment body
     if isinstance(item, praw.models.Comment):
-        logging.debug("The parent #{} is a comment".format(item.id))
         return item.body
 
-    # Check if the parent is a submission, if yes get submission body
+    # Check if the parent is a submission, if yes get submission url or selftext
     if isinstance(item, praw.models.Submission):
-        logging.debug("The parent #{} is a submission".format(item.id))
-        return item.url
+        if check_if_amp(item.url):
+            return item.url
+        if check_if_amp(item.selftext):
+            return item.selftext
+
+    return "None"
 
 
 def get_amp_urls(item_body):

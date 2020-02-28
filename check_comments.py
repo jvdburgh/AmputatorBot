@@ -11,15 +11,15 @@
 # in certain subreddits for AMP links. If AmputatorBot detects an
 # AMP link, a reply is made with the direct link
 
-import logging
 # Import a couple of libraries
+import logging
 import traceback
 from time import sleep
 
 import util
 
 logging.basicConfig(
-    filename="logs/v1.8/check_comments.log",
+    filename="logs/v1.9/check_comments.log",
     level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
@@ -30,7 +30,6 @@ def run_bot(r, allowed_subreddits, forbidden_users, np_subreddits, comments_repl
     logging.info("Praw: obtaining stream of subreddits")
     # Get a stream of comments in select subreddits using Praw
     for comment in r.subreddit("+".join(allowed_subreddits)).stream.comments():
-        # for comment in r.subreddit(("+").join(allowed_subreddits)).comments(limit=5000):
         # Resets for every comment
         canonical_urls = []
         reply = ""
@@ -44,7 +43,7 @@ def run_bot(r, allowed_subreddits, forbidden_users, np_subreddits, comments_repl
         # Check if the item fits all criteria
         fits_criteria = check_criteria(item)
 
-        # If the item fits the criteria and the item contains an AMP link, fetch the canonical link
+        # If the item fits the criteria and the item contains an AMP link, fetch the canonical link(s)
         if fits_criteria:
             try:
                 logging.debug("#{}'s body: {}\nScanning for urls..".format(item.id, item.body))
@@ -65,7 +64,7 @@ def run_bot(r, allowed_subreddits, forbidden_users, np_subreddits, comments_repl
                         else:
                             logging.info("No canonical urls were found\n")
                 except:
-                    logging.warning("Couldn't check am_urls")
+                    logging.warning("Couldn't check amp_urls")
 
             # If the program fails to find any link at all, throw an exception
             except:

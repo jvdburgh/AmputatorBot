@@ -11,15 +11,15 @@
 # in certain subreddits for AMP links. If AmputatorBot detects an
 # AMP link, a reply is made with the direct link
 
-import logging
 # Import a couple of libraries
+import logging
 import traceback
 from time import sleep
 
 import util
 
 logging.basicConfig(
-    filename="logs/v1.8/check_submissions.log",
+    filename="logs/v1.9/check_submissions.log",
     level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
@@ -32,68 +32,91 @@ def run_bot(r, allowed_subreddits, forbidden_users, np_subreddits, submissions_r
     # Get the submission stream of select subreddits using Praw.
     for submission in r.subreddit("+".join(allowed_subreddits)).stream.submissions():
         # Resets for every submission
-        item = submission
+        canonical_urls = []
+        reply = ""
+        reply_generated = ""
         success = False
-        note = "\n\n"
+        item = submission
         domain = "www"
-        try:
-            # Check if the item fits all criteria
-            fits_criteria = check_criteria(item)
+        note = "\n\n"
+        note_alt = "\n\n"
 
-            # If all criteria are met, try to comment with the direct link
+        try:
+            # Set body in accordance to the instance
+            item_body = util.get_body(item)
+
+            # Check if the item fits all other criteria
+            fits_criteria = check_criteria(item, item_body)
+
+            # If the item fits the criteria and the item contains an AMP link, fetch the canonical link(s)
             if fits_criteria:
                 try:
-                    logging.debug("All criteria were met.\nItem ID:{}\nItem Title:{}\nItem Body:{}\nItem URL:{}".format(item.id,item.title,item.selftext,item.url))
-
-                    if util.check_if_google(item.url):
-                        note = " This page is even entirely hosted on Google's servers (!).\n\n"
-
-                    # Fetch the submitted amp page, if canonical (direct link) was found, generate and post comment
+                    logging.debug("#{}'s body: {}\nScanning for urls..".format(item.id, item_body))
                     try:
-                        canonical_url = util.get_canonical(item.url, 2)
-                        if canonical_url is not None:
-                            logging.debug("Canonical_url returned is not None")
-
-                            # If the subreddit encourages the use of NP, make it NP
-                            if item.subreddit in np_subreddits:
-                                domain = "np"
-
-                            reply = "It looks like OP posted an AMP link. These will often load faster, but Google's AMP [threatens the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)." + note + "You might want to visit **the normal page** instead: **["+canonical_url+"]("+canonical_url+")**.\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
-
-                            # Try to comment on OP's submission with a top-level comment
-                            try:
-                                item.reply(reply)
-                                logging.debug("Replied to #{}\n".format(item.id))
-
-                                # If the reply was successfully send, note this
-                                success = True
-                                with open("submissions_replied_to.txt", "a") as f:
-                                    f.write(item.id + ",")
-                                submissions_replied_to.append(item.id)
-                                logging.info("Added the item id to file: submissions_replied_to.txt\n\n")
-
-                            # If the reply didn't got through, throw an exception
-                            # can occur when item gets deleted or when rate limits are exceeded
-                            except:
-                                logging.error(traceback.format_exc())
-                                fatal_error_message = "could not reply to item, it either got deleted or the rate-limits have been exceeded"
-                                logging.warning("[STOPPED] " + fatal_error_message + "\n\n")
-
+                        amp_urls = util.get_amp_urls(item_body)
+                        if not amp_urls:
+                            logging.info("Couldn't find any amp urls")
                         else:
-                            fatal_error_message = "There were no canonical URLs found"
-                            logging.warning("[STOPPED] " + fatal_error_message + "\n\n")
+                            for x in range(len(amp_urls)):
+                                if util.check_if_google(amp_urls[x]):
+                                    note = " This page is even entirely hosted on Google's servers (!).\n\n"
+                                    note_alt = " Some of those pages are even entirely hosted on Google's servers (!).\n\n"
+                                    break
+                            canonical_urls = util.get_canonicals(amp_urls, True)
+                            if canonical_urls:
+                                reply_generated = '\n\n'.join(canonical_urls)
 
-                    # If no direct links were found, throw an exception
+                            else:
+                                logging.info("No canonical urls were found\n")
                     except:
-                        logging.error(traceback.format_exc())
-                        fatal_error_message = "There were no canonical URLs found"
-                        logging.warning("[STOPPED] " + fatal_error_message + "\n\n")
+                        logging.warning("Couldn't check amp_urls")
 
-                # If something else went wrong, throw an exception
+                # If the program fails to find any link at all, throw an exception
                 except:
                     logging.error(traceback.format_exc())
-                    fatal_error_message = "Something went wrong while logging meta info"
+                    logging.warning("No links were found.\n")
+
+                # If no canonical urls were found, don't reply
+                if len(canonical_urls) == 0:
+                    fatal_error_message = "there were no canonical URLs found"
                     logging.warning("[STOPPED] " + fatal_error_message + "\n\n")
+
+                # If there were direct links found, reply!
+                else:
+                    # Try to reply to OP
+                    try:
+                        canonical_urls_amount = len(canonical_urls)
+
+                        # If the subreddit encourages the use of NP, make it NP
+                        if item.subreddit in np_subreddits:
+                            domain = "np"
+
+                        # If there was only one url found, generate a simple comment
+                        if canonical_urls_amount == 1:
+                            reply = "It looks like OP posted an AMP link. These will often load faster, but Google's AMP [threatens the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)." + note + "You might want to visit **the normal page** instead: **[" + canonical_urls[0] + "](" + canonical_urls[0] + ")**.\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
+
+                        # If there were multiple urls found, generate a multi-url comment
+                        if canonical_urls_amount > 1:
+                            # Generate entire comment
+                            reply = "It looks like OP shared a couple of AMP links. These will often load faster, but Google's AMP [threatens the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)." + note_alt + "You might want to visit **the normal pages** instead: \n\n" + reply_generated + "\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)"
+
+                        # Reply to item
+                        item.reply(reply)
+                        logging.debug("Replied to #{}\n".format(item.id))
+
+                        # If the reply was successfully send, note this
+                        success = True
+                        with open("submissions_replied_to.txt", "a") as f:
+                            f.write(item.id + ",")
+                        submissions_replied_to.append(item.id)
+                        logging.info("Added the item id to file: submissions_replied_to.txt\n\n\n")
+
+                    # If the reply didn't got through, throw an exception
+                    # This can occur when item gets deleted or when rate limits are exceeded
+                    except:
+                        logging.error(traceback.format_exc())
+                        fatal_error_message = "could not reply to item, it either got deleted or the rate-limits have been exceeded"
+                        logging.warning("[STOPPED] " + fatal_error_message + "\n\n")
 
                 # If the reply could not be made or send, note this
                 if not success:
@@ -102,16 +125,15 @@ def run_bot(r, allowed_subreddits, forbidden_users, np_subreddits, submissions_r
                     submissions_unable_to_reply.append(item.id)
                     logging.info("Added the item id to file: submissions_unable_to_reply.txt.")
 
-        # If something went wrong while checking the criteria, throw an exception
         except:
             logging.error(traceback.format_exc())
-            fatal_error_message = "Couldn't check if the item fits all criteria"
+            fatal_error_message = "could not find amp body or check criteria"
             logging.warning("[STOPPED] " + fatal_error_message + "\n\n")
 
 
-def check_criteria(item):
+def check_criteria(item, item_body):
     # Must contain an AMP link
-    if not util.check_if_amp(item.url):
+    if not util.check_if_amp(item_body):
         return False
     # Must not be an item that previously failed
     if item.id in submissions_unable_to_reply:
