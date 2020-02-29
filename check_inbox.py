@@ -76,17 +76,14 @@ def run_bot(r, forbidden_subreddits, forbidden_users, np_subreddits, mentions_re
                         logging.error(traceback.format_exc())
                         logging.warning("Couldn't find a body containing an amp link\n\n")
 
-                    # Check if the parent item fits all criteria
-                    fits_criteria = check_criteria(item, parent)
-
-                    # If the item fits the criteria and the item contains an AMP link, fetch the canonical link(s)
-                    if fits_criteria:
+                    # If the item contains an AMP link and meets the other criteria, fetch the canonical link(s)
+                    if util.check_if_amp(parent_body) and check_criteria(item, parent):
                         try:
                             logging.debug("#{}'s body: {}\nScanning for urls..".format(parent.id, parent_body))
                             try:
                                 amp_urls = util.get_amp_urls(parent_body)
                                 if not amp_urls:
-                                    logging.info("Couldn't find any amp urls")
+                                    logging.warning("Couldn't find any amp urls in: {}".format(parent_body))
                                 else:
                                     for x in range(len(amp_urls)):
                                         if util.check_if_google(amp_urls[x]):
@@ -100,7 +97,7 @@ def run_bot(r, forbidden_subreddits, forbidden_users, np_subreddits, mentions_re
                                     else:
                                         logging.info("No canonical urls were found\n")
                             except:
-                                logging.warning("Couldn't check amp_urlls")
+                                logging.warning("Couldn't check amp_urls")
 
                         # If the program fails to find any link at all, throw an exception
                         except:

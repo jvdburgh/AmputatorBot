@@ -58,6 +58,8 @@ def random_headers():
 
 def check_if_amp(string):
     string = string.lower()  # Make string lowercase
+
+    # If the string contains an AMP link, return True
     if "/amp" in string or "amp/" in string or ".amp" in string or "amp." in string or "?amp" in string \
             or "amp?" in string or "=amp" in string or "amp=" in string or "&amp" in string or "amp&" in string \
             and "https://" in string:

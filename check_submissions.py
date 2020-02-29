@@ -45,11 +45,8 @@ def run_bot(r, allowed_subreddits, forbidden_users, np_subreddits, submissions_r
             # Set body in accordance to the instance
             item_body = util.get_body(item)
 
-            # Check if the item fits all other criteria
-            fits_criteria = check_criteria(item, item_body)
-
-            # If the item fits the criteria and the item contains an AMP link, fetch the canonical link(s)
-            if fits_criteria:
+            # If the item contains an AMP link and meets the other criteria, fetch the canonical link(s)
+            if check_criteria(item, item_body):
                 try:
                     logging.debug("#{}'s body: {}\nScanning for urls..".format(item.id, item_body))
                     try:
