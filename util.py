@@ -1,10 +1,12 @@
 # This Python file uses the following encoding: utf-8
 # License: GPL-3 (https://choosealicense.com/licenses/gpl-3.0/)
 # Original author: Killed_Mufasa
-# Twitter:https://twitter.com/Killed_Mufasa
-# Reddit: https://www.reddit.com/user/Killed_Mufasa
-# GitHub: https://github.com/KilledMufasa
-# Donate: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2
+
+# Twitter: https://twitter.com/Killed_Mufasa
+# Reddit:  https://www.reddit.com/user/Killed_Mufasa
+# GitHub:  https://github.com/KilledMufasa
+# Website: https://www.amputatorbot.com
+# Donate:  https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2
 
 # This wonderful little program is used by u/AmputatorBot (https://www.reddit.com/user/AmputatorBot)
 # to perform a couple of tasks: log in, generate a random header, check for amp links,
@@ -22,6 +24,13 @@ import requests
 from bs4 import BeautifulSoup
 
 import config
+
+warning_log = []
+
+
+def send_warning(warning):
+    logging.warning(warning + "\n" + traceback.format_exc() + "\n\n")
+    warning_log.append(warning)
 
 
 # Login to Reddit API using Praw.
@@ -112,8 +121,97 @@ def remove_markdown(url):
     return url
 
 
-def get_canonical(url, depth):
-    # Fetch the amp page, search for the canonical link
+def get_canonical(og_url, depth):
+    logging.info("NEW: {} with depth {}".format(og_url, depth))
+    # Check if the URL is an AMP URL
+
+    next_url = og_url
+    og_depth = depth
+
+    i = 0
+    while i < depth:
+        soup = get_soup(next_url)
+
+        found_canonical_link, is_solved = get_canonical_with_rel(soup, og_url)
+
+        if is_solved:
+            logging.info("SUCCESS: Found canonical with rel: " + found_canonical_link)
+
+            return found_canonical_link
+
+        if not found_canonical_link:
+            found_canonical_link_alt, is_solved_alt = get_canonical_with_canurl(soup, og_url)
+            if is_solved_alt:
+                logging.info("SUCCESS: Found canonical with canurl: " + found_canonical_link)
+                return found_canonical_link_alt
+
+            if found_canonical_link_alt:
+                next_url = found_canonical_link_alt
+
+            if not found_canonical_link and not found_canonical_link_alt:
+                return None
+
+        if found_canonical_link:
+            next_url = found_canonical_link
+
+        logging.info("next_url = " + next_url)
+
+        depth = depth - 1
+
+    if og_depth < 2:
+        logging.info("Consider increasing the maximum amount of referrals below")
+    send_warning("Couldn't find any canonical links with this depth")
+    return None
+
+
+def get_canonical_with_rel(soup, url):
+    # Get all canonical links in a list using rel
+    try:
+        canonical_links = soup.find_all(rel='canonical')
+        if canonical_links:
+            for link in canonical_links:
+                # Get the direct link
+                found_canonical_url = link.get('href')
+                # If the canonical url is the submitted url, don't use it
+                if found_canonical_url == url:
+                    send_warning("Encountered a false positive")
+                else:
+                    if not check_if_amp(found_canonical_url):
+                        return found_canonical_url, True
+                    else:
+                        return found_canonical_url, False
+
+        send_warning("Couldn't find any canonical links")
+        return None, False
+    except:
+        send_warning("Couldn't scrape the website")
+        return None, False
+
+
+def get_canonical_with_canurl(soup, url):
+    # Get all canonical links in a list using rel
+    try:
+        canonical_links = soup.find_all(a='amp-canurl')
+        if canonical_links:
+            for a in canonical_links:
+                # Get the direct link
+                found_canonical_url = a.get('href')
+                # If the canonical url is the submitted url, don't use it
+                if found_canonical_url == url:
+                    send_warning("Encountered a false positive")
+                else:
+                    if not check_if_amp(found_canonical_url):
+                        return found_canonical_url, True
+                    else:
+                        return found_canonical_url, False
+
+        send_warning("Couldn't find any canonical links")
+        return None, False
+    except:
+        send_warning("Couldn't scrape the website")
+
+
+def get_soup(url):
     try:
         # Fetch amp page
         logging.info("Started fetching " + url)
@@ -122,90 +220,12 @@ def get_canonical(url, depth):
         # Make the received data searchable
         logging.info("Making a soup..")
         soup = BeautifulSoup(req.text, features="lxml")
-        logging.info("Making a searchable soup..")
-        soup.prettify()
-
-        # Scan the received data for the direct link
-        logging.info("Scanning for all links..")
-        try:
-            false_positive = False  # Reset check for false positives
-            method_failed = False  # Assign false before reference
-
-            # Get all canonical links in a list
-            canonical_rels = soup.find_all(rel='canonical')
-            if canonical_rels:
-                for link in canonical_rels:
-                    # Get the direct link
-                    found_canonical_url = link.get('href')
-                    # If the canonical url is the same as the submitted url, don't use it
-                    if found_canonical_url == url:
-                        false_positive = True
-                    # If the canonical url has a %%amp%% string, look deeper
-                    elif check_if_amp(found_canonical_url):
-                        logging.info("Still amp!")
-                        # Do another search for the canonical url of the canonical url
-                        if depth > 0:
-                            new_url = get_canonical(found_canonical_url, depth - 1)
-                            # If it doesn't contain any amp urls, return it
-                            if not check_if_amp(new_url):
-                                return new_url
-                        else:
-                            method_failed = True
-                    # If the canonical link is clean, return it
-                    elif not check_if_amp(found_canonical_url):
-                        logging.info("Found the direct link with canonical: {}".format(found_canonical_url))
-                        return found_canonical_url
-
-            if not canonical_rels or method_failed:
-                # Get all canonical links in a list
-                canonical_rels = soup.find_all('a', 'amp-canurl')
-                if canonical_rels:
-                    # Check for every a on the amp page if it is of the type class='amp-canurl'
-                    for a in canonical_rels:
-                        # Get the direct link
-                        found_canonical_url = a.get('href')
-                        # If the canonical url is the same as the submitted url, don't use it
-                        if found_canonical_url == url:
-                            false_positive = True
-                        # If the canonical url has a %%amp%% string, look deeper
-                        elif check_if_amp(found_canonical_url):
-                            logging.info("Still amp")
-                            # Do another search for the canonical url of the canonical url
-                            if depth > 0:
-                                new_url = get_canonical(found_canonical_url, depth - 1)
-                                # If it doesn't contain any amp urls, return it
-                                if not check_if_amp(new_url):
-                                    return new_url
-                        # If the canonical link is clean, return it
-                        elif not check_if_amp(found_canonical_url):
-                            logging.info("Found the direct link with amp-canurl: {}".format(found_canonical_url))
-                            return found_canonical_url
-
-            if false_positive:
-                fatal_error_message = "The canonical URL was found but was the same AMP URL" \
-                                      "(the AMP specs were badly implemented on this website)"
-                logging.warning(fatal_error_message + "\n\n")
-                return None
-
-            logging.error(traceback.format_exc())
-            fatal_error_message = "the canonical URL could not be found " \
-                                  "(the AMP specs were badly implemented on this website)"
-            logging.warning(fatal_error_message + "\n\n")
-            return None
-
-        # If no canonical links were found, throw an exception
-        except:
-            logging.error(traceback.format_exc())
-            fatal_error_message = "the canonical URL could not be found " \
-                                  "(the AMP specs were badly implemented on this website)"
-            logging.warning(fatal_error_message + "\n\n")
-            return None
+        return soup
 
     # If the submitted page couldn't be fetched, throw an exception
     except:
         logging.error(traceback.format_exc())
-        fatal_error_message = "the page could not be fetched (the website is probably blocking bots or geo-blocking)"
-        logging.warning(fatal_error_message + "\n\n")
+        send_warning("the page could not be fetched (the website is probably blocking bots or geo-blocking)")
         return None
 
 
@@ -249,7 +269,7 @@ def get_canonicals(amp_urls, use_markdown):
     canonical_urls = []
     canonical_urls_clean = []
     for x in range(len(amp_urls)):
-        canonical_url = get_canonical(amp_urls[x], 2)
+        canonical_url = get_canonical(amp_urls[x], 3)
         if canonical_url is not None:
             logging.debug("Canonical_url returned is not None")
             canonical_urls_clean.append(canonical_url)
@@ -270,9 +290,9 @@ def get_canonicals(amp_urls, use_markdown):
             logging.debug("No canonical URLs were found, skipping this one")
 
     if len(canonical_urls_clean) == 1:
-        return canonical_urls_clean
+        return canonical_urls_clean, warning_log
 
-    return canonical_urls
+    return canonical_urls, warning_log
 
 
 # Get list of subreddits where the bot is allowed

@@ -1,10 +1,11 @@
 # This Python file uses the following encoding: utf-8
 # License: GPL-3 (https://choosealicense.com/licenses/gpl-3.0/)
 # Original author: Killed_Mufasa
-# Twitter:https://twitter.com/Killed_Mufasa
-# Reddit: https://www.reddit.com/user/Killed_Mufasa
-# GitHub: https://github.com/KilledMufasa
-# Donate: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2
+# Twitter: https://twitter.com/Killed_Mufasa
+# Reddit:  https://www.reddit.com/user/Killed_Mufasa
+# GitHub:  https://github.com/KilledMufasa
+# Website: https://www.amputatorbot.com
+# Donate:  https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2
 
 # This wonderful little program is used by u/AmputatorBot
 # (https://www.reddit.com/user/AmputatorBot) to scan u/AmputatorBot's
@@ -69,7 +70,6 @@ def run_bot(r, forbidden_subreddits, forbidden_users, np_subreddits, mentions_re
 
                     try:
                         # Set body in accordance to the instance
-                        logging.info("Fetching body of parent..")
                         parent_body = util.get_body(parent)
 
                     except:
@@ -87,15 +87,16 @@ def run_bot(r, forbidden_subreddits, forbidden_users, np_subreddits, mentions_re
                                 else:
                                     for x in range(len(amp_urls)):
                                         if util.check_if_google(amp_urls[x]):
-                                            note = " This page is even entirely hosted on Google's servers (!).\n\n"
-                                            note_alt = " Some of these pages are even entirely hosted on Google's servers (!).\n\n"
+                                            note = " This page is even fully hosted by Google (!).\n\n"
+                                            note_alt = " Some of these pages are even fully hosted by Google (!).\n\n"
                                             break
-                                    canonical_urls = util.get_canonicals(amp_urls, True)
+                                    canonical_urls, warning_log = util.get_canonicals(amp_urls, True)
+                                    latest_warning = str(warning_log[-1])
                                     if canonical_urls:
                                         reply_generated = '\n\n'.join(canonical_urls)
 
                                     else:
-                                        logging.info("No canonical urls were found\n")
+                                        logging.info("No canonical urls were found, error log:\n" + latest_warning)
                             except:
                                 logging.warning("Couldn't check amp_urls")
 
@@ -263,7 +264,8 @@ def check_criteria(item, parent):
                     if not amp_urls:
                         logging.info("Couldn't find any amp_urls")
                     else:
-                        canonical_urls = util.get_canonicals(amp_urls, True)
+                        canonical_urls, warning_log = util.get_canonicals(amp_urls, True)
+                        latest_warning = str(warning_log[-1])
                         if canonical_urls:
                             # Generate string of all found links
                             reply_generated = '\n\n'.join(canonical_urls)
@@ -274,7 +276,7 @@ def check_criteria(item, parent):
                                 amp_urls[0])
                             logging.info("Notified the summoner of the error.\n")
                         else:
-                            logging.info("No canonical urls were found\n")
+                            logging.info("No canonical urls were found, error log:\n" + latest_warning)
 
                 # If the program fails to find any link at all, throw an exception
                 except:
