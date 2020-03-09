@@ -8,6 +8,7 @@ You might be searching for these files:
 - mentions_unable_to_reply.txt
 - forbidden_subreddits.txt
 - forbidden_users.txt
+- forbidden_mods.txt
 - np_subreddits.txt
 - log files
 

@@ -25,7 +25,7 @@ from bs4 import BeautifulSoup
 
 import config
 
-warning_log = []
+warning_log = ['']
 
 
 def send_warning(warning):
@@ -323,6 +323,21 @@ def get_forbidden_subreddits():
             logging.info("forbidden_subreddits.txt was found.")
 
     return forbidden_subreddits
+
+
+# Get list of moderators that will ban the bot
+def get_forbidden_mods():
+    if not os.path.isfile("forbidden_mods.txt"):
+        forbidden_mods = []
+        logging.warning("forbidden_mods.txt could not be found.\n")
+
+    else:
+        with open("forbidden_mods.txt", "r") as f:
+            forbidden_mods = f.read()
+            forbidden_mods = forbidden_mods.split(",")
+            logging.info("forbidden_mods.txt was found.")
+
+    return forbidden_mods
 
 
 # Get the data of which subreddits the bot should use NP URLs
