@@ -28,7 +28,7 @@ logging.basicConfig(
 
 # Main function. Gets the stream for submissions in certain subreddits,
 # scans the context for AMP links and replies with the direct link
-def run_bot(r, allowed_subreddits, forbidden_users, forbidden_mods, np_subreddits,
+def run_bot(r, allowed_subreddits, forbidden_users, np_subreddits,
             submissions_replied_to, submissions_unable_to_reply):
     logging.info("Praw: obtaining stream of subreddits")
 
@@ -150,18 +150,14 @@ def check_criteria(item, item_body):
     # Must not be posted by a user who opted out
     if str(item.author) in forbidden_users:
         return False
-    # Must not be in a subreddit where bots get banned
-    if any(n in item.subreddit.moderator() for n in forbidden_mods):
-        return False
     # If all criteria were met, return True
     return True
 
 
 # Uses these functions to run the bot
 r = util.bot_login()
-forbidden_users = util.get_forbidden_users()
-forbidden_mods = util.get_forbidden_mods()
 allowed_subreddits = util.get_allowed_subreddits()
+forbidden_users = util.get_forbidden_users()
 np_subreddits = util.get_np_subreddits()
 submissions_replied_to = util.get_submissions_replied()
 submissions_unable_to_reply = util.get_submissions_errors()
@@ -169,7 +165,7 @@ submissions_unable_to_reply = util.get_submissions_errors()
 # Run the program
 while True:
     try:
-        run_bot(r, allowed_subreddits, forbidden_users, forbidden_mods, np_subreddits,
+        run_bot(r, allowed_subreddits, forbidden_users, np_subreddits,
                 submissions_replied_to, submissions_unable_to_reply)
     except:
         logging.warning("Couldn't log in or find the necessary files! Waiting 120 seconds")

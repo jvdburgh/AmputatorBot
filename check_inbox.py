@@ -33,7 +33,7 @@ logging.basicConfig(
 
 # Main function. Gets the inbox stream, filters for mentions,
 # scans the context for AMP links and replies with the direct link
-def run_bot(r, forbidden_subreddits, forbidden_users, forbidden_mods, np_subreddits,
+def run_bot(r, allowed_subreddits, forbidden_subreddits, forbidden_users, forbidden_mods, np_subreddits,
             mentions_replied_to, mentions_unable_to_reply):
     # Get the inbox stream using Praw
     for message in r.inbox.unread(limit=None):
@@ -259,42 +259,48 @@ def check_criteria(item, parent):
     # Must not be in forbidden_subreddits
     if item.subreddit.display_name in forbidden_subreddits or any(
             n in item.subreddit.moderator() for n in forbidden_mods):
-        try:
-            # Set body in accordance to the instance
-            parent_body = util.get_body(parent)
+        # Make an exception if in allowed_subreddits
+        if item.subreddit.display_name in allowed_subreddits:
+            logging.info("Making an exception for r/" + item.subreddit.display_name + " because it is in "
+                                                                                      "allowed_subreddits")
+        else:
+            try:
+                # Set body in accordance to the instance
+                parent_body = util.get_body(parent)
 
-            if util.check_if_amp(parent_body):
-                logging.info("The parent body contains an amp url")
-                # Try to find the first url in the comment
-                try:
-                    amp_urls = util.get_amp_urls(parent_body)
-                    if not amp_urls:
-                        logging.info("Couldn't find any amp_urls")
-                    else:
-                        canonical_urls, warning_log = util.get_canonicals(amp_urls, True)
-                        latest_warning = str(warning_log[-1])
-                        if canonical_urls:
-                            # Generate string of all found links
-                            reply_generated = '\n\n'.join(canonical_urls)
-                            # Send a DM about the error to the summoner
-                            r.redditor(str(item.author)).message(
-                                "AmputatorBot ran into an error: Disallowed subreddit",
-                                "AmputatorBot couldn't reply to [the comment or submission you summoned it for](https://www.reddit.com" + parent.permalink + ") because AmputatorBot is disallowed and/or banned in r/" + item.subreddit.display_name + ", just like it is in [some others](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot). Unfortunately, this means that it can't post there. But that doesn't stop us! Here are the canonical URLs you requested:\n\n" + reply_generated + "\n\nMaybe _you_ could post it instead?\n\nYou can leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nNEW: With AmputatorBot.com you can remove AMP from your URLs in just one click! Check out an example with your amp link here: https://AmputatorBot.com/?" +
-                                amp_urls[0])
-                            logging.info("Notified the summoner of the error.\n")
+                if util.check_if_amp(parent_body):
+                    logging.info("The parent body contains an amp url")
+                    # Try to find the first url in the comment
+                    try:
+                        amp_urls = util.get_amp_urls(parent_body)
+                        if not amp_urls:
+                            logging.info("Couldn't find any amp_urls")
                         else:
-                            logging.info("No canonical urls were found, error log:\n" + latest_warning)
+                            canonical_urls, warning_log = util.get_canonicals(amp_urls, True)
+                            latest_warning = str(warning_log[-1])
+                            if canonical_urls:
+                                # Generate string of all found links
+                                reply_generated = '\n\n'.join(canonical_urls)
+                                # Send a DM about the error to the summoner
+                                r.redditor(str(item.author)).message(
+                                    "AmputatorBot ran into an error: Disallowed subreddit",
+                                    "AmputatorBot couldn't reply to [the item you summoned it for](https://www.reddit.com" + parent.permalink + ") because AmputatorBot is disallowed and/or banned in r/" + item.subreddit.display_name + ", just like it is in [some others](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot). Unfortunately, this means that it can't post there. But that doesn't stop us! Here are the canonical URLs you requested:\n\n" + reply_generated + "\n\nMaybe _you_ could post it instead?\n\nYou can leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nNEW: With AmputatorBot.com you can remove AMP from your URLs in just one click! Check out an example with your amp link here: https://AmputatorBot.com/?" +
+                                    amp_urls[0])
+                                logging.info("Notified the summoner of the error.\n")
+                            else:
+                                logging.info("No canonical urls were found, error log:\n" + latest_warning)
 
-                # If the program fails to find any link at all, throw an exception
-                except:
-                    logging.error(traceback.format_exc())
-                    logging.warning("No links were found or couldn't reply\n")
+                    # If the program fails to find any link at all, throw an exception
+                    except:
+                        logging.error(traceback.format_exc())
+                        logging.warning("No links were found or couldn't reply\n")
 
-        except:
-            logging.error(traceback.format_exc())
-            logging.warning("Unexpected instance\n\n")
+            except:
+                logging.error(traceback.format_exc())
+                logging.warning("Unexpected instance\n\n")
 
-        return False
+            return False
+
     # Must not be a mention that previously failed
     if parent.id in mentions_unable_to_reply:
         return False
@@ -313,6 +319,7 @@ def check_criteria(item, parent):
 
 # Uses these functions to run the bot
 r = util.bot_login()
+allowed_subreddits = util.get_allowed_subreddits()
 forbidden_subreddits = util.get_forbidden_subreddits()
 forbidden_users = util.get_forbidden_users()
 forbidden_mods = util.get_forbidden_mods()
@@ -323,7 +330,7 @@ mentions_unable_to_reply = util.get_mentions_errors()
 # Run the program
 while True:
     try:
-        run_bot(r, forbidden_subreddits, forbidden_users, forbidden_mods, np_subreddits,
+        run_bot(r, allowed_subreddits, forbidden_subreddits, forbidden_users, forbidden_mods, np_subreddits,
                 mentions_replied_to, mentions_unable_to_reply)
     except:
         logging.warning("Couldn't log in or find the necessary files! Waiting 120 seconds")
