@@ -22,6 +22,7 @@ from random import choice
 import praw
 import requests
 from bs4 import BeautifulSoup
+from sqlalchemy import text, create_engine
 
 import config
 
@@ -42,7 +43,7 @@ def bot_login():
                         password=config.password,
                         client_id=config.client_id,
                         client_secret=config.client_secret,
-                        user_agent="eu.pythonanywhere.com:AmputatorBot:v1.8 (by /u/Killed_Mufasa)")
+                        user_agent="pythonanywhere.com:AmputatorBot:v2.0 (by /u/Killed_Mufasa)")
         logging.debug("Successfully logged in!\n")
 
         return r
@@ -121,7 +122,7 @@ def remove_markdown(url):
     return url
 
 
-def get_canonical(og_url, depth):
+def get_canonical(og_url, depth, source):
     logging.info("NEW: {} with depth {}".format(og_url, depth))
     # Check if the URL is an AMP URL
 
@@ -136,19 +137,21 @@ def get_canonical(og_url, depth):
 
         if is_solved:
             logging.info("SUCCESS: Found canonical with rel: " + found_canonical_link)
-
+            send_to_database(og_url, found_canonical_link, source)
             return found_canonical_link
 
         if not found_canonical_link:
             found_canonical_link_alt, is_solved_alt = get_canonical_with_canurl(soup, og_url)
             if is_solved_alt:
                 logging.info("SUCCESS: Found canonical with canurl: " + found_canonical_link)
+                send_to_database(og_url, found_canonical_link, source)
                 return found_canonical_link_alt
 
             if found_canonical_link_alt:
                 next_url = found_canonical_link_alt
 
             if not found_canonical_link and not found_canonical_link_alt:
+                send_to_database(og_url, None, source)
                 return None
 
         if found_canonical_link:
@@ -161,6 +164,7 @@ def get_canonical(og_url, depth):
     if og_depth < 2:
         logging.info("Consider increasing the maximum amount of referrals below")
     send_warning("Couldn't find any canonical links with this depth")
+    send_to_database(og_url, None, source)
     return None
 
 
@@ -265,11 +269,11 @@ def get_amp_urls(item_body):
     return amp_urls
 
 
-def get_canonicals(amp_urls, use_markdown):
+def get_canonicals(amp_urls, use_markdown, source):
     canonical_urls = []
     canonical_urls_clean = []
     for x in range(len(amp_urls)):
-        canonical_url = get_canonical(amp_urls[x], 3)
+        canonical_url = get_canonical(amp_urls[x], 3, source)
         if canonical_url is not None:
             logging.debug("Canonical_url returned is not None")
             canonical_urls_clean.append(canonical_url)
@@ -285,7 +289,10 @@ def get_canonicals(amp_urls, use_markdown):
                 logging.debug("The array of canonical urls is now: {}".format(
                     canonical_urls))
             else:
+                # And append this to the list
                 canonical_urls.append(canonical_url)
+                logging.debug("The array of canonical urls is now: {}".format(
+                    canonical_urls))
         else:
             logging.debug("No canonical URLs were found, skipping this one")
 
@@ -458,3 +465,32 @@ def get_mentions_errors():
             logging.info("mentions_unable_to_reply.txt was found.")
 
     return mentions_unable_to_reply
+
+
+# Save the time of the conversion, amp_url, canonical url and source in a database for debugging purposes
+def send_to_database(og_url, canonical_url, source):
+    try:
+        insert_tmpl = text("INSERT INTO URLConversions(handled_utc, entry_type, original_url, canonical_url) "
+                           "VALUES (CURRENT_TIME, :entry_type, :original_url, :canonical_url)")
+        connect_to_database().engine.execute(insert_tmpl,
+                                             entry_type=source,
+                                             original_url=og_url,
+                                             canonical_url=canonical_url
+                                             )
+    except:
+        send_warning("Couldn't execute statement!")
+
+
+# Create an engine for connecting to the database with the pre-specified credentials from config
+def connect_to_database():
+    try:
+        sqlalchemy_database_uri = "mysql+mysqlconnector://{username}:{password}@{hostname}/{databasename}".format(
+            username=config.db_username,
+            password=config.db_password,
+            hostname=config.db_hostname,
+            databasename=config.db_databasename,
+        )
+        db = create_engine(sqlalchemy_database_uri, pool_recycle=299)
+        return db
+    except:
+        send_warning("Couldn't connect to database!")

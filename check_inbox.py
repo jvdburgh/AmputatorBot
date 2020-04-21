@@ -25,7 +25,7 @@ import praw
 import util
 
 logging.basicConfig(
-    filename="logs/v1.9/check_inbox.log",
+    filename="logs/v2.0/check_inbox.log",
     level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
@@ -91,7 +91,7 @@ def run_bot(r, allowed_subreddits, forbidden_subreddits, forbidden_users, forbid
                                             note = " This page is even fully hosted by Google (!).\n\n"
                                             note_alt = " Some of these pages are even fully hosted by Google (!).\n\n"
                                             break
-                                    canonical_urls, warning_log = util.get_canonicals(amp_urls, True)
+                                    canonical_urls, warning_log = util.get_canonicals(amp_urls, True, 'mention')
                                     latest_warning = str(warning_log[-1])
                                     if canonical_urls:
                                         reply_generated = '\n\n'.join(canonical_urls)
@@ -276,7 +276,7 @@ def check_criteria(item, parent):
                         if not amp_urls:
                             logging.info("Couldn't find any amp_urls")
                         else:
-                            canonical_urls, warning_log = util.get_canonicals(amp_urls, True)
+                            canonical_urls, warning_log = util.get_canonicals(amp_urls, True, 'mention')
                             latest_warning = str(warning_log[-1])
                             if canonical_urls:
                                 # Generate string of all found links

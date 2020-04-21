@@ -20,7 +20,7 @@ from time import sleep
 import util
 
 logging.basicConfig(
-    filename="logs/v1.9/check_submissions.log",
+    filename="logs/v2.0/check_submissions.log",
     level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
@@ -62,7 +62,7 @@ def run_bot(r, allowed_subreddits, forbidden_users, np_subreddits,
                                     note = " This page is even fully hosted by Google (!).\n\n"
                                     note_alt = " Some of these pages are even fully hosted by Google (!).\n\n"
                                     break
-                            canonical_urls, warning_log = util.get_canonicals(amp_urls, True)
+                            canonical_urls, warning_log = util.get_canonicals(amp_urls, True, 'submission')
                             latest_warning = str(warning_log[-1])
                             if canonical_urls:
                                 reply_generated = '\n\n'.join(canonical_urls)
