@@ -130,29 +130,52 @@ def get_canonical(og_url, depth, source):
     og_depth = depth
 
     i = 0
+    # Try for every AMP link, until the max is reached
     while i < depth:
+        # Get the HTML content of the webpage
         soup = get_soup(next_url)
-
+        # Try to find the canonical with rel=canonical
         found_canonical_link, is_solved = get_canonical_with_rel(soup, og_url)
 
+        # If the canonical url returned is not AMP, save and return it
         if is_solved:
             logging.info("SUCCESS: Found canonical with rel: " + found_canonical_link)
             send_to_database(og_url, found_canonical_link, source)
             return found_canonical_link
 
+        # If the canonical returned is still AMP, try again with canurl
         if not found_canonical_link:
-            found_canonical_link_alt, is_solved_alt = get_canonical_with_canurl(soup, og_url)
-            if is_solved_alt:
-                logging.info("SUCCESS: Found canonical with canurl: " + found_canonical_link)
-                send_to_database(og_url, found_canonical_link, source)
-                return found_canonical_link_alt
+            found_canonical_link_alt1, is_solved_alt1 = get_canonical_with_canurl(soup, og_url)
 
-            if found_canonical_link_alt:
-                next_url = found_canonical_link_alt
+            # If the canonical url returned is not AMP, save and return it
+            if is_solved_alt1:
+                logging.info("SUCCESS: Found canonical with canurl: " + found_canonical_link_alt1)
+                send_to_database(og_url, found_canonical_link_alt1, source)
+                return found_canonical_link_alt1
 
-            if not found_canonical_link and not found_canonical_link_alt:
-                send_to_database(og_url, None, source)
-                return None
+            # If the canonical returned is still AMP, prepare the next run
+            if found_canonical_link_alt1:
+                next_url = found_canonical_link_alt1
+
+            # If the canonical returned is still AMP, try again with redirect
+            if not found_canonical_link and not found_canonical_link_alt1:
+                found_canonical_link_alt2, is_solved_alt2 = get_canonical_with_redirect(soup, og_url)
+
+                # If the canonical url is not AMP, save and return it
+                if is_solved_alt2:
+                    logging.info("SUCCESS: Found canonical with redirect: " + found_canonical_link_alt2)
+                    send_to_database(og_url, found_canonical_link_alt2, source)
+                    return found_canonical_link_alt2
+
+                # If the canonical returned is still AMP, prepare the next run
+                if found_canonical_link_alt2:
+                    next_url = found_canonical_link_alt2
+
+                # If no canonical link was found whatsoever, save the error and return None
+                if not found_canonical_link and not found_canonical_link_alt1 and not found_canonical_link_alt2:
+                    logging.info("The bot failed for" + og_url + ", soup: " + soup.get_text())
+                    send_to_database(og_url, None, source)
+                    return None
 
         if found_canonical_link:
             next_url = found_canonical_link
@@ -213,6 +236,37 @@ def get_canonical_with_canurl(soup, url):
         return None, False
     except:
         send_warning("Couldn't scrape the website")
+
+
+def get_canonical_with_redirect(soup, url):
+    try:
+        content = soup.get_text().lower()
+        # Try to detect if the page has a Redirect Notice
+        if "redirect notice" in content or "The page you were on is trying to send you to" in content:
+            send_warning("Had to follow a redirect")
+            redirect_link = soup.find_all('a')[0].get('href')
+
+            if redirect_link == url:
+                send_warning("Encountered a false positive")
+            else:
+                if not check_if_amp(redirect_link):
+                    logging.info("Found the canonical with redirect:" + redirect_link)
+                    return redirect_link, True
+                else:
+                    send_warning("Found the canonical with redirect, but it's still AMP: " + redirect_link)
+                    return redirect_link, False
+
+            # If there was a redirect notice found, but no canonical url, log the soup for debugging purposes
+            logging.info("Couldn't find the canonical URL with redirect of " + url + ", soup: " + content)
+            return None, False
+
+        # If there is no redirect, log the soup for debugging purposes
+        else:
+            send_warning("Couldn't find any canonical links")
+            return None, False
+    except:
+        send_warning("Couldn't scrape the website with redirect")
+        return None, False
 
 
 def get_soup(url):
