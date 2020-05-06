@@ -1,19 +1,16 @@
 ![#AmputatorBot](/img/amputatorbot-v3.2.1.png)
 TL;DR: AmputatorBot is a Reddit bot that replies to comments and submissions containing AMP URLs with the direct and original link.
 
-## Why AMP is bad for everyone
-**TL;DR: Google’s AMP is a threat to the Open Web and your privacy.**
+## Why AMP is a threat to the Open Web
+**What is AMP?** AMP is an open-source web component framework aimed at improving the UX of websites, stories, ads and mail. It was first announced by Google in 2015 and has grown considerably since then. But the project has also been subject to a lot criticism.
 
-AMP means “Accelerated Mobile Pages” and it's a framework designed to make websites faster. In many cases, it does exactly that. However, it comes at a high price.
+**AMP threatens the Open Web.** For example, Google mobile Search’s Top Stories carousel has a premium position above of all other results, which is only accessible for cached AMP pages. This has the effect of further reinforcing Google’s dominance of the Web.
 
-AMP was developed in secret alongside some major news organisations. By the time it was released, Google's specs and infrastructure were essentially settled and non-negotiable. And now Google is prioritizing AMP pages in their search results and they only allow AMP pages to appear on their news carousel. **This forces more and more organisations to implement AMP, thereby increasing the power of an already huge and monopolistic company.** This makes Google's AMP a major threat to the Open Web.
+Other concerns include: the questionable performance boost, the way cached AMP pages keep users in Google's ecosystem, the obscurity of publishers's domains on cached AMP pages, the loss of sovereignty of websites, the lack of functionality and diversity on some AMP pages and of course, privacy concerns.
 
-And while Google is increasing their control over the internet, **you’re losing control over your privacy**. Google’s entire business model is about collecting as much personal data as possible. AMP is just another tool to do so. As described in Google’s Support article:
+To sum up, AMP and it's implementation have some major flaws that threaten the Open Web. And as long as that's the case, [u/AmputatorBot](https://www.reddit.com/u/AmputatorBot/) and [AmputatorBot.com](https://www.amputatorbot.com/) will be there to remove AMP from your URLs.
 
-> When you use the Google AMP Viewer, **Google and the publisher that made the AMP page may each collect data about you.**
-
-**This is unacceptable**. To protect the Open Web and your privacy, [u/AmputatorBot](https://www.reddit.com/u/AmputatorBot/) provides the direct link (bypassing Google) on Reddit and [AmputatorBot.com](https://www.amputatorbot.com/).
-
+[ⓘ Please note: For a much more detailed explanation with sources, click here.](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/)
 
 ## More info & features
 **[Check out this post for more detailed info](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/)**
@@ -24,7 +21,7 @@ Some other features include:
 - Send DMs when summoned by users
 - Check multiple criteria
 - Strip URLs of markdown
-- Find the canonical link
+- Find the canonical link using 3 different methods
 - Detailed debug-info
 
 Also:
