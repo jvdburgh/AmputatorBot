@@ -16,3 +16,5 @@ db_password = "DatabasePassword"
 db_hostname = "DatabaseHostname"
 db_databasename = "DatabaseName"
 
+# Non working domains
+non_working_domains = ['example','anotherexample']

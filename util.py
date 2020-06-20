@@ -281,7 +281,7 @@ def get_soup(url):
         return soup
 
     # If the submitted page couldn't be fetched, throw an exception
-    except:
+    except (ConnectionError, Exception):
         logging.error(traceback.format_exc())
         send_warning("the page could not be fetched (the website is probably blocking bots or geo-blocking)")
         return None
@@ -364,8 +364,7 @@ def get_allowed_subreddits():
 
     else:
         with open("allowed_subreddits.txt", "r") as f:
-            allowed_subreddits = f.read()
-            allowed_subreddits = allowed_subreddits.split(",")
+            allowed_subreddits = f.read().split(",")
             logging.info("allowed_subreddits.txt was found.")
 
     return allowed_subreddits
@@ -379,8 +378,7 @@ def get_forbidden_subreddits():
 
     else:
         with open("forbidden_subreddits.txt", "r") as f:
-            forbidden_subreddits = f.read()
-            forbidden_subreddits = forbidden_subreddits.split(",")
+            forbidden_subreddits = f.read().split(",")
             logging.info("forbidden_subreddits.txt was found.")
 
     return forbidden_subreddits
@@ -394,8 +392,7 @@ def get_forbidden_mods():
 
     else:
         with open("forbidden_mods.txt", "r") as f:
-            forbidden_mods = f.read()
-            forbidden_mods = forbidden_mods.split(",")
+            forbidden_mods = f.read().split(",")
             logging.info("forbidden_mods.txt was found.")
 
     return forbidden_mods
@@ -409,8 +406,7 @@ def get_np_subreddits():
 
     else:
         with open("np_subreddits.txt", "r") as f:
-            np_subreddits = f.read()
-            np_subreddits = np_subreddits.split(",")
+            np_subreddits = f.read().split(",")
             logging.info("np_subreddits.txt was found.")
 
     return np_subreddits
@@ -424,8 +420,7 @@ def get_forbidden_users():
 
     else:
         with open("forbidden_users.txt", "r") as f:
-            forbidden_users = f.read()
-            forbidden_users = forbidden_users.split(",")
+            forbidden_users = f.read().split(",")
             logging.info("forbidden_users.txt was found.")
 
     return forbidden_users
@@ -439,8 +434,7 @@ def get_comments_replied():
 
     else:
         with open("comments_replied_to.txt", "r") as f:
-            comments_replied_to = f.read()
-            comments_replied_to = comments_replied_to.split(",")
+            comments_replied_to = f.read().split(",")
             logging.info("comments_replied_to.txt was found.")
 
     return comments_replied_to
@@ -454,8 +448,7 @@ def get_comments_errors():
 
     else:
         with open("comments_unable_to_reply.txt", "r") as f:
-            comments_unable_to_reply = f.read()
-            comments_unable_to_reply = comments_unable_to_reply.split(",")
+            comments_unable_to_reply = f.read().split(",")
             logging.info("comments_unable_to_reply.txt was found.")
 
     return comments_unable_to_reply
@@ -469,8 +462,7 @@ def get_submissions_replied():
 
     else:
         with open("submissions_replied_to.txt", "r") as f:
-            submissions_replied_to = f.read()
-            submissions_replied_to = submissions_replied_to.split(",")
+            submissions_replied_to = f.read().split(",")
             logging.info("submissions_replied_to.txt was found.")
 
     return submissions_replied_to
@@ -484,8 +476,7 @@ def get_submissions_errors():
 
     else:
         with open("submissions_unable_to_reply.txt", "r") as f:
-            submissions_unable_to_reply = f.read()
-            submissions_unable_to_reply = submissions_unable_to_reply.split(",")
+            submissions_unable_to_reply = f.read().split(",")
             logging.info("submissions_unable_to_reply.txt was found.")
 
     return submissions_unable_to_reply
@@ -499,8 +490,7 @@ def get_mentions_replied():
 
     else:
         with open("mentions_replied_to.txt", "r") as f:
-            mentions_replied_to = f.read()
-            mentions_replied_to = mentions_replied_to.split(",")
+            mentions_replied_to = f.read().split(",")
             logging.info("mentions_replied_to.txt was found.")
 
     return mentions_replied_to
@@ -514,8 +504,7 @@ def get_mentions_errors():
 
     else:
         with open("mentions_unable_to_reply.txt", "r") as f:
-            mentions_unable_to_reply = f.read()
-            mentions_unable_to_reply = mentions_unable_to_reply.split(",")
+            mentions_unable_to_reply = f.read().split(",")
             logging.info("mentions_unable_to_reply.txt was found.")
 
     return mentions_unable_to_reply

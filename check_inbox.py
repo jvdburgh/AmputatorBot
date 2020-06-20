@@ -17,15 +17,15 @@
 
 # Import a couple of libraries
 import logging
+
+import config
 import traceback
 from time import sleep
-
 import praw
-
 import util
 
 logging.basicConfig(
-    filename="logs/v2.0/check_inbox.log",
+    filename="logs/v2.1/check_inbox.log",
     level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
@@ -165,11 +165,25 @@ def run_bot(r, allowed_subreddits, forbidden_subreddits, forbidden_users, forbid
                             logging.info("Added the parent id to file: mentions_unable_to_reply.txt.")
 
                             # Send a DM about the error to the summoner
-                            r.redditor(str(item.author)).message("AmputatorBot ran into an error..",
-                                                                 "AmputatorBot couldn't reply to [the comment or submission you summoned it for](https://www.reddit.com" + parent.permalink + ").\n\nAmputatorBot ran into the following error: " + fatal_error_message + ".\n\nThis error has been logged and is being investigated. Common causes for this error are: bot- and geoblocking websites and badly implemented AMP specs.\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nYou're a very good human for trying <3\n\nNEW: With AmputatorBot.com you can remove AMP from your URLs in just one click! You could try it again there but it will probably raise an error again: https://AmputatorBot.com/?" +
-                                                                 amp_urls[0])
+                            try:
+                                # If it is a blacklisted, send a more specific error message
+                                if any(sub in amp_urls[0] for sub in config.non_working_domains):
+                                    # Send a DM about the error to the summoner
+                                    r.redditor(str(item.author)).message(
+                                        "AmputatorBot ran into an error: Couldn't scrape website",
+                                        "AmputatorBot couldn't reply to [the comment or submission you summoned it for](https://www.reddit.com" + parent.permalink + ").\n\nAmputatorBot couldn't scrape [this page](" + amp_urls[0] + ") and thus couldn't find the canonical link. This is a known issue specific to this domain and a good fix is currently not possible because the reasons for this error are beyond our control. Common causes for this error are: bot- and geoblocking websites and badly implemented AMP specs.\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nYou're a very good human for trying <3\n\nNEW: With AmputatorBot.com you can remove AMP from your URLs in just one click! You could try it again there but it will probably raise an error again: https://AmputatorBot.com/?" +
+                                                                         amp_urls[0])
+                                # If it is an non-blacklisted website, send the default error message
+                                else:
+                                    r.redditor(str(item.author)).message("AmputatorBot ran into an error..",
+                                                                         "AmputatorBot couldn't reply to [the comment or submission you summoned it for](https://www.reddit.com" + parent.permalink + ").\n\nAmputatorBot ran into the following error: " + fatal_error_message + ".\n\nThis error has been logged and is being investigated. Common causes for this error are: bot- and geoblocking websites and badly implemented AMP specs.\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nYou're a very good human for trying <3\n\nNEW: With AmputatorBot.com you can remove AMP from your URLs in just one click! You could try it again there but it will probably raise an error again: https://AmputatorBot.com/?" +
+                                                                         amp_urls[0])
 
-                            logging.info("Notified the summoner of the error.\n")
+                                logging.info("Notified the summoner of the error.\n")
+
+                            except:
+                                logging.error(traceback.format_exc())
+                                logging.warning("Domain could not be extracted \n\n")
 
                     else:
                         logging.debug(
