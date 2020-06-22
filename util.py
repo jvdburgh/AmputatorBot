@@ -173,7 +173,7 @@ def get_canonical(og_url, depth, source):
 
                 # If no canonical link was found whatsoever, save the error and return None
                 if not found_canonical_link and not found_canonical_link_alt1 and not found_canonical_link_alt2:
-                    logging.info("The bot failed for" + og_url + ", soup: " + soup.get_text())
+                    logging.info("The bot failed for " + og_url)
                     send_to_database(og_url, None, source)
                     return None
 
@@ -256,11 +256,11 @@ def get_canonical_with_redirect(soup, url):
                     send_warning("Found the canonical with redirect, but it's still AMP: " + redirect_link)
                     return redirect_link, False
 
-            # If there was a redirect notice found, but no canonical url, log the soup for debugging purposes
-            logging.info("Couldn't find the canonical URL with redirect of " + url + ", soup: " + content)
+            # If there was a redirect notice found but no canonical url, return None
+            logging.info("Couldn't find the canonical URL with redirect of " + url)
             return None, False
 
-        # If there is no redirect, log the soup for debugging purposes
+        # If there is no redirect, return None
         else:
             send_warning("Couldn't find any canonical links")
             return None, False
