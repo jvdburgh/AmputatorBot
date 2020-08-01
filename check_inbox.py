@@ -1,351 +1,299 @@
-# This Python file uses the following encoding: utf-8
-# License: GPL-3 (https://choosealicense.com/licenses/gpl-3.0/)
-# Original author: Killed_Mufasa
-# Twitter: https://twitter.com/Killed_Mufasa
-# Reddit:  https://www.reddit.com/user/Killed_Mufasa
-# GitHub:  https://github.com/KilledMufasa
-# Website: https://www.amputatorbot.com
-# Donate:  https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2
+"""
+License: GPL-3 (https://choosealicense.com/licenses/gpl-3.0/)
 
-# This wonderful little program is used by u/AmputatorBot
-# (https://www.reddit.com/user/AmputatorBot) to scan u/AmputatorBot's
-# inbox for opt-out requests, opt-back-in requests and mentions.
-# If AmputatorBot detects an AMP link in the parent of a mention
-# a reply is made with the direct link, the summoner receives a DM.
-# If a user opts out, the username will be added to a dynamic file
-# which will be confirmed with a DM.
+Killed_Mufasa (original author)
+- GitHub:  https://github.com/KilledMufasa
+- Reddit:  https://www.reddit.com/user/Killed_Mufasa
+- Twitter: https://twitter.com/Killed_Mufasa
 
-# Import a couple of libraries
-import logging
+AmputatorBot
+- Donate:  https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2
+- GitHub:  https://github.com/KilledMufasa/AmputatorBot
+- Reddit:  https://www.reddit.com/user/AmputatorBot
+- Website: https://www.amputatorbot.com
 
-import config
+Method description: This method starts an inbox stream that checks u/AmputatorBot's inbox for
+opt-out requests, opt-back-in requests and most importantly, mentions. If AmputatorBot detects
+an AMP link in the parent of a mention, a reply a reply is made by u/AmputatorBot with the
+canonical link(s) and a DM is send to the summoner a link to the comment or an error description.
+If a user opts out or back in, the user receives a confirmation through DM.
+"""
+
+import sys
 import traceback
+from datetime import datetime
 from time import sleep
+
 import praw
-import util
+from praw.exceptions import RedditAPIException
+from prawcore import Forbidden
 
-logging.basicConfig(
-    filename="logs/v2.1/check_inbox.log",
-    level=logging.INFO,
-    format="%(asctime)s:%(levelname)s:%(message)s"
-)
+from datahandlers.local_datahandler import update_local_data, remove_local_data
+from datahandlers.remote_datahandler import add_data, get_engine_session
+from helpers import logger
+from helpers.comment_generator import generate_reply
+from helpers.criteria_checker import check_criteria
+from helpers.dm_generator import dm_generator
+from helpers.utils import get_urls, get_urls_info, get_submission_body, check_if_banned
+from models import stream
+from models.item import Item
+from models.resultcode import ResultCode
+from models.type import Type
+
+log = logger.get_log(sys)
 
 
-# Main function. Gets the inbox stream, filters for mentions,
-# scans the context for AMP links and replies with the direct link
-def run_bot(r, allowed_subreddits, forbidden_subreddits, forbidden_users, forbidden_mods, np_subreddits,
-            mentions_replied_to, mentions_unable_to_reply):
-    # Get the inbox stream using Praw
-    for message in r.inbox.unread(limit=None):
-        # Resets for every inbox item
-        canonical_urls = []
-        fatal_error_message = "a not so common one"
-        parent_body = ""
-        reply = ""
-        reply_generated = ""
-        success = False
-        domain = "www"
-        note = "\n\n"
-        note_alt = "\n\n"
-        # Get the subject of the message (can be username mention,
-        # a comment reply notification, an opt-out request, an opt-in request
-        # or another type of inbox message. Mark the item as read afterwards.
-        try:
-            subject = message.subject.lower()
-            logging.info("\nNEW UNREAD INBOX ITEM\nSubject: {}\nAuthor: {}\nMessage body: {}\n\n".format(
-                subject, message.author, message.body))
+# Run the bot
+def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_post=True, write_to_database=True):
+    # Get the stream instance (contains session, type and data)
+    s = stream.get_stream(type)
+    log.info("Set up new stream")
 
-            # Mark the item as read
-            message.mark_read()
+    # Start the stream
+    for message in s.praw_session.inbox.stream():
+        # Mark the item as read
+        message.mark_read()
 
-            # Check if the inbox item is a mention
-            if subject == "username mention" and isinstance(message, praw.models.Comment):
-                logging.debug("The bot was mentioned in this message: #" + message.id)
-                item = message
+        # Log the message type and id
+        log.info(f"New message: {message.type}: {message.fullname}")
 
-                try:
-                    # Log that and where u/AmputatorBot has been mentioned
-                    parent = item.parent()
-                    logging.debug("Mention detected (comment ID: {} & parent ID: {})".format(
-                        item.id, parent.id))
+        # If the message is a comment_reply, ignore it
+        if message.type == "comment_reply":
+            continue
+        # If the message is an username_mention, start summon process
+        if message.type == "username_mention":
+            parent = message.parent()
+            i = Item(
+                type=Type.MENTION,
+                id=parent.name,
+                subreddit=parent.subreddit,
+                author=parent.author,
+                context=message.context,
+                summoner=message.author,
+                parent_link=parent.permalink)
 
-                    try:
-                        # Set body in accordance to the instance
-                        parent_body = util.get_body(parent)
+            # Check if the parent is a comment or submission
+            if isinstance(parent, praw.models.Comment):
+                i.body = parent.body
+                i.parent_type = Type.COMMENT
+            elif isinstance(parent, praw.models.Submission):
+                i.body = get_submission_body(parent)
+                i.parent_type = Type.SUBMISSION
+            else:
+                log.warning("Unknown parent instance")
 
-                    except:
-                        logging.error(traceback.format_exc())
-                        logging.warning("Couldn't find a body containing an amp link\n\n")
+            # Check if the item meets the criteria
+            meets_criteria, result_code = check_criteria(
+                item=i,
+                data=s,
+                history_failed=s.mentions_failed,
+                history_success=s.mentions_success,
+                mustBeAMP=True,
+                mustBeNew=True,
+                mustNotBeDisallowedSubreddit=True,
+                mustNotHaveFailed=True,
+                mustNotBeMine=True,
+                mustNotBeOptedOut=True,
+                mustNotHaveDisallowedMods=True
+            )
 
-                    # If the item contains an AMP link and meets the other criteria, fetch the canonical link(s)
-                    if util.check_if_amp(parent_body) and check_criteria(item, parent):
+            # If it meets the criteria, try to find the canonicals and make a reply
+            if result_code != ResultCode.ERROR_NO_AMP:
+                log.info(f"{i.id} in r/{i.subreddit} is AMP, result_code={result_code.value}")
+                # Get the urls from the body and try to find the canonicals
+                urls = get_urls(i.body)
+                i.links = get_urls_info(urls, guess_and_check)
+
+                # If a canonical was found, generate a reply, otherwise log a warning
+                if any(link.canonical for link in i.links) or any(link.amp_canonical for link in i.links):
+                    # Generate a reply
+                    reply_text, reply_canonical_text = generate_reply(
+                        stream_type=s.type,
+                        np_subreddits=s.np_subreddits,
+                        item_type=i.parent_type,
+                        subreddit=i.subreddit,
+                        links=i.links,
+                        summoned_link=i.context)
+
+                    # Send a DM if AmputatorBot can't reply because it's disallowed by a subreddit, mod or user
+                    if result_code == ResultCode.ERROR_DISALLOWED_SUBREDDIT \
+                            or result_code == ResultCode.ERROR_DISALLOWED_MOD \
+                            or result_code == ResultCode.ERROR_USER_OPTED_OUT:
+
+                        # Generate and send an error DM dynamically based on the error
+                        subject, message = dm_generator(
+                            result_code=result_code,
+                            parent_link=i.parent_link,
+                            parent_subreddit=i.subreddit,
+                            parent_type=i.parent_type.value,
+                            first_amp_url=i.links[0].url_clean,
+                            canonical_text=reply_canonical_text)
+                        s.praw_session.redditor(str(i.summoner)).message(subject, message)
+                        log.info(f"Send summoner DM of type {result_code}")
+
+                    # Try to post the reply, send a DM to the summoner
+                    elif reply_to_post:
                         try:
-                            logging.debug("#{}'s body: {}\nScanning for urls..".format(parent.id, parent_body))
-                            try:
-                                amp_urls = util.get_amp_urls(parent_body)
-                                if not amp_urls:
-                                    logging.warning("Couldn't find any amp urls in: {}".format(parent_body))
-                                else:
-                                    for x in range(len(amp_urls)):
-                                        if util.check_if_google(amp_urls[x]):
-                                            note = " This page is even fully hosted by Google (!).\n\n"
-                                            note_alt = " Some of these pages are even fully hosted by Google (!).\n\n"
-                                            break
-                                    canonical_urls, warning_log = util.get_canonicals(amp_urls, True, 'mention')
-                                    latest_warning = str(warning_log[-1])
-                                    if canonical_urls:
-                                        reply_generated = '\n\n'.join(canonical_urls)
+                            reply = parent.reply(reply_text)
+                            log.info(f"Replied to {i.id} with {reply.name}")
+                            update_local_data("mentions_success", i.id)
+                            s.mentions_success.append(i.id)
 
-                                    else:
-                                        logging.info("No canonical urls were found, error log:\n" + latest_warning)
-                            except:
-                                logging.warning("Couldn't check amp_urls")
+                            # Generate and send a SUCCESS DM to the summoner
+                            result_code = ResultCode.SUCCESS
+                            subject, message = dm_generator(
+                                result_code=result_code,
+                                reply_link=reply.permalink,
+                                parent_subreddit=i.subreddit,
+                                parent_type=i.parent_type.value,
+                                parent_link=i.parent_link,
+                                first_amp_url=i.links[0].url_clean,
+                                canonical_text=reply_canonical_text)
+                            s.praw_session.redditor(str(i.summoner)).message(subject, message)
+                            log.info(f"Send summoner DM of type {result_code}")
 
-                        # If the program fails to find any link at all, throw an exception
-                        except:
-                            logging.error(traceback.format_exc())
-                            logging.warning("No links were found.\n")
+                        except (Forbidden, Exception):
+                            log.warning("Couldn't post reply!")
+                            log.error(traceback.format_exc())
+                            update_local_data("mentions_failed", i.id)
+                            s.mentions_failed.append(i.id)
 
-                        # If no canonical urls were found, don't reply
-                        if len(canonical_urls) == 0:
-                            fatal_error_message = "there were no canonical URLs found"
-                            logging.warning("[STOPPED] " + fatal_error_message + "\n\n")
+                            # Check if AmputatorBot is banned in the subreddit
+                            is_banned = check_if_banned(i.subreddit)
+                            if is_banned:
+                                update_local_data("disallowed_subreddits", i.subreddit)
+                                s.disallowed_subreddits.append(i.subreddit)
 
-                        # If there were direct links found, reply!
-                        else:
-                            # Try to reply to OP
-                            try:
-                                canonical_urls_amount = len(canonical_urls)
+                            # Generate and send an ERROR_REPLY_FAILED DM to the summoner
+                            result_code = ResultCode.ERROR_REPLY_FAILED
+                            subject, message = dm_generator(
+                                result_code=result_code,
+                                parent_type=i.parent_type.value,
+                                parent_link=i.parent_link,
+                                first_amp_url=i.links[0].url_clean,
+                                canonical_text=reply_canonical_text)
+                            s.praw_session.redditor(str(i.summoner)).message(subject, message)
+                            log.info(f"Send summoner DM of type {result_code}")
 
-                                # If the subreddit encourages the use of NP, make it NP
-                                if item.subreddit in np_subreddits:
-                                    domain = "np"
+                # If no canonicals were found, log the failed attempt
+                else:
+                    log.warning("No canonicals found")
+                    update_local_data("mentions_failed", i.id)
+                    s.mentions_failed.append(i.id)
 
-                                # If there was only one url found, generate a simple comment
-                                if canonical_urls_amount == 1:
-                                    reply = "It looks like OP shared an AMP link. These will often load faster, but Google's AMP [threatens the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)." + note + "You might want to visit **the normal page** instead: **[" + \
-                                            canonical_urls[0] + "](" + canonical_urls[
-                                                0] + ")**.\n\n*****\n\n​^(I'm a bot | )[^(Why & About)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | **Summoned by a** )[^(**good human here!**)](https://" + domain + ".reddit.com" + item.context + ")"
-
-                                # If there were multiple urls found, generate a multi-url comment
-                                if canonical_urls_amount > 1:
-                                    # Generate entire comment
-                                    reply = "It looks like OP shared a couple of AMP links. These will often load faster, but Google's AMP [threatens the Open Web](https://www.socpub.com/articles/chris-graham-why-google-amp-threat-open-web-15847) and [your privacy](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)." + note_alt + "You might want to visit **the normal pages** instead: \n\n" + reply_generated + "\n\n*****\n\n^(I'm a bot | )[^(Why & About)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[^(Mention me to summon me!)](https://" + domain + ".reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)^( | **Summoned by a** )[^(**good human here!**)](https://" + domain + ".reddit.com" + item.context + ")"
-
-                                # Reply to mention
-                                reply = parent.reply(reply)
-                                logging.debug("Replied to #{}: {} : {}\n".format(parent.id, reply.id, reply.permalink))
-
-                                # Send a DM to the summoner with confirmation and link to parent comment
-                                r.redditor(str(item.author)).message("Thx for summoning me!",
-                                                                     "AmputatorBot has [successfully replied](https://www.reddit.com" + reply.permalink + ") to [the item you summoned it for](https://www.reddit.com" + parent.permalink + ").\n\nThanks for summoning me, I couldn't do this without you (no but literally). You're a very good human <3\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nNEW: With AmputatorBot.com you can remove AMP from your URLs in just one click! Check out an example with your amp link here: https://AmputatorBot.com/?" +
-                                                                     amp_urls[0])
-
-                                logging.info("Confirmed the reply to the summoner.\n")
-
-                                # If the reply was successfully send, note this
-                                success = True
-                                with open("mentions_replied_to.txt", "a") as f:
-                                    f.write(parent.id + ",")
-                                mentions_replied_to.append(parent.id)
-                                logging.info("Added the parent id to file: mentions_replied_to.txt\n\n\n")
-
-                            # If the reply didn't got through, throw an exception
-                            # can occur when comment gets deleted or when rate limits are exceeded
-                            except:
-                                logging.error(traceback.format_exc())
-                                fatal_error_message = "could not reply to item, it either got deleted or the rate-limits have been exceeded"
-                                logging.warning("[STOPPED] " + fatal_error_message + "\n\n")
-
-                        # If the reply could not be made or send, note this
-                        if not success:
-                            with open("mentions_unable_to_reply.txt", "a") as f:
-                                f.write(parent.id + ",")
-                            mentions_unable_to_reply.append(parent.id)
-                            logging.info("Added the parent id to file: mentions_unable_to_reply.txt.")
-
-                            # Send a DM about the error to the summoner
-                            try:
-                                # If it is a blacklisted, send a more specific error message
-                                if any(sub in amp_urls[0] for sub in config.non_working_domains):
-                                    # Send a DM about the error to the summoner
-                                    r.redditor(str(item.author)).message(
-                                        "AmputatorBot ran into an error: Couldn't scrape website",
-                                        "AmputatorBot couldn't reply to [the comment or submission you summoned it for](https://www.reddit.com" + parent.permalink + ").\n\nAmputatorBot couldn't scrape [this page](" + amp_urls[0] + ") and thus couldn't find the canonical link. This is a known issue specific to this domain and a good fix is currently not possible because the reasons for this error are beyond our control. Common causes for this error are: bot- and geoblocking websites and badly implemented AMP specs.\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nYou're a very good human for trying <3\n\nNEW: With AmputatorBot.com you can remove AMP from your URLs in just one click! You could try it again there but it will probably raise an error again: https://AmputatorBot.com/?" +
-                                                                         amp_urls[0])
-                                # If it is an non-blacklisted website, send the default error message
-                                else:
-                                    r.redditor(str(item.author)).message("AmputatorBot ran into an error..",
-                                                                         "AmputatorBot couldn't reply to [the comment or submission you summoned it for](https://www.reddit.com" + parent.permalink + ").\n\nAmputatorBot ran into the following error: " + fatal_error_message + ".\n\nThis error has been logged and is being investigated. Common causes for this error are: bot- and geoblocking websites and badly implemented AMP specs.\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nYou're a very good human for trying <3\n\nNEW: With AmputatorBot.com you can remove AMP from your URLs in just one click! You could try it again there but it will probably raise an error again: https://AmputatorBot.com/?" +
-                                                                         amp_urls[0])
-
-                                logging.info("Notified the summoner of the error.\n")
-
-                            except:
-                                logging.error(traceback.format_exc())
-                                logging.warning("Domain could not be extracted \n\n")
-
+                    # Check if the domain is problematic (meaning it's raising frequent errors)
+                    if any(link.domain in s.problematic_domains for link in i.links):
+                        result_code = ResultCode.ERROR_PROBLEMATIC_DOMAIN
                     else:
-                        logging.debug(
-                            "[STOPPED] #{} didn't meet the requirements.\n\n\n".format(parent.id))
+                        result_code = ResultCode.ERROR_NO_CANONICALS
 
-                except:
-                    logging.error(traceback.format_exc())
-                    logging.warning("This mention is weird\n\n")
+                    # Generate and send an
+                    subject, message = dm_generator(
+                        result_code=result_code,
+                        parent_type=i.parent_type.value,
+                        parent_link=i.parent_link,
+                        first_amp_url=i.links[0].url_clean)
 
-            # Check if the inbox item is an opt-out request
+                    s.praw_session.redditor(str(i.summoner)).message(subject, message)
+
+                # If write_to_database is enabled, make a new entry for every URL
+                if write_to_database:
+                    for link in i.links:
+                        if link.is_amp:
+                            add_data(session=get_engine_session(),
+                                     entry_type=type.value,
+                                     handled_utc=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                     original_url=link.url_clean,
+                                     canonical_url=link.canonical)
+
+        # If the message is a DM / message, check for opt-out and opt-back-in requests
+        elif message.type == "unknown":
+            subject = message.subject.lower()
             if subject == "opt me out of amputatorbot":
                 try:
-                    logging.debug("[OPT-OUT] was requested by {} in {}".format(message.author, message.id))
+                    author = message.author.name
+                    log.info(f"New opt-out request by {author}")
 
-                    # Convert Redditor to username string
-                    user_opting_out = str(message.author)
+                    # If the user is already opted out, notify the user
+                    if author.name.casefold() in list(user.casefold() for user in s.disallowed_users):
+                        log.warning("User has already opted out!")
+                        s.praw_session.redditor(author).message(
+                            subject="You have already opted out of AmputatorBot",
+                            message="You have already opted out, so AmputatorBot won't reply to your comments "
+                                    "and submissions anymore. You will still be able to see AmputatorBot's replies to "
+                                    "other people's content. Block u/AmputatorBot if you don't want that either. "
+                                    "Cheers!")
 
-                    # If the username is already opted out, notify the user
-                    if user_opting_out in forbidden_users:
-                        logging.warning("This user was already opted out.")
+                    # If the user hasn't been opted out yet, add user to the list and notify the user
+                    else:
+                        log.info("User has not opted out yet")
+                        update_local_data("disallowed_users", author)
+                        s.disallowed_users.append(author)
+                        s.praw_session.redditor(author).message(
+                            subject="You have successfully opted out of AmputatorBot",
+                            message="You have successfully opted out of AmputatorBot. AmputatorBot won't reply to your "
+                                    "comments and submissions anymore (although it can take up to 24 hours to fully "
+                                    "process your opt-out request). You will still be able to see AmputatorBot's "
+                                    "replies to other people's content. Block u/AmputatorBot if you don't want that "
+                                    "either. Cheers!")
 
-                        # Send a DM to the summoner with confirmation
-                        r.redditor(user_opting_out).message("You have already opted out",
-                                                            "The bot won't reply to your comments and submissions, but you will still see my replies to other peoples content. Block u/AmputatorBot if you don't want to see those either.\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).")
+                except (RedditAPIException, Forbidden, Exception):
+                    log.error(traceback.format_exc())
+                    log.warning(f"Something went wrong while processing opt-out request {message.fullname}")
 
-                    # If the username is not already in the opt-out list, add it
-                    if user_opting_out not in forbidden_users:
-                        with open("forbidden_users.txt", "a") as f:
-                            f.write(user_opting_out + ",")
-                            forbidden_users.append(user_opting_out)
-                            logging.debug("Added the username to file: forbidden_users.txt\n\n\n")
-
-                        # Send a DM to the summoner with confirmation
-                        r.redditor(user_opting_out).message("You have successfully opted out of AmputatorBot",
-                                                            "The bot won't reply to your comments and submissions anymore, but you will still see my replies to other peoples content. Block u/AmputatorBot if you don't want to see those either.\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).")
-
-                except:
-                    logging.error(traceback.format_exc())
-                    logging.warning("Something went wrong while processing an opt-out request.\n\n")
-
-            # Check if the inbox item is an opt-in request
-            if subject == "opt me back in again of amputatorbot":
+            elif subject == "opt me back in again of amputatorbot":
                 try:
-                    logging.debug("[OPT-IN] was requested by {} in {}".format(
-                        message.author, message.id))
+                    author = message.author.name
+                    log.info(f"New opt-back-in request by {author}")
 
-                    # Convert Redditor to username string
-                    user_opting_in = str(message.author)
+                    # If the user is not opted out, notify the user
+                    if author.name.casefold() not in list(user.casefold() for user in s.disallowed_users):
+                        log.warning("User is not opted out!")
+                        s.praw_session.redditor(author).message(
+                            subject="You don't have to opt in of AmputatorBot",
+                            message="This opt-back-in feature is meant only for users who choose to opt-out earlier "
+                                    "but now regret it. At no point did you opt out of AmputatorBot so there's no "
+                                    "need to opt back in. Cheers!")
 
-                    # If the username is not in the opt-out list, notify the user
-                    if user_opting_in not in forbidden_users:
-                        logging.warning('This user never opted-out.')
+                    # If the user has opted out, remove user from the list and notify the user
+                    else:
+                        log.info("User is currently opted out")
+                        remove_local_data("disallowed_users", author)
+                        s.disallowed_users.remove(author)
+                        s.praw_session.redditor(author).message(
+                            subject="You have successfully opted back in of AmputatorBot",
+                            message="You have successfully opted back in of AmputatorBot, meaning AmputatorBot can "
+                                    "reply to your comments and submissions again (although it can take up to 24 hours "
+                                    "to fully process your opt-back-in request). Thank you! Cheers!")
 
-                        # Send a DM to the summoner with confirmation
-                        r.redditor(user_opting_in).message("You don't have to opt-in",
-                                                           "This opt-in feature is only meant for users who choose to opt out earlier and now regret that decision. According to our systems, you didn't opt out of AmputatorBot so there's no need for you to opt in.\n\nRemember that the bot only works in a couple of subreddits. You can summon the bot almost everywhere else by mentioning u/AmputatorBot in a direct reply to a submission or comment containing an AMP link.\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).")
+                except (RedditAPIException, Forbidden, Exception):
+                    log.error(traceback.format_exc())
+                    log.warning(f"Something went wrong while processing opt-back-in request {message.fullname}")
 
-                        logging.info('DM successfully send.')
+            elif "you've been permanently banned from participating in" in subject:
+                subreddit = message.subreddit
+                if subreddit:
+                    log.info(f"New ban issued by r/{subreddit}")
+                    is_banned = check_if_banned(subreddit)
+                    if is_banned:
+                        update_local_data("disallowed_subreddits", subreddit)
+                        s.disallowed_subreddits.append(subreddit)
+                        log.info(f"Added {subreddit} to disallowed_subreddits")
+                else:
+                    log.warning(f"Message wasn't send by a subreddit, but by {message.author}")
 
-                    # If the username is indeed in the opt-out list, remove the user from the list
-                    if user_opting_in in forbidden_users:
-                        logging.info("Removing user from opt-out list.")
-                        with open("forbidden_users.txt", "a+") as f:
-                            updated_list = f.read().replace(user_opting_in + ",", "")
-                        with open("forbidden_users.txt", "w") as f:
-                            f.write(updated_list)
-
-                        logging.info("Successfully opted user out.\n\n\n")
-                        forbidden_users.remove(user_opting_in)
-
-                        # Send a DM to the summoner with confirmation
-                        r.redditor(user_opting_in).message("You have successfully opted back in",
-                                                           "Remember that the bot only works in a couple of subreddits. You can summon the bot almost everywhere else by mentioning u/AmputatorBot in a direct reply to a submission or comment containing an AMP link.\n\nFeel free to leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).")
-
-                        logging.info('DM successfully send.')
-
-                except:
-                    logging.error(traceback.format_exc())
-                    logging.warning("Something went wrong while processing an opt-in request.\n\n")
-
-        except:
-            logging.error(traceback.format_exc())
-            logging.warning("Unexpected instance\n\n")
-
-
-def check_criteria(item, parent):
-    # Must not be in forbidden_subreddits
-    if item.subreddit.display_name in forbidden_subreddits or any(
-            n in item.subreddit.moderator() for n in forbidden_mods):
-        # Make an exception if in allowed_subreddits
-        if item.subreddit.display_name in allowed_subreddits:
-            logging.info("Making an exception for r/" + item.subreddit.display_name + " because it is in "
-                                                                                      "allowed_subreddits")
         else:
-            try:
-                # Set body in accordance to the instance
-                parent_body = util.get_body(parent)
-
-                if util.check_if_amp(parent_body):
-                    logging.info("The parent body contains an amp url")
-                    # Try to find the first url in the comment
-                    try:
-                        amp_urls = util.get_amp_urls(parent_body)
-                        if not amp_urls:
-                            logging.info("Couldn't find any amp_urls")
-                        else:
-                            canonical_urls, warning_log = util.get_canonicals(amp_urls, True, 'mention')
-                            latest_warning = str(warning_log[-1])
-                            if canonical_urls:
-                                # Generate string of all found links
-                                reply_generated = '\n\n'.join(canonical_urls)
-                                # Send a DM about the error to the summoner
-                                r.redditor(str(item.author)).message(
-                                    "AmputatorBot ran into an error: Disallowed subreddit",
-                                    "AmputatorBot couldn't reply to [the item you summoned it for](https://www.reddit.com" + parent.permalink + ") because AmputatorBot is disallowed and/or banned in r/" + item.subreddit.display_name + ", just like it is in [some others](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot). Unfortunately, this means that it can't post there. But that doesn't stop us! Here are the canonical URLs you requested:\n\n" + reply_generated + "\n\nMaybe _you_ could post it instead?\n\nYou can leave feedback by contacting u/killed_mufasa, by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by [opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\nNEW: With AmputatorBot.com you can remove AMP from your URLs in just one click! Check out an example with your amp link here: https://AmputatorBot.com/?" +
-                                    amp_urls[0])
-                                logging.info("Notified the summoner of the error.\n")
-                            else:
-                                logging.info("No canonical urls were found, error log:\n" + latest_warning)
-
-                    # If the program fails to find any link at all, throw an exception
-                    except:
-                        logging.error(traceback.format_exc())
-                        logging.warning("No links were found or couldn't reply\n")
-
-            except:
-                logging.error(traceback.format_exc())
-                logging.warning("Unexpected instance\n\n")
-
-            return False
-
-    # Must not be a mention that previously failed
-    if parent.id in mentions_unable_to_reply:
-        return False
-    # Must not be a mention already replied to
-    if parent.id in mentions_replied_to:
-        return False
-    # Must not be posted by me
-    if parent.author == r.user.me():
-        return False
-    # Must not be posted by a user who opted out
-    if str(parent.author) in forbidden_users:
-        return False
-    # If all criteria were met, return True
-    return True
+            log.warning(f"Unknown message type: {message.type}")
+            continue
+        log.info("\n")
 
 
-# Uses these functions to run the bot
-r = util.bot_login()
-allowed_subreddits = util.get_allowed_subreddits()
-forbidden_subreddits = util.get_forbidden_subreddits()
-forbidden_users = util.get_forbidden_users()
-forbidden_mods = util.get_forbidden_mods()
-np_subreddits = util.get_np_subreddits()
-mentions_replied_to = util.get_mentions_replied()
-mentions_unable_to_reply = util.get_mentions_errors()
-
-# Run the program
 while True:
     try:
-        run_bot(r, allowed_subreddits, forbidden_subreddits, forbidden_users, forbidden_mods, np_subreddits,
-                mentions_replied_to, mentions_unable_to_reply)
-    except:
-        logging.warning("Couldn't log in or find the necessary files! Waiting 120 seconds")
+        run_bot()
+        log.info("\nCompleted running the bot")
+        sleep(120)
+    except (RuntimeError, Exception):
+        log.error(traceback.format_exc())
+        log.warning('\nSomething went wrong while running the bot')
         sleep(120)

@@ -1,42 +1,55 @@
-![#AmputatorBot](/img/amputatorbot-v3.2.1.png)
-TL;DR: AmputatorBot is a Reddit bot that replies to comments and submissions containing AMP URLs with the direct and original link.
+![#AmputatorBot](/img/amputatorbot_logo_banner.png)
 
-## Why AMP is a threat to the Open Web
-**What is AMP?** AMP is an open-source web component framework aimed at improving the UX of websites, stories, ads and mail. It was first announced by Google in 2015 and has grown considerably since then. But the project has also been subject to a lot criticism.
+TL;DR: AmputatorBot is a Reddit bot that replies to comments and submissions containing AMP URLs with the canonical URL.
 
-**AMP threatens the Open Web.** For example, Google mobile Search’s Top Stories carousel has a premium position above of all other results, which is only accessible for cached AMP pages. This has the effect of further reinforcing Google’s dominance of the Web.
+**[FAQ, About & Why](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/)**
 
-Other concerns include: the questionable performance boost, the way cached AMP pages keep users in Google's ecosystem, the obscurity of publishers's domains on cached AMP pages, the loss of sovereignty of websites, the lack of functionality and diversity on some AMP pages and of course, privacy concerns.
+## Features
 
-To sum up, AMP and it's implementation have some major flaws that threaten the Open Web. And as long as that's the case, [u/AmputatorBot](https://www.reddit.com/u/AmputatorBot/) and [AmputatorBot.com](https://www.amputatorbot.com/) will be there to remove AMP from your URLs.
+![#AmputatorBot demo](/img/amputatorbot_demo.png)
 
-[ⓘ Please note: For a much more detailed explanation with sources, click here.](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/)
-
-## More info & features
-**[Check out this post for more detailed info](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/)**
-
-Some other features include:
-- Automatically keep track of items interacted with
+Features include:
+- Automatically create required log and datafiles
+- Scan for comments, submissions and mentions
+- Check each item against specified criteria
+- Strip URLs of markdown
+- Check URLs for AMP links
+- Find canonicals using 9 different methods
+- Calculate which canonical is 'best'
+- Return 2 canonicals if the canonicals have more than 1 domain
+- Return an AMP-canonical if the real canonical can't be found
+- Generate and send automatic replies to AMP items with the canonical(s) and some info
+- Automatically keep track of bans
+- Keep track of items interacted with
 - Let users opt-out and opt-back-in
 - Send DMs when summoned by users
-- Check multiple criteria
-- Strip URLs of markdown
-- Find the canonical link using 3 different methods
-- Detailed debug-info
+- Experimental: Guess-and-check method with article-comparison
+- Local- and SQL-database-logging
 
-Also:
+Please note:
 - AmputatorBot works automatically in a select number of subreddits
 - AmputatorBot won't work in subreddits where it is banned or forbidden
-- There's also a website: [AmputatorBot.com](https://www.amputatorbot.com/)
-- You can find the changelog [here!](https://www.reddit.com/r/AmputatorBot/comments/ch9fxp/changelog_of_amputatorbot/)!
+- The online version of AmputatorBot can be found at [AmputatorBot.com](https://www.amputatorbot.com/)
+- You can find the changelog [here](https://www.reddit.com/r/AmputatorBot/comments/ch9fxp/changelog_of_amputatorbot/)!
+
+## Set up
+
+1. Clone the repository
+2. Fill in and change the required values in static.txt (see /static)
+3. Change the filename of static.txt to .py
+4. Choose which script(s) you want to run (check_comments.py, check_inbox.py or check_submissions.py)
+5. Set the 'settings' in the run_bot function of the script. I recommended to set everything (guess_and_check, reply_to_post, write_to_database) to False when you are starting out.
+6. Run the script - All logs and required datafiles will be automatically and dynamically created. In /data: allowed_subreddits.txt, comments_failed.txt, comments_success.txt, disallowed_mods.txt, disallowed_subreddits.txt, disallowed_users.txt, mentions_failed.txt, mentions.success.txt, np_subreddits.txt, problematic_domains.txt, submissions_failed.txt, submissions_success.txt and in /logs: check_comments_X.X.log, check_inbox_X.X.log and check_submissions_X.X.log.
+7. Stop the script to see and edit the newly generated files. Odds are you want to add subreddits to allowed_subreddits.txt (for example: ,subreddit1,subreddit2)
+8. Re-run the script
 
 ## Support the project
 
-**.. By donating**: The bot and website cost approximately €8.26 a month to host and while that might not seem like much, it adds up. All donations will ONLY be used to pay for hosting. You can specify any amount you want, but please keep in mind that I only want to try to cover some of the costs. Thank you so much! - [https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2)
+**.. By summoning the bot**: If you've spotted an AMP URL on Reddit and [u/AmputatorBot](https://www.reddit.com/u/AmputatorBot/) seems absent, you can summon the bot by mentioning [u/AmputatorBot](https://www.reddit.com/u/AmputatorBot/) in a reply to the comment or submission containing the AMP URL. You'll receive a confirmation through PM. For more details, check out [this post](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)!
 
-**.. By giving feedback**: Most new features were made after suggestions from you guys, so whether you have positive or negative feedback, please let me know! You can contact me on Reddit, [fill an issue](https://github.com/KilledMufasa/AmputatorBot/issues) or [make a pull request](https://github.com/KilledMufasa/AmputatorBot/issues).
+**.. By giving feedback**: Most of the new features were made after suggestions from you guys, so hit me up if you have any feedback! You can contact me on Reddit, [fill an issue](https://github.com/KilledMufasa/AmputatorBot/issues) or [make a pull request](https://github.com/KilledMufasa/AmputatorBot/issues).
 
-**.. By summoning the bot**: If you've spotted an AMP URL and [u/AmputatorBot](https://www.reddit.com/u/AmputatorBot/) seems absent, you can summon the bot by mentioning [u/AmputatorBot](https://www.reddit.com/u/AmputatorBot/) in a reply to the comment or submission containing the AMP URL. You'll receive a confirmation through PM. For more details, check out [this post](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/)!
+**.. By sponsoring**: The bot and website cost approximately €8.26 a month to host and while that might not seem like much, it adds up. All donations will be used ONLY to pay for hosting. You can specify any amount you want, but please keep in mind that I only want to try to cover some of the costs. Thank you so much! - [https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2)
 
 **.. By spreading the word**: In the end, the only goal of AmputatorBot is to allow people to have an informed choice. You can help by spreading the word in whatever way you deem the most appropriate.
 
