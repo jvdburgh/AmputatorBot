@@ -105,8 +105,5 @@ venv.bak/
 
 # local project stuff
 /static/static.py
-/logs/v3.0/
+/logs/
 /data/
-/img/dev/
-/.idea/
-/amputatorbotcom/

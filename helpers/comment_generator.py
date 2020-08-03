@@ -10,14 +10,11 @@ log = logger.get_log(sys)
 # Generate a comment based on the types, links and more
 def generate_reply(stream_type, np_subreddits, item_type, subreddit, links, summoned_link=None):
     # Initialize all variables
-    canonical_text_latest, canonical_text, google_note, summoned_note, alt_link, who, what = "", "", "", "", "", "", ""
+    canonical_text_latest, canonical_text, cached_note, summoned_note, alt_link, who, what = "", "", "", "", "", "", ""
     n_amp_urls, n_canonicals, n_cached = 0, 0, 0
 
     # Check the type of the item, set the correct variables
-    if item_type == Type.COMMENT:
-        who = "you"
-        what = "shared"
-    elif item_type == Type.SUBMISSION:
+    if item_type == Type.SUBMISSION:
         who = "OP"
         what = "posted"
     else:
@@ -68,7 +65,7 @@ def generate_reply(stream_type, np_subreddits, item_type, subreddit, links, summ
             intro_who_wat = f"It looks like {who} {what} some AMP links. "
             intro_maybe = "\n\nYou might want to visit **the canonical pages** instead:"
 
-        # Set-up the google_hosted note
+        # Set-up the cached_note note
         if n_cached > 0:
             if n_amp_urls == 1 and n_cached == 1:
                 n_note = "the one"
@@ -76,10 +73,10 @@ def generate_reply(stream_type, np_subreddits, item_type, subreddit, links, summ
                 n_note = "the ones"
             else:
                 n_note = "some of the ones"
-            google_note = f"Fully cached AMP pages (like {n_note} {who} {what})," \
+            cached_note = f"Fully cached AMP pages (like {n_note} {who} {what})," \
                           f" are [especially problematic]({static.FAQ_LINK}). "
 
-        reply_text = f"{intro_who_wat}{google_note}{intro_why}{intro_maybe}{canonical_text}{outro}{summoned_note}"
+        reply_text = f"{intro_who_wat}{intro_why}{cached_note}{intro_maybe}{canonical_text}{outro}{summoned_note}"
 
         if subreddit.display_name.casefold() in list(sub.casefold() for sub in np_subreddits):
             reply_text = reply_text.replace("www.reddit", "np.reddit")

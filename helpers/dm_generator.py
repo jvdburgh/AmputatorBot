@@ -21,8 +21,8 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
         subject = "AmputatorBot ran into an error: Disallowed subreddit"
         message = f"u/AmputatorBot couldn't reply to [the {parent_type} you summoned it for](https://www.reddit.com" \
                   f"{parent_link}) because r/{parent_subreddit} is being moderated by an anti-bot-bot. Because of " \
-                  f"this, u/AmputatorBot will be banned once it comments something, and the comment will get then " \
-                  f"be deleted. Most subreddits using an anti-bot service have a strict no-bot policy. Sometimes an " \
+                  f"this, u/AmputatorBot will be banned once it comments something, and the comment will be removed " \
+                  f"immediately. Most subreddits using an anti-bot service have a strict no-bot policy. Sometimes an " \
                   f"exception can be made, but until that's the case, u/AmputatorBot won't be able to interact with " \
                   f"this subreddit, [(just like it can't in these)]({static.FAQ_LINK}).\n\n" \
                   f"But that doesn't stop us! Here are the canonical URLs you requested: {canonical_text}\n\n" \

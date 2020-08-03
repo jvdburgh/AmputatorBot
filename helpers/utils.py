@@ -116,8 +116,8 @@ def check_if_cached(url):
     url = url.lower()
 
     # Check if the page is hosted by Google, Ampproject or Bing
-    return ("/amp/s/" in url and "www.google." in url) or ("ampproject.net" in url or "ampproject.org" in url) \
-           or ("/amp/s/" in url and "www.bing." in url)
+    return ("/amp/" in url and "www.google." in url) or ("ampproject.net" in url or "ampproject.org" in url) \
+           or ("/amp/" in url and "www.bing." in url)
 
 
 # Get the canonical of the URL

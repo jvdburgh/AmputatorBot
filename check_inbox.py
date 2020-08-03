@@ -215,7 +215,7 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_post=True, write_t
                     log.info(f"New opt-out request by {author}")
 
                     # If the user is already opted out, notify the user
-                    if author.name.casefold() in list(user.casefold() for user in s.disallowed_users):
+                    if author.casefold() in list(user.casefold() for user in s.disallowed_users):
                         log.warning("User has already opted out!")
                         s.praw_session.redditor(author).message(
                             subject="You have already opted out of AmputatorBot",
@@ -247,7 +247,7 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_post=True, write_t
                     log.info(f"New opt-back-in request by {author}")
 
                     # If the user is not opted out, notify the user
-                    if author.name.casefold() not in list(user.casefold() for user in s.disallowed_users):
+                    if author.casefold() not in list(user.casefold() for user in s.disallowed_users):
                         log.warning("User is not opted out!")
                         s.praw_session.redditor(author).message(
                             subject="You don't have to opt in of AmputatorBot",
@@ -280,7 +280,7 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_post=True, write_t
                         s.disallowed_subreddits.append(subreddit)
                         log.info(f"Added {subreddit} to disallowed_subreddits")
                 else:
-                    log.warning(f"Message wasn't send by a subreddit, but by {message.author}")
+                    log.warning(f"Message wasn't send by a subreddit, but by {message.author.name}")
 
         else:
             log.warning(f"Unknown message type: {message.type}")
