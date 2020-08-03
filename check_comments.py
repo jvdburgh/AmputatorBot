@@ -7,7 +7,7 @@ Killed_Mufasa (original author)
 - Twitter: https://twitter.com/Killed_Mufasa
 
 AmputatorBot
-- Donate:  https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2
+- Sponsor:  https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2
 - GitHub:  https://github.com/KilledMufasa/AmputatorBot
 - Reddit:  https://www.reddit.com/user/AmputatorBot
 - Website: https://www.amputatorbot.com

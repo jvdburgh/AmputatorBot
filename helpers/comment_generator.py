@@ -73,8 +73,8 @@ def generate_reply(stream_type, np_subreddits, item_type, subreddit, links, summ
                 n_note = "the ones"
             else:
                 n_note = "some of the ones"
-            cached_note = f"Fully cached AMP pages (like {n_note} {who} {what})," \
-                          f" are [especially problematic]({static.FAQ_LINK}). "
+            cached_note = f" Fully cached AMP pages (like {n_note} {who} {what}), " \
+                          f"are [especially problematic]({static.FAQ_LINK})."
 
         reply_text = f"{intro_who_wat}{intro_why}{cached_note}{intro_maybe}{canonical_text}{outro}{summoned_note}"
 
