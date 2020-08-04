@@ -186,7 +186,9 @@ def get_canonical(link, guess_and_check=False):
                 if len(link.canonicals) > 0:
                     amp_canonical = link.canonicals[0].url
                     log.info(f"Could find a canonical, but it is still amp: {amp_canonical}")
-                    link.amp_canonical = amp_canonical
+                    if link.is_cached:
+                        log.info("No longer cached, using it")
+                        link.amp_canonical = amp_canonical
                 return link
             # If the found URL is different from before, but still amp, run again with the found URL
             else:
@@ -200,7 +202,9 @@ def get_canonical(link, guess_and_check=False):
         if len(link.canonicals) > 0:
             amp_canonical = link.canonicals[0].url
             log.info(f"Could find a canonical, but it is still amp: {amp_canonical}")
-            link.amp_canonical = amp_canonical
+            if link.is_cached:
+                log.info("No longer cached, using it")
+                link.amp_canonical = amp_canonical
 
     log.warning("\nMax depth reached, no canonicals found!")
     return link

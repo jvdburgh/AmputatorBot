@@ -19,7 +19,7 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
 
     elif result_code == ResultCode.ERROR_DISALLOWED_MOD:
         subject = "AmputatorBot ran into an error: Disallowed subreddit"
-        message = f"u/AmputatorBot couldn't reply to [the {parent_type} you summoned it for](https://www.reddit.com" \
+        message = f"u/AmputatorBot can't reply to [the {parent_type} you summoned it for](https://www.reddit.com" \
                   f"{parent_link}) because r/{parent_subreddit} is being moderated by an anti-bot-bot. Because of " \
                   f"this, u/AmputatorBot will be banned once it comments something, and the comment will be removed " \
                   f"immediately. Most subreddits using an anti-bot service have a strict no-bot policy. Sometimes an " \
@@ -30,9 +30,9 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
 
     elif result_code == ResultCode.ERROR_DISALLOWED_SUBREDDIT:
         subject = "AmputatorBot ran into an error: Disallowed subreddit"
-        message = f"u/AmputatorBot couldn't reply to [the {parent_type} you summoned it for](https://www.reddit.com" \
+        message = f"u/AmputatorBot can't reply to [the {parent_type} you summoned it for](https://www.reddit.com" \
                   f"{parent_link}) because u/AmputatorBot is disallowed and/or banned in r/{parent_subreddit}, " \
-                  f"just like it is [some others]({static.FAQ_LINK}).\n\n And as long as that's the case, " \
+                  f"[just like it is some others]({static.FAQ_LINK}).\n\n And as long as that's the case, " \
                   f"u/AmputatorBot won't be able to interact with this subreddit.\n\n" \
                   f"But that doesn't stop us! Here are the canonical URLs you requested: {canonical_text}\n\n" \
                   f"Maybe _you_ can post it instead? o_0\n\nPS: you're a very good human for trying <3{outro}"
@@ -49,7 +49,7 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
 
     elif result_code == ResultCode.ERROR_PROBLEMATIC_DOMAIN:
         subject = "AmputatorBot ran into an error: Couldn't scrape website"
-        message = f"u/AmputatorBot couldn't reply to [the {parent_type} you summoned it for](https://www.reddit.com" \
+        message = f"u/AmputatorBot didn't reply to [the {parent_type} you summoned it for](https://www.reddit.com" \
                   f"{parent_link}) because AmputatorBot couldn't scrape [this page]({first_amp_url}) and thus " \
                   f"it couldn't find the canonical link. This is a known issue specific to this domain and a good " \
                   f"fix is currently not possible because the reasons for this error are beyond our control. " \
@@ -62,16 +62,16 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
     elif result_code == ResultCode.ERROR_REPLY_FAILED:
         subject = "AmputatorBot ran into an error: Couldn't post reply"
         message = f"u/AmputatorBot couldn't reply to [the {parent_type} you summoned it for](https://www.reddit.com" \
-                  f"{parent_link}) because the reply didn't got through. This happens when the bot got banned while " \
-                  f"handling the {parent_type}, if the banned-list was outdated or, and this is much more likely, " \
-                  f"the {parent_type} has been removed or deleted. But that doesn't stop us! Here are the canonical " \
+                  f"{parent_link}) because the reply didn't got through. This may have happened because the bot got " \
+                  f"banned in this subreddit, unbeknown to us. Another common reason for this error is that the " \
+                  f"{parent_type} has been removed or deleted. But that doesn't stop us! Here are the canonical " \
                   f"URLs you requested: {canonical_text}\n\n Maybe _you_ can post it instead? o_0\n\nThis error has " \
                   f"been automatically logged and will be investigated as soon as possible.\n\nPS: you're a very " \
                   f"good human for trying <3{outro}"
 
     elif result_code == ResultCode.ERROR_USER_OPTED_OUT:
         subject = "AmputatorBot ran into an error: User opted out"
-        message = f"u/AmputatorBot didn't reply to [the {parent_type} you summoned it for](https://www.reddit.com" \
+        message = f"u/AmputatorBot can't reply to [the {parent_type} you summoned it for](https://www.reddit.com" \
                   f"{parent_link}) because the user who posted the {parent_type} has opted out of AmputatorBot. " \
                   f"This feature allows people to prevent AmputatorBot from replying to their comments and posts. " \
                   f"Apologies for the inconvenience. Here are the canonical URLs you requested: {canonical_text}\n\n" \
