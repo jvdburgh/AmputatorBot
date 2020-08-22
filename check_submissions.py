@@ -7,13 +7,13 @@ Killed_Mufasa (original author)
 - Twitter: https://twitter.com/Killed_Mufasa
 
 AmputatorBot
-- Sponsor:  https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2
+- Sponsor: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2
 - GitHub:  https://github.com/KilledMufasa/AmputatorBot
 - Reddit:  https://www.reddit.com/user/AmputatorBot
 - Website: https://www.amputatorbot.com
 
 Method description: This method starts a submission stream that checks for AMP links in Reddit submissions.
-if one is detected, a reply is made by u/AmputatorBot with the canonical link(s)
+If one is detected, a reply is made by u/AmputatorBot with the canonical link(s)
 """
 
 import sys
@@ -37,7 +37,7 @@ log = logger.get_log(sys)
 
 
 # Run the bot
-def run_bot(type=Type.SUBMISSION, guess_and_check=False, reply_to_post=True, write_to_database=True):
+def run_bot(type=Type.SUBMISSION, guess_and_check=False, reply_to_item=True, write_to_database=True):
     # Get the stream instance (contains session, type and data)
     s = stream.get_stream(type)
     log.info("Set up new stream")
@@ -85,7 +85,7 @@ def run_bot(type=Type.SUBMISSION, guess_and_check=False, reply_to_post=True, wri
                     subreddit=i.subreddit)
 
                 # Try to post the reply
-                if reply_to_post:
+                if reply_to_item:
                     try:
                         reply = submission.reply(reply_text)
                         log.info(f"Replied to {i.id} with {reply.name}")
@@ -128,5 +128,5 @@ while True:
         sleep(120)
     except (RuntimeError, Exception):
         log.error(traceback.format_exc())
-        log.warning('\nSomething went wrong while running the bot')
+        log.warning("\nSomething went wrong while running the bot")
         sleep(120)

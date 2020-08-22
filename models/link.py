@@ -19,9 +19,9 @@ class Link:
 
 
 class Canonical:
-    def __init__(self, CanonicalType=None, url=None, domain=None, article_text=None,
+    def __init__(self, type=None, url=None, domain=None, article_text=None,
                  is_amp=None, is_valid=None, url_similarity=None):
-        self.CanonicalType = CanonicalType
+        self.type = type
         self.url = url
         self.domain = domain
         self.article_text = article_text

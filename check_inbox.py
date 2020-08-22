@@ -7,7 +7,7 @@ Killed_Mufasa (original author)
 - Twitter: https://twitter.com/Killed_Mufasa
 
 AmputatorBot
-- Sponsor:  https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2
+- Sponsor: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2
 - GitHub:  https://github.com/KilledMufasa/AmputatorBot
 - Reddit:  https://www.reddit.com/user/AmputatorBot
 - Website: https://www.amputatorbot.com
@@ -44,7 +44,7 @@ log = logger.get_log(sys)
 
 
 # Run the bot
-def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_post=True, write_to_database=True):
+def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_to_database=True):
     # Get the stream instance (contains session, type and data)
     s = stream.get_stream(type)
     log.info("Set up new stream")
@@ -132,7 +132,7 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_post=True, write_t
                         log.info(f"Send summoner DM of type {result_code}")
 
                     # Try to post the reply, send a DM to the summoner
-                    elif reply_to_post:
+                    elif reply_to_item:
                         try:
                             reply = parent.reply(reply_text)
                             log.info(f"Replied to {i.id} with {reply.name}")
@@ -295,5 +295,5 @@ while True:
         sleep(120)
     except (RuntimeError, Exception):
         log.error(traceback.format_exc())
-        log.warning('\nSomething went wrong while running the bot')
+        log.warning("\nSomething went wrong while running the bot")
         sleep(120)

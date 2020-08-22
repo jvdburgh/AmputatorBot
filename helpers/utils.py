@@ -43,10 +43,10 @@ def get_urls(body):
 
 
 # Loop through all the URLs, run get_url_info for each url, append Link instance to links
-def get_urls_info(urls, guess_and_check=False):
+def get_urls_info(urls, guess_and_check=False, max_depth=static.MAX_DEPTH):
     links = []
     for url in urls:
-        link = get_url_info(url, guess_and_check)
+        link = get_url_info(url, guess_and_check, max_depth)
         links.append(link)
 
     # Return the links
@@ -54,7 +54,7 @@ def get_urls_info(urls, guess_and_check=False):
 
 
 # Get and save all the info on the URLS as a Link instance, including the original and canonical URL and more
-def get_url_info(url, guess_and_check):
+def get_url_info(url, guess_and_check, max_depth):
     # Create a new Link instance
     link = Link()
     # Save the extracted URL
@@ -68,7 +68,7 @@ def get_url_info(url, guess_and_check):
         if link.is_amp:
             link.is_cached = check_if_cached(link.url_clean)
             link.domain = tldextract.extract(link.url_clean).domain
-            link = get_canonical(link, guess_and_check)
+            link = get_canonical(link, guess_and_check, max_depth)
 
     return link
 
@@ -100,13 +100,13 @@ def check_if_amp(string):
     string = string.lower()
 
     # Detect if the string contains links
-    protocols = ["https://", "http://"]
-    if not any(map(string.__contains__, protocols)):
+    protocol_keywords = static.PROTOCOL_KEYWORDS
+    if not any(map(string.__contains__, protocol_keywords)):
         return False
 
     # Detect if the string contains common AMP keywords
-    amp_keywords = ["/amp", "amp/", ".amp", "amp.", "?amp", "amp?", "=amp", "amp=",
-                    "&amp", "amp&", "%amp", "amp%", "_amp", "amp_"]
+    amp_keywords = static.AMP_KEYWORDS
+
     return any(map(string.__contains__, amp_keywords))
 
 
@@ -121,11 +121,11 @@ def check_if_cached(url):
 
 
 # Get the canonical of the URL
-def get_canonical(link, guess_and_check=False):
+def get_canonical(link, guess_and_check=False, max_depth=static.MAX_DEPTH):
     next_url = link.url_clean
     depth = 0
 
-    while depth < static.MAX_DEPTH:
+    while depth < max_depth:
         log.info(f"\nNEXT UP = {next_url}")
         # Get the HTML content of the URL
         response = get_page(next_url)
@@ -136,7 +136,7 @@ def get_canonical(link, guess_and_check=False):
         # Try every soup method
         for method in CanonicalType:
             # Create a new canonical instance of the specified method
-            canonical = Canonical(CanonicalType=method)
+            canonical = Canonical(type=method)
             # Assign the found url and note if it is still amp
             canonical.url, canonical.is_amp = get_canonical_with_soup(response, next_url, method, guess_and_check)
 
@@ -282,7 +282,7 @@ def get_article_similarity(url1, url2, log_articles=False):
 def check_if_banned(subreddit):
     try:
         if subreddit.user_is_banned:
-            log.info(f"Ban by {subreddit} has been validated")
+            log.info(f"Ban by r/{subreddit} has been validated")
             return True
 
         else:

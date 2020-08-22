@@ -4,6 +4,9 @@ DATA_FOLDER_NAME = "data"
 LOG_FOLDER_NAME = "logs"
 DEBUG_LEVEL = XX
 MAX_DEPTH = X
+PROTOCOL_KEYWORDS = ["https://", "http://"]
+AMP_KEYWORDS = ["/amp", "amp/", ".amp", "amp.", "?amp", "amp?", "=amp",
+                "amp=", "&amp", "amp&", "%amp", "amp%", "_amp", "amp_"]
 
 # Reddit API credentials for PRAW
 USERNAME = "RedditUsername"
@@ -11,6 +14,12 @@ PASSWORD = "RedditPassword"
 CLIENT_ID = "RedditClientId"
 CLIENT_SECRET = "RedditClientSecret"
 USER_AGENT = f"HostingPlatform:{USERNAME}:v{VERSION_NUMBER} (by CreatorUsername)"
+
+# Twitter API credentials for Tweepy
+TW_API_KEY = "TwitterAPIKey"
+TW_API_SECRET_KEY = "TwitterAPISecretKey"
+TW_ACCESS_TOKEN = "TwitterAccessToken"
+TW_ACCESS_TOKEN_SECRET = "TwitterAccessTokenSecret"
 
 # The user-agents below are just examples, you have to change them before you run the scripts.
 # Only use mobile user-agents that are new, common and not block-listed.
@@ -32,6 +41,13 @@ DB_HOSTNAME = "DbHostname"
 DB_DATABASENAME = "DbDatabasename"
 DB_SERVER_PORT = 1234
 DB_LOCAL_PORT = "123.4.5.6"
+
+# AmputatorBot API credentials
+API_KEYS = {
+    "APIKey": "UserName",
+    "APIKey": "UserName"
+}
+API_BASE_URL = "APIBaseURL"
 
 # Pages
 FAQ_LINK = "LinkToFAQ"

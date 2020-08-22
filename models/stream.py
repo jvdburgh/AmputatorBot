@@ -13,10 +13,12 @@ def get_stream(type):
     log.info(f"Setting up stream of type {type.value}")
     if type == Type.COMMENT:
         return Comment(type)
-    if type == Type.SUBMISSION:
+    elif type == Type.SUBMISSION:
         return Submission(type)
-    if type == Type.MENTION:
+    elif type == Type.MENTION:
         return Mention(type)
+    elif type == Type.TWEET:
+        return Tweet(type)
     else:
         log.error(traceback.format_exc())
         log.warning("Unknown stream type!")
@@ -58,3 +60,12 @@ class Mention(Stream):
         self.mentions_success = get_data("mentions_success")
         self.mentions_failed = get_data("mentions_failed")
         self.problematic_domains = get_data("problematic_domains")
+
+
+class Tweet:
+    def __init__(self, type):
+        # Items specific to the tweet stream
+        self.type = type
+        self.tweets_success = get_data("tweets_success")
+        self.tweets_failed = get_data("tweets_failed")
+        self.disallowed_twitterers = get_data("disallowed_twitterers")

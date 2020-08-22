@@ -1,6 +1,6 @@
 class Item:
     def __init__(self, type=None, id=None, subreddit=None, author=None, context=None,
-                 parent_link=None, parent_type=None, summoner=None, body=None):
+                 parent_link=None, parent_type=None, summoner=None, body=None, links=None):
         self.type = type
         self.id = id
         self.subreddit = subreddit
@@ -10,4 +10,4 @@ class Item:
         self.parent_type = parent_type
         self.summoner = summoner
         self.body = body
-        self.links = []
+        self.links = links

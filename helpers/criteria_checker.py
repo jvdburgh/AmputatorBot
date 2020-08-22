@@ -40,7 +40,7 @@ def check_criteria(item, data=None, history_failed=None, history_success=None, r
     # Must not have failed before
     if mustNotHaveFailed:
         if item.id in history_failed:
-            result_code = ResultCode.ERROR_UNKNOWN
+            result_code = ResultCode.ERROR_OTHER
             if return_if_false:
                 return False, result_code
 
