@@ -55,14 +55,14 @@ def generate_tweet(links):
         if n_canonicals == 1:
             intro_who_wat = "It looks like you shared a cached AMP link. These should load faster, but Google's " \
                             "AMP is controversial because of concerns over privacy and the Open Web: " \
-                            "Reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/."
-            canonical_text = canonical_text_latest
+                            "reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/ "
             intro_maybe = "\n\nYou might want to visit the uncached page instead: "
+            canonical_text = canonical_text_latest
 
         else:
             intro_who_wat = "It looks like you shared some cached AMP links. "
-            canonical_text = canonical_text_list
             intro_maybe = "You might want to visit the uncached pages instead: "
+            canonical_text = canonical_text_list
 
         tweet_text = intro_who_wat + intro_maybe + canonical_text
 
