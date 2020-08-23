@@ -57,7 +57,7 @@ def generate_tweet(links):
                             "AMP is controversial because of concerns over privacy and the Open Web: " \
                             "Reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/."
             canonical_text = canonical_text_latest
-            intro_maybe = "You might want to visit the uncached page instead: "
+            intro_maybe = "\n\nYou might want to visit the uncached page instead: "
 
         else:
             intro_who_wat = "It looks like you shared some cached AMP links. "
