@@ -28,7 +28,7 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
                   f"But that doesn't stop us! Here are the canonical URLs you requested: {canonical_text}\n\n" \
                   f"Maybe _you_ can post it instead? o_0 You can easily generate and copy a comment with markdown " \
                   f"similar to the ones from AmputatorBot, by [clicking here]" \
-                  f"(https://www.amputatorbot.com/?generate-comment=true&q={first_amp_url}.  \n\n" \
+                  f"(https://www.amputatorbot.com/?generate-comment=true&q={first_amp_url}).  \n\n" \
                   f"PS: you're a very good human for trying <3{outro}"
 
     elif result_code == ResultCode.ERROR_DISALLOWED_SUBREDDIT:
@@ -40,7 +40,7 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
                   f"But that doesn't stop us! Here are the canonical URLs you requested: {canonical_text}\n\n" \
                   f"Maybe _you_ can post it instead? o_0 You can easily generate and copy a comment with markdown " \
                   f"similar to the ones from AmputatorBot, by [clicking here]" \
-                  f"(https://www.amputatorbot.com/?generate-comment=true&q={first_amp_url}.  \n\n" \
+                  f"(https://www.amputatorbot.com/?generate-comment=true&q={first_amp_url}).  \n\n" \
                   f"PS: you're a very good human for trying <3{outro}"
 
     elif result_code == ResultCode.ERROR_NO_CANONICALS:
@@ -74,7 +74,7 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
                   f"URLs you requested: {canonical_text}\n\n" \
                   f"Maybe _you_ can post it instead? o_0 You can easily generate and copy a comment with markdown " \
                   f"similar to the ones from AmputatorBot, by [clicking here]" \
-                  f"(https://www.amputatorbot.com/?generate-comment=true&q={first_amp_url}.\n\nThis error has " \
+                  f"(https://www.amputatorbot.com/?generate-comment=true&q={first_amp_url}).\n\nThis error has " \
                   f"been automatically logged and will be investigated as soon as possible.\n\nPS: you're a very " \
                   f"good human for trying <3{outro}"
 
