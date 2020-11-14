@@ -8,7 +8,7 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
             "by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by " \
             "[opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\n" \
             "TIP: With the online version of AmputatorBot it's easier than ever to remove AMP from your URLS. " \
-            f"Check out an example with your AMP link here: https://www.amputatorbot.com/?{first_amp_url}"
+            f"Check out an example with your AMP link here: https://www.amputatorbot.com/?q={first_amp_url}" \
 
     if result_code == ResultCode.SUCCESS:
         subject = "Thx for summoning AmputatorBot!"
@@ -26,7 +26,10 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
                   f"exception can be made, but until that's the case, u/AmputatorBot won't be able to interact with " \
                   f"this subreddit, [(just like it can't in these)]({static.FAQ_LINK}).\n\n" \
                   f"But that doesn't stop us! Here are the canonical URLs you requested: {canonical_text}\n\n" \
-                  f"Maybe _you_ can post it instead? o_0\n\nPS: you're a very good human for trying <3{outro}"
+                  f"Maybe _you_ can post it instead? o_0 You can easily generate and copy a comment with markdown " \
+                  f"similar to the ones from AmputatorBot, by [clicking here]" \
+                  f"(https://www.amputatorbot.com/?generate-comment=true&q={first_amp_url}.  \n\n" \
+                  f"PS: you're a very good human for trying <3{outro}"
 
     elif result_code == ResultCode.ERROR_DISALLOWED_SUBREDDIT:
         subject = "AmputatorBot ran into an error: Disallowed subreddit"
@@ -35,7 +38,10 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
                   f"[just like it is some others]({static.FAQ_LINK}).\n\n And as long as that's the case, " \
                   f"u/AmputatorBot won't be able to interact with this subreddit.\n\n" \
                   f"But that doesn't stop us! Here are the canonical URLs you requested: {canonical_text}\n\n" \
-                  f"Maybe _you_ can post it instead? o_0\n\nPS: you're a very good human for trying <3{outro}"
+                  f"Maybe _you_ can post it instead? o_0 You can easily generate and copy a comment with markdown " \
+                  f"similar to the ones from AmputatorBot, by [clicking here]" \
+                  f"(https://www.amputatorbot.com/?generate-comment=true&q={first_amp_url}.  \n\n" \
+                  f"PS: you're a very good human for trying <3{outro}"
 
     elif result_code == ResultCode.ERROR_NO_CANONICALS:
         subject = "AmputatorBot ran into an error: No canonicals found"
@@ -65,7 +71,10 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
                   f"{parent_link}) because the reply didn't got through. This may have happened because the bot got " \
                   f"banned in this subreddit, unbeknown to us. Another common reason for this error is that the " \
                   f"{parent_type} has been removed or deleted. But that doesn't stop us! Here are the canonical " \
-                  f"URLs you requested: {canonical_text}\n\n Maybe _you_ can post it instead? o_0\n\nThis error has " \
+                  f"URLs you requested: {canonical_text}\n\n" \
+                  f"Maybe _you_ can post it instead? o_0 You can easily generate and copy a comment with markdown " \
+                  f"similar to the ones from AmputatorBot, by [clicking here]" \
+                  f"(https://www.amputatorbot.com/?generate-comment=true&q={first_amp_url}.\n\nThis error has " \
                   f"been automatically logged and will be investigated as soon as possible.\n\nPS: you're a very " \
                   f"good human for trying <3{outro}"
 
