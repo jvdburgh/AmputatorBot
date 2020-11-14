@@ -106,7 +106,6 @@ class StdOutListener(tweepy.StreamListener):
                     if any(link.canonical for link in i.links):
                         # Generate a reply
                         generated_tweet = generate_tweet(i.links)
-                        print(generated_tweet)
 
                         # Try to post the reply
                         if self.reply_to_item:
