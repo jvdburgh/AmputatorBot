@@ -30,9 +30,9 @@ def get_submission_body(submission):
         return submission.url
 
 
-# Get all the URLS from the body
+# Get all the URLs from the body
 def get_urls(body):
-    # Set up an extractor to extract the URLS
+    # Set up an extractor to extract the URLs
     extractor = URLExtract()
     # Update the TLD list if it is older than x days
     extractor.update_when_older(7)
@@ -53,7 +53,7 @@ def get_urls_info(urls, guess_and_check=False, max_depth=static.MAX_DEPTH):
     return links
 
 
-# Get and save all the info on the URLS as a Link instance, including the original and canonical URL and more
+# Get and save all the info on the URLs as a Link instance, including the original and canonical URL and more
 def get_url_info(url, guess_and_check, max_depth):
     # Create a new Link instance
     link = Link()
