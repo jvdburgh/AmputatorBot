@@ -26,6 +26,10 @@ def get_canonical_with_soup(r, url, method, guess_and_check=False):
     elif method == CanonicalType.OG_URL:
         can_urls = get_can_urls(r.soup.find_all('meta', property='og:url'), 'content', url=url)
 
+    # Find the canonical urls with method meta http-equiv redirect
+    elif method == CanonicalType.META_REDIRECT:
+        can_urls= get_can_urls_meta_redirect(r.soup.find_all('meta'), url=url)
+
     # Find the canonical urls with method google manual_redirect
     elif method == CanonicalType.GOOGLE_MANUAL_REDIRECT:
         if 'url?q=' in r.current_url and 'www.google.' in r.current_url:
@@ -143,3 +147,24 @@ def get_can_urls(tags, target_value, url=None):
             value = f"{parsed_uri.scheme}://{parsed_uri.netloc}{value}"
         can_values.append(value)
     return can_values
+
+def get_can_urls_meta_redirect(tags, url=None):
+    can_values = []
+    for can_tag in tags:
+        if not can_tag.get('http-equiv')=='refresh':
+            continue
+        if not 'content' in can_tag.attrs:
+            continue
+        value = can_tag.get('content')
+        if not "url=" in value:
+            continue
+        value = value.partition("url=")[2]
+        if value.startswith("//"):
+            parsed_uri = urlparse(url)
+            value = f"{parsed_uri.scheme}:{value}"
+        elif value.startswith("/"):
+            parsed_uri = urlparse(url)
+            value = f"{parsed_uri.scheme}://{parsed_uri.netloc}{value}"
+        can_values.append(value)
+    return can_values
+    
