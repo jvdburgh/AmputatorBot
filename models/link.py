@@ -34,6 +34,7 @@ class CanonicalType(enum.Enum):
     REL = "rel"
     CANURL = "canurl"
     OG_URL = "og_url"
+    META_REDIRECT = 'meta_redirect'
     GOOGLE_MANUAL_REDIRECT = "google_manual_redirect"
     GOOGLE_JS_REDIRECT = "google_js_redirect"
     BING_ORIGINAL_URL = "bing_original_url"
