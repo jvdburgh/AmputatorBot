@@ -270,7 +270,7 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_t
                     log.error(traceback.format_exc())
                     log.warning(f"Something went wrong while processing opt-back-in request {message.fullname}")
 
-            elif "you've been permanently banned from participating in" in subject:
+            elif "banned" in subject:
                 subreddit = message.subreddit
                 if subreddit:
                     log.info(f"New ban issued by r/{subreddit}")
@@ -279,6 +279,16 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_t
                         update_local_data("disallowed_subreddits", subreddit)
                         s.disallowed_subreddits.append(subreddit)
                         log.info(f"Added {subreddit} to disallowed_subreddits")
+                else:
+                    log.warning(f"Message wasn't send by a subreddit, but by {message.author.name}")
+
+            elif "approved" in subject:
+                subreddit = message.subreddit
+                if subreddit:
+                    log.info(f"AmputatorBot seems to be have been made a contributor by r/{subreddit}")
+                    update_local_data("contributor_subreddits", subreddit)
+                    s.contributor_subreddits.append(subreddit)
+                    log.info(f"Added {subreddit} to contributor_subreddits")
                 else:
                     log.warning(f"Message wasn't send by a subreddit, but by {message.author.name}")
 

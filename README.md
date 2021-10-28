@@ -10,21 +10,20 @@ TL;DR: AmputatorBot is a Reddit bot that replies to comments and submissions con
 
 Features include:
 - Automatically create required log and datafiles
-- Scan for comments, submissions and mentions
+- Scan for comments, submissions, mentions or tweets
 - Check each item against specified criteria
-- Strip URLs of markdown
+- Strip URLs of artifacts
 - Check URLs for AMP links
 - Find canonicals using 9 different methods
 - Calculate which canonical is 'best'
-- Return 2 canonicals if the canonicals have more than 1 domain
+- Return 2 canonicals if the canonicals are from more than 1 domain
 - Return an AMP-canonical if the real canonical can't be found
 - Generate and send automatic replies to AMP items with the canonical(s) and some info
-- Automatically keep track of bans
+- Automatically keep track of bans and contributor statuses
 - Keep track of items interacted with
 - Let users opt-out and opt-back-in
 - Send DMs when summoned by users
-- Experimental: Guess-and-check method with article-comparison
-- Local- and SQL-database-logging
+- Log both locally and to a MySQL database
 
 Please note:
 - AmputatorBot works automatically in a select number of subreddits
@@ -35,13 +34,14 @@ Please note:
 ## Set up
 
 1. Clone the repository
-2. Fill in and change the required values in static.txt (see /static)
-3. Change the filename of static.txt to .py
-4. Choose which script(s) you want to run (check_comments.py, check_inbox.py or check_submissions.py)
-5. Set the 'settings' in the run_bot function of the script. I recommended to set everything (guess_and_check, reply_to_post, write_to_database) to False when you are starting out.
-6. Run the script - All logs and required datafiles will be automatically and dynamically created. In /data: allowed_subreddits.txt, comments_failed.txt, comments_success.txt, disallowed_mods.txt, disallowed_subreddits.txt, disallowed_users.txt, mentions_failed.txt, mentions.success.txt, np_subreddits.txt, problematic_domains.txt, submissions_failed.txt, submissions_success.txt and in /logs: check_comments_X.X.log, check_inbox_X.X.log and check_submissions_X.X.log.
-7. Stop the script to see and edit the newly generated files. Odds are you want to add subreddits to allowed_subreddits.txt (for example: ,subreddit1,subreddit2)
-8. Re-run the script
+2. Run `pip install -r requirements.txt` to install dependencies
+3. Fill in and change the required values in static.txt (see /static)
+4. Change the filename of static.txt to .py
+5. Choose which script(s) you want to run (check_comments.py, check_inbox.py or check_submissions.py)
+6. Set the 'settings' in the run_bot function of the script. Set everything (guess_and_check, reply_to_post, write_to_database) to False when starting out.
+7. Run the script - All logs and required datafiles will be automatically and dynamically created. In /data: allowed_subreddits.txt, comments_failed.txt, comments_success.txt, disallowed_mods.txt, disallowed_subreddits.txt, disallowed_users.txt, mentions_failed.txt, mentions.success.txt, np_subreddits.txt, problematic_domains.txt, submissions_failed.txt, submissions_success.txt and in /logs: check_comments_X.X.log, check_inbox_X.X.log and check_submissions_X.X.log.
+8. Stop the script to see and edit the newly generated files. Odds are you want to add subreddits to allowed_subreddits.txt (for example: ,subreddit1,subreddit2)
+9. Re-run the script
 
 ## Support the project
 

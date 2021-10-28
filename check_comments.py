@@ -41,9 +41,10 @@ def run_bot(type=Type.COMMENT, guess_and_check=False, reply_to_item=True, write_
     # Get the stream instance (contains session, type and data)
     s = stream.get_stream(type)
     log.info("Set up new stream")
+    streamed_subreddits = "+".join(s.allowed_subreddits + s.contributor_subreddits)
 
     # Start the stream
-    for comment in s.praw_session.subreddit("+".join(s.allowed_subreddits)).stream.comments():
+    for comment in s.praw_session.subreddit(streamed_subreddits).stream.comments():
         # Generate an item with all the relevant data
         i = Item(type=type, id=comment.name, subreddit=comment.subreddit, author=comment.author, body=comment.body)
 

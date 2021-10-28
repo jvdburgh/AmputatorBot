@@ -30,6 +30,7 @@ class Stream:
         # Basic items
         self.type = type
         self.allowed_subreddits = get_data("allowed_subreddits")
+        self.contributor_subreddits = get_data("contributor_subreddits")
         self.disallowed_subreddits = get_data("disallowed_subreddits")
         self.disallowed_users = get_data("disallowed_users")
         self.np_subreddits = get_data("np_subreddits")

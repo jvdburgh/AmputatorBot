@@ -41,9 +41,10 @@ def run_bot(type=Type.SUBMISSION, guess_and_check=False, reply_to_item=True, wri
     # Get the stream instance (contains session, type and data)
     s = stream.get_stream(type)
     log.info("Set up new stream")
+    streamed_subreddits = "+".join(s.allowed_subreddits + s.contributor_subreddits)
 
     # Start the stream
-    for submission in s.praw_session.subreddit("+".join(s.allowed_subreddits)).stream.submissions():
+    for submission in s.praw_session.subreddit(streamed_subreddits).stream.submissions():
         # Generate an item with all the relevant data
         i = Item(
             type=type,
