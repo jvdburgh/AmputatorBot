@@ -14,54 +14,56 @@ def get_canonical_with_soup(r, url, method, guess_and_check=False):
     log.debug(f"Trying {method.value}")
 
     can_urls = None
-    # Find the canonical urls with method rel
+
+    # Find canonical urls with method rel
     if method == CanonicalType.REL:
         can_urls = get_can_urls(r.soup.find_all(rel='canonical'), 'href', url=url)
 
-    # Find the canonical urls with method amp-canurl
+    # Find canonical urls with method amp-canurl
     elif method == CanonicalType.CANURL:
         can_urls = get_can_urls(r.soup.find_all(a='amp-canurl'), 'href', url=url)
 
-    # Find the canonical urls with method og_url
+    # Find canonical urls with method og_url
     elif method == CanonicalType.OG_URL:
         can_urls = get_can_urls(r.soup.find_all('meta', property='og:url'), 'content', url=url)
 
-    # Find the canonical urls with method meta http-equiv redirect
-    elif method == CanonicalType.META_REDIRECT:
-        can_urls= get_can_urls_meta_redirect(r.soup.find_all('meta'), url=url)
-
-    # Find the canonical urls with method google manual_redirect
+    # Find canonical urls with method google manual_redirect
     elif method == CanonicalType.GOOGLE_MANUAL_REDIRECT:
         if 'url?q=' in r.current_url and 'www.google.' in r.current_url:
             can_urls = get_can_urls(r.soup.find_all('a'), 'href', url=url)
 
-    # Find the canonical urls with method google js redirect_url
+    # Find canonical urls with method google js redirect_url
     elif method == CanonicalType.GOOGLE_JS_REDIRECT:
         if 'url?' in r.current_url and 'www.google.' in r.current_url:
             js_redirect_url = get_can_url_with_regex(r.soup, re.compile("var\\s?redirectUrl\\s?=\\s?([\'|\"])(.*?)\\1"))
             if js_redirect_url:
                 can_urls = [js_redirect_url]
 
-    # Find the canonical urls with method bing cururl
+    # Find canonical urls with method bing cururl
     elif method == CanonicalType.BING_ORIGINAL_URL:
         if '/amp/s/' in r.current_url and 'www.bing.' in r.current_url:
             cururl = get_can_url_with_regex(r.soup, re.compile("([\'|\"])originalUrl\\1\\s?:\\s?\\1(.*?)\\1"))
             if cururl:
                 can_urls = [cururl]
 
-    # Find the canonical urls with method schema_mainentity
+    # Find canonical urls with method schema_mainentity
     elif method == CanonicalType.SCHEMA_MAINENTITY:
         main_entity = get_can_url_with_regex(r.soup, re.compile("\"mainEntityOfPage\"\\s?:\\s?([\'|\"])(.*?)\\1"))
         if main_entity:
             can_urls = [main_entity]
 
-    # Find the canonical urls with method page tco_pagetitle
+    # Find canonical urls with method page tco_pagetitle
     elif method == CanonicalType.TCO_PAGETITLE:
         if 'https://t.co' in r.current_url and 'amp=1' in r.current_url:
             pagetitle = r.title
             if pagetitle:
                 can_urls = [pagetitle]
 
+    # Find canonical urls with method meta http-equiv redirect
+    elif method == CanonicalType.META_REDIRECT:
+        can_urls = get_can_urls_meta_redirect(r.soup.find_all('meta'), url=url)
+
+    # Find canonical urls by 'guessing' a canonical link and checking the article content for similarity
     elif method == CanonicalType.GUESS_AND_CHECK:
         if guess_and_check:
             guessed_and_checked_url = get_can_url_with_guess_and_check(url)
@@ -70,7 +72,7 @@ def get_canonical_with_soup(r, url, method, guess_and_check=False):
         else:
             log.debug("Guess and check is disabled")
 
-    # Detect unknown canonical methods
+    # Catch unknown canonical methods
     else:
         log.error(traceback.format_exc())
         log.warning("Unknown canonical method type!")
