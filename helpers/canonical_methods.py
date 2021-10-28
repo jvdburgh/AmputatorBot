@@ -150,15 +150,16 @@ def get_can_urls(tags, target_value, url=None):
         can_values.append(value)
     return can_values
 
+
 def get_can_urls_meta_redirect(tags, url=None):
     can_values = []
     for can_tag in tags:
-        if not can_tag.get('http-equiv')=='refresh':
+        if can_tag.get('http-equiv') != 'refresh':
             continue
-        if not 'content' in can_tag.attrs:
+        if 'content' not in can_tag.attrs:
             continue
         value = can_tag.get('content')
-        if not "url=" in value:
+        if "url=" not in value:
             continue
         value = value.partition("url=")[2]
         if value.startswith("//"):
@@ -169,4 +170,3 @@ def get_can_urls_meta_redirect(tags, url=None):
             value = f"{parsed_uri.scheme}://{parsed_uri.netloc}{value}"
         can_values.append(value)
     return can_values
-    
