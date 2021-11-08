@@ -18,17 +18,17 @@ If one is detected, a reply is made by u/AmputatorBot with the canonical link(s)
 
 import sys
 import traceback
-from datetime import datetime
 from time import sleep
 
 from prawcore import Forbidden
 
 from datahandlers.local_datahandler import update_local_data
-from datahandlers.remote_datahandler import add_data, get_engine_session
+from datahandlers.remote_datahandler import save_entry
 from helpers import logger
-from helpers.comment_generator import generate_reply
 from helpers.criteria_checker import check_criteria
-from helpers.utils import get_urls, get_urls_info, check_if_banned
+from helpers.reddit.reddit_comment_generator import generate_reply
+from helpers.reddit.reddit_utils import check_if_banned
+from helpers.utils import get_urls_info, get_urls
 from models import stream
 from models.item import Item
 from models.type import Type
@@ -36,8 +36,7 @@ from models.type import Type
 log = logger.get_log(sys)
 
 
-# Run the bot
-def run_bot(type=Type.COMMENT, guess_and_check=False, reply_to_item=True, write_to_database=True):
+def run_bot(type=Type.COMMENT, use_gac=False, reply_to_item=True, save_to_database=True):
     # Get the stream instance (contains session, type and data)
     s = stream.get_stream(type)
     log.info("Set up new stream")
@@ -68,16 +67,16 @@ def run_bot(type=Type.COMMENT, guess_and_check=False, reply_to_item=True, write_
             log.info(f"{i.id} in r/{i.subreddit} meets criteria")
             # Get the urls from the body and try to find the canonicals
             urls = get_urls(i.body)
-            i.links = get_urls_info(urls, guess_and_check)
+            i.links = get_urls_info(urls, use_gac)
 
             # If a canonical was found, generate a reply, otherwise log a warning
             if any(link.canonical for link in i.links) or any(link.amp_canonical for link in i.links):
                 # Generate a reply
                 reply_text, reply_canonical_text = generate_reply(
+                    links=i.links,
                     stream_type=s.type,
                     np_subreddits=s.np_subreddits,
                     item_type=i.type,
-                    links=i.links,
                     subreddit=i.subreddit)
 
                 # Try to post the reply
@@ -97,7 +96,7 @@ def run_bot(type=Type.COMMENT, guess_and_check=False, reply_to_item=True, write_
                         # Check if AmputatorBot is banned in the subreddit
                         is_banned = check_if_banned(i.subreddit)
                         if is_banned:
-                            update_local_data("disallowed_subreddits", i.subreddit)
+                            update_local_data("disallowed_subreddits", i.subreddit, unique=True)
                             s.disallowed_subreddits.append(i.subreddit)
 
             # If no canonicals were found, log the failed attempt
@@ -106,15 +105,7 @@ def run_bot(type=Type.COMMENT, guess_and_check=False, reply_to_item=True, write_
                 update_local_data("comments_failed", i.id)
                 s.comments_failed.append(i.id)
 
-            # If write_to_database is enabled, make a new entry for every URL
-            if write_to_database:
-                for link in i.links:
-                    if link.is_amp:
-                        add_data(session=get_engine_session(),
-                                 entry_type=type.value,
-                                 handled_utc=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                 original_url=link.url_clean,
-                                 canonical_url=link.canonical)
+            save_entry(save_to_database=save_to_database, entry_type=type.value, links=i.links)
 
 
 while True:

@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from typing import List, Union
 
 from static import static
 
@@ -9,7 +10,7 @@ log = logging.getLogger(os.path.splitext(os.path.basename(os.path.realpath(sys.a
 
 
 # Get the data of file X
-def get_data_by_filename(filename, is_log=False, return_path_only=False):
+def get_data_by_filename(filename, is_log=False, return_path_only=False) -> Union[str, List[str]]:
     path = get_path(filename, is_log)
     if not os.path.isfile(path):
         log.warning(f"{path} could not be found, creating an empty file now")
@@ -28,7 +29,7 @@ def get_data_by_filename(filename, is_log=False, return_path_only=False):
 
 
 # Get the path to the specified file
-def get_path(filename, is_log=False):
+def get_path(filename, is_log=False) -> str:
     if is_log:
         directory = static.LOG_FOLDER_NAME
         file_extension = "log"
@@ -42,12 +43,16 @@ def get_path(filename, is_log=False):
 
 
 # Add a new item to the specified file
-def update_local_data(filename, item_to_add):
+# If 'unique' is true, the file is first checked if it doesn't contain the item_to_add already
+def update_local_data(filename, item_to_add, unique=False):
     path = get_path(filename)
     with open(path, "a") as f:
-        f.write(f",{item_to_add}")
-        log.info(f"Added {item_to_add} to {filename}")
-        f.close()
+        if unique and item_to_add in f.read().split():
+            log.warning(f"Didn't add {item_to_add} to {filename}: not unique")
+        else:
+            f.write(f",{item_to_add}")
+            log.info(f"Added {item_to_add} to {filename}")
+            f.close()
 
 
 # Remove the specified item from the specified file

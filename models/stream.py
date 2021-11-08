@@ -2,7 +2,8 @@ import sys
 import traceback
 
 from datahandlers.local_datahandler import get_data_by_filename as get_data
-from helpers import logger, login
+from helpers import logger
+from helpers.reddit import reddit_login
 from models.type import Type
 
 log = logger.get_log(sys)
@@ -34,7 +35,7 @@ class Stream:
         self.disallowed_subreddits = get_data("disallowed_subreddits")
         self.disallowed_users = get_data("disallowed_users")
         self.np_subreddits = get_data("np_subreddits")
-        self.praw_session = login.get_praw_session()
+        self.praw_session = reddit_login.get_praw_session()
 
 
 class Comment(Stream):

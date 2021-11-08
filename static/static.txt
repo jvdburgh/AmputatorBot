@@ -2,8 +2,8 @@
 VERSION_NUMBER = "X.X"
 DATA_FOLDER_NAME = "data"
 LOG_FOLDER_NAME = "logs"
-DEBUG_LEVEL = XX
-MAX_DEPTH = X
+DEBUG_LEVEL = 20
+MAX_DEPTH = 3
 PROTOCOL_KEYWORDS = ["https://", "http://"]
 AMP_KEYWORDS = ["/amp", "amp/", ".amp", "amp.", "?amp", "amp?", "=amp",
                 "amp=", "&amp", "amp&", "%amp", "amp%", "_amp", "amp_"]
@@ -41,13 +41,6 @@ DB_HOSTNAME = "DbHostname"
 DB_DATABASENAME = "DbDatabasename"
 DB_SERVER_PORT = 1234
 DB_LOCAL_PORT = "123.4.5.6"
-
-# AmputatorBot API credentials
-API_KEYS = {
-    "APIKey": "UserName",
-    "APIKey": "UserName"
-}
-API_BASE_URL = "APIBaseURL"
 
 # Pages
 FAQ_LINK = "LinkToFAQ"

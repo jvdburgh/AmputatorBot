@@ -18,17 +18,16 @@ if one is detected, a reply is made by u/AmputatorBot with the canonical link(s)
 
 import sys
 import traceback
-from datetime import datetime
 from time import sleep
 
 import tweepy
 from tweepy import Stream, TweepError
 
 from datahandlers.local_datahandler import update_local_data
-from datahandlers.remote_datahandler import add_data, get_engine_session
+from datahandlers.remote_datahandler import save_entry
 from helpers import logger
-from helpers.tweet_criteria_checker import check_tweet_criteria
-from helpers.twitter_utils import generate_tweet, get_cached_tweet_urls, get_twitterer_name
+from helpers.twitter.twitter_criteria_checker import check_tweet_criteria
+from helpers.twitter.twitter_utils import generate_tweet, get_cached_tweet_urls, get_twitterer_name
 from helpers.utils import get_urls_info
 from models import stream
 from models.item import Item
@@ -38,7 +37,6 @@ from static import static
 log = logger.get_log(sys)
 
 
-# Run the bot
 def run_bot():
     # Set up OAuth Twitter API connection
     auth = tweepy.OAuthHandler(static.TW_API_KEY, static.TW_API_SECRET_KEY, callback="https://twitter.com/AmputatorBot")
@@ -55,9 +53,9 @@ def run_bot():
 
     # Save settings as attributes
     listener.__setattr__("api", api)
-    listener.__setattr__("guess_and_check", False)
+    listener.__setattr__("use_gac", False)
     listener.__setattr__("reply_to_item", True)
-    listener.__setattr__("write_to_database", True)
+    listener.__setattr__("save_to_database", True)
 
     # Generate the stream object with auth and the listener
     twitter_stream = Stream(auth, listener)
@@ -68,7 +66,7 @@ def run_bot():
 
 # override tweepy.StreamListener to add logic to on_status
 class StdOutListener(tweepy.StreamListener):
-    def on_status(self, data):
+    def on_status(self, data) -> bool:
         try:
             i = Item(
                 type=Type.TWEET,
@@ -100,7 +98,7 @@ class StdOutListener(tweepy.StreamListener):
                 if meets_criteria:
                     log.info(f"{i.id} meets criteria")
                     # Get the urls from the body and try to find the canonicals
-                    i.links = get_urls_info(cached_urls, self.guess_and_check)
+                    i.links = get_urls_info(cached_urls, self.use_gac)
 
                     # If a canonical was found, generate a reply, otherwise log a warning
                     if any(link.canonical for link in i.links):
@@ -129,14 +127,7 @@ class StdOutListener(tweepy.StreamListener):
                         update_local_data("tweets_failed", i.id)
                         self.s.tweets_failed.append(i.id)
 
-                    # If write_to_database is enabled, make a new entry for every URL
-                    if self.write_to_database:
-                        for link in i.links:
-                            add_data(session=get_engine_session(),
-                                     entry_type=i.type.value,
-                                     handled_utc=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                     original_url=link.url_clean,
-                                     canonical_url=link.canonical)
+                    save_entry(save_to_database=self.save_to_database, entry_type=i.type.value, links=i.links)
 
         except (TweepError, Exception):
             log.error(traceback.format_exc())
@@ -145,13 +136,13 @@ class StdOutListener(tweepy.StreamListener):
         return True
 
     # Traceback limit error on limit error
-    def on_limit(self, status_code):
+    def on_limit(self, status_code) -> bool:
         log.error(traceback.format_exc())
         log.warning(f"Rate limit error: {status_code}")
         return True
 
     # Traceback error on error
-    def on_error(self, status_code):
+    def on_error(self, status_code) -> bool:
         log.error(traceback.format_exc())
         log.warning(f"Error: {status_code}")
         return True

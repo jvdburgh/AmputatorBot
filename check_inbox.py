@@ -21,7 +21,6 @@ If a user opts out or back in, the user receives a confirmation through DM.
 
 import sys
 import traceback
-from datetime import datetime
 from time import sleep
 
 import praw
@@ -29,12 +28,13 @@ from praw.exceptions import RedditAPIException
 from prawcore import Forbidden
 
 from datahandlers.local_datahandler import update_local_data, remove_local_data
-from datahandlers.remote_datahandler import add_data, get_engine_session
+from datahandlers.remote_datahandler import save_entry
 from helpers import logger
-from helpers.comment_generator import generate_reply
 from helpers.criteria_checker import check_criteria
-from helpers.dm_generator import dm_generator
-from helpers.utils import get_urls, get_urls_info, get_submission_body, check_if_banned
+from helpers.reddit.reddit_comment_generator import generate_reply
+from helpers.reddit.reddit_dm_generator import dm_generator
+from helpers.reddit.reddit_utils import get_submission_body, check_if_banned
+from helpers.utils import get_urls, get_urls_info
 from models import stream
 from models.item import Item
 from models.resultcode import ResultCode
@@ -43,8 +43,7 @@ from models.type import Type
 log = logger.get_log(sys)
 
 
-# Run the bot
-def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_to_database=True):
+def run_bot(type=Type.MENTION, use_gac=True, reply_to_item=True, save_to_database=True):
     # Get the stream instance (contains session, type and data)
     s = stream.get_stream(type)
     log.info("Set up new stream")
@@ -60,6 +59,7 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_t
         # If the message is a comment_reply, ignore it
         if message.type == "comment_reply":
             continue
+
         # If the message is an username_mention, start summon process
         if message.type == "username_mention":
             parent = message.parent()
@@ -98,21 +98,21 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_t
             )
 
             # If it meets the criteria, try to find the canonicals and make a reply
-            if result_code != ResultCode.ERROR_NO_AMP:
-                log.info(f"{i.id} in r/{i.subreddit} is AMP, result_code={result_code.value}")
+            if meets_criteria:
+                log.info(f"{i.id} in r/{i.subreddit} meets criteria")
                 # Get the urls from the body and try to find the canonicals
                 urls = get_urls(i.body)
-                i.links = get_urls_info(urls, guess_and_check)
+                i.links = get_urls_info(urls, use_gac)
 
                 # If a canonical was found, generate a reply, otherwise log a warning
                 if any(link.canonical for link in i.links) or any(link.amp_canonical for link in i.links):
                     # Generate a reply
                     reply_text, reply_canonical_text = generate_reply(
+                        links=i.links,
                         stream_type=s.type,
                         np_subreddits=s.np_subreddits,
                         item_type=i.parent_type,
                         subreddit=i.subreddit,
-                        links=i.links,
                         summoned_link=i.context)
 
                     # Send a DM if AmputatorBot can't reply because it's disallowed by a subreddit, mod or user
@@ -126,7 +126,7 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_t
                             parent_link=i.parent_link,
                             parent_subreddit=i.subreddit,
                             parent_type=i.parent_type.value,
-                            first_amp_url=i.links[0].url_clean,
+                            first_amp_url=i.links[0].origin.url,
                             canonical_text=reply_canonical_text)
                         s.praw_session.redditor(str(i.summoner)).message(subject, message)
                         log.info(f"Send summoner DM of type {result_code}")
@@ -147,7 +147,7 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_t
                                 parent_subreddit=i.subreddit,
                                 parent_type=i.parent_type.value,
                                 parent_link=i.parent_link,
-                                first_amp_url=i.links[0].url_clean,
+                                first_amp_url=i.links[0].origin.url,
                                 canonical_text=reply_canonical_text)
                             s.praw_session.redditor(str(i.summoner)).message(subject, message)
                             log.info(f"Send summoner DM of type {result_code}")
@@ -161,7 +161,7 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_t
                             # Check if AmputatorBot is banned in the subreddit
                             is_banned = check_if_banned(i.subreddit)
                             if is_banned:
-                                update_local_data("disallowed_subreddits", i.subreddit)
+                                update_local_data("disallowed_subreddits", i.subreddit, unique=True)
                                 s.disallowed_subreddits.append(i.subreddit)
 
                             # Generate and send an ERROR_REPLY_FAILED DM to the summoner
@@ -170,7 +170,7 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_t
                                 result_code=result_code,
                                 parent_type=i.parent_type.value,
                                 parent_link=i.parent_link,
-                                first_amp_url=i.links[0].url_clean,
+                                first_amp_url=i.links[0].origin.url,
                                 canonical_text=reply_canonical_text)
                             s.praw_session.redditor(str(i.summoner)).message(subject, message)
                             log.info(f"Send summoner DM of type {result_code}")
@@ -182,7 +182,7 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_t
                     s.mentions_failed.append(i.id)
 
                     # Check if the domain is problematic (meaning it's raising frequent errors)
-                    if any(link.domain in s.problematic_domains for link in i.links):
+                    if any(link.origin.domain in s.problematic_domains for link in i.links):
                         result_code = ResultCode.ERROR_PROBLEMATIC_DOMAIN
                     else:
                         result_code = ResultCode.ERROR_NO_CANONICALS
@@ -192,19 +192,11 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_t
                         result_code=result_code,
                         parent_type=i.parent_type.value,
                         parent_link=i.parent_link,
-                        first_amp_url=i.links[0].url_clean)
+                        first_amp_url=i.links[0].origin.url)
 
                     s.praw_session.redditor(str(i.summoner)).message(subject, message)
 
-                # If write_to_database is enabled, make a new entry for every URL
-                if write_to_database:
-                    for link in i.links:
-                        if link.is_amp:
-                            add_data(session=get_engine_session(),
-                                     entry_type=type.value,
-                                     handled_utc=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                     original_url=link.url_clean,
-                                     canonical_url=link.canonical)
+                save_entry(save_to_database=save_to_database, entry_type=type.value, links=i.links)
 
         # If the message is a DM / message, check for opt-out and opt-back-in requests
         elif message.type == "unknown":
@@ -227,7 +219,7 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_t
                     # If the user hasn't been opted out yet, add user to the list and notify the user
                     else:
                         log.info("User has not opted out yet")
-                        update_local_data("disallowed_users", author)
+                        update_local_data("disallowed_users", author, unique=True)
                         s.disallowed_users.append(author)
                         s.praw_session.redditor(author).message(
                             subject="You have successfully opted out of AmputatorBot",
@@ -252,7 +244,7 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_t
                         s.praw_session.redditor(author).message(
                             subject="You don't have to opt in of AmputatorBot",
                             message="This opt-back-in feature is meant only for users who choose to opt-out earlier "
-                                    "but now regret it. At no point did you opt out of AmputatorBot so there's no "
+                                    "but now regret it. At no point did you opt out of AmputatorBot, so there's no "
                                     "need to opt back in. Cheers!")
 
                     # If the user has opted out, remove user from the list and notify the user
@@ -276,7 +268,7 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_t
                     log.info(f"New ban issued by r/{subreddit}")
                     is_banned = check_if_banned(subreddit)
                     if is_banned:
-                        update_local_data("disallowed_subreddits", subreddit)
+                        update_local_data("disallowed_subreddits", subreddit, unique=True)
                         s.disallowed_subreddits.append(subreddit)
                         log.info(f"Added {subreddit} to disallowed_subreddits")
                 else:
@@ -286,7 +278,7 @@ def run_bot(type=Type.MENTION, guess_and_check=True, reply_to_item=True, write_t
                 subreddit = message.subreddit
                 if subreddit:
                     log.info(f"AmputatorBot seems to be have been made a contributor by r/{subreddit}")
-                    update_local_data("contributor_subreddits", subreddit)
+                    update_local_data("contributor_subreddits", subreddit, unique=True)
                     s.contributor_subreddits.append(subreddit)
                     log.info(f"Added {subreddit} to contributor_subreddits")
                 else:

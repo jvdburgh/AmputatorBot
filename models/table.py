@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, Enum, DateTime, VARCHAR
 from sqlalchemy.ext.declarative import declarative_base
 
+from models.link import CanonicalType
 from models.type import Type
 
 Base = declarative_base()
@@ -13,4 +14,5 @@ class Table(Base):
     handled_utc = Column('handled_utc', DateTime)
     original_url = Column('original_url', VARCHAR(4000))
     canonical_url = Column('canonical_url', VARCHAR(4000))
+    canonical_type = (Column('canonical_type', Enum(CanonicalType)))
     note = Column('note', VARCHAR(4000))

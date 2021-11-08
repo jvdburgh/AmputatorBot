@@ -3,6 +3,7 @@ import enum
 
 class ResultCode(enum.Enum):
     API_ERROR_AUTHENTICATION_FAILED = "api_error_authentication_failed"
+    API_ERROR_NO_AUTHORIZATION = "api_error_no_authorization"
     API_ERROR_REQUIRED_FIELD_MISSING = "api_error_required_field_missing"
     ERROR_DISALLOWED_MOD = "error_disallowed_mod"
     ERROR_DISALLOWED_SUBREDDIT = "error_disallowed_subreddit"

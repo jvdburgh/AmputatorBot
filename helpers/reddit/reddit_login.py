@@ -1,7 +1,9 @@
 import sys
 import traceback
+from typing import Optional
 
 import praw
+from praw import Reddit
 from praw.exceptions import RedditAPIException
 
 from helpers import logger
@@ -10,7 +12,7 @@ from static import static
 log = logger.get_log(sys)
 
 
-def get_praw_session():
+def get_praw_session() -> Optional[Reddit]:
     # Try to get a Reddit session using praw
     try:
         log.info("Logging in..")

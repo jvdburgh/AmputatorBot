@@ -1,32 +1,22 @@
 import enum
 
+from models.urlmeta import UrlMeta
+
 
 class Link:
-    def __init__(self, url=None, url_clean=None, url_clean_is_valid=None, is_amp=None, is_cached=None,
-                 domain=None, canonical=None, canonical_alt=None, canonical_alt_domain=None, amp_canonical=None):
-        self.url = url
-        self.url_clean = url_clean
-        self.url_clean_is_valid = url_clean_is_valid
-        self.is_amp = is_amp
-        self.is_cached = is_cached
-        self.domain = domain
-        self.canonical = canonical
-        self.canonical_alt = canonical_alt
-        self.canonical_alt_domain = canonical_alt_domain
-        self.amp_canonical = amp_canonical
-        self.canonicals = []
-        self.canonicals_solved = []
+    def __init__(self, amp_canonical=None, canonical=None, canonicals=None, origin=None):
+        self.amp_canonical: Canonical = amp_canonical
+        self.canonical: Canonical = canonical
+        self.canonicals: [Canonical] = canonicals
+        self.origin: UrlMeta = origin
 
 
-class Canonical:
-    def __init__(self, type=None, url=None, domain=None, article_text=None,
-                 is_amp=None, is_valid=None, url_similarity=None):
-        self.type = type
-        self.url = url
-        self.domain = domain
-        self.article_text = article_text
-        self.is_amp = is_amp
-        self.is_valid = is_valid
+class Canonical(UrlMeta):
+    def __init__(self, url=None, domain=None, is_amp=None, is_cached=False,
+                 is_alt=False, type=None, url_similarity=None):
+        super().__init__(url, domain, is_amp, is_cached)
+        self.is_alt = is_alt
+        self.type: CanonicalType = type
         self.url_similarity = url_similarity
 
 
@@ -39,5 +29,6 @@ class CanonicalType(enum.Enum):
     BING_ORIGINAL_URL = "bing_original_url"
     SCHEMA_MAINENTITY = "schema_mainentity"
     TCO_PAGETITLE = "tco_pagetitle"
-    META_REDIRECT = 'meta_redirect'
+    META_REDIRECT = "meta_redirect"
     GUESS_AND_CHECK = "guess_and_check"
+    DATABASE = "database"

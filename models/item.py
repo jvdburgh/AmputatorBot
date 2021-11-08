@@ -1,3 +1,6 @@
+from models.link import Link
+
+
 class Item:
     def __init__(self, type=None, id=None, subreddit=None, author=None, context=None,
                  parent_link=None, parent_type=None, summoner=None, body=None, links=None):
@@ -10,4 +13,4 @@ class Item:
         self.parent_type = parent_type
         self.summoner = summoner
         self.body = body
-        self.links = links
+        self.links: [Link] = links

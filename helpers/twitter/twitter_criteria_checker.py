@@ -1,7 +1,8 @@
 import sys
+from typing import Tuple
 
 from helpers import logger
-from helpers.twitter_utils import check_if_retweet
+from helpers.twitter.twitter_utils import check_if_retweet
 from helpers.utils import check_if_amp, check_if_cached
 from models.resultcode import ResultCode
 
@@ -11,7 +12,8 @@ log = logger.get_log(sys)
 # Check if the tweet meets the specified criteria
 def check_tweet_criteria(item, cached_urls=None, tweet=None, data=None, history_failed=None, history_success=None,
                          return_if_false=True, mustBeAMP=False, mustNotBeRetweet=False, mustBeCached=False,
-                         mustBeNew=False, mustNotHaveFailed=False, mustNotBeMine=False, mustNotBeOptedOut=False):
+                         mustBeNew=False, mustNotHaveFailed=False, mustNotBeMine=False, mustNotBeOptedOut=False)\
+        -> Tuple[bool, ResultCode]:
     # Must contain AMP
     if mustBeAMP:
         if not check_if_amp(", ".join(cached_urls)):
