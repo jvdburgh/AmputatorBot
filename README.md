@@ -1,9 +1,9 @@
 ![#AmputatorBot](/img/amputatorbot_logo_banner.png)
 
-TL;DR: [AmputatorBot](https://github.com/KilledMufasa/AmputatorBot) is a highly specialised [Reddit](https://www.reddit.com/user/AmputatorBot)
+TL;DR: Remove AMP from your URLs. [AmputatorBot](https://github.com/KilledMufasa/AmputatorBot) is a highly specialised [Reddit](https://www.reddit.com/user/AmputatorBot)
 and [Twitter](https://twitter.com/AmputatorBot) bot that automatically replies to comments, submissions
 and tweets containing AMP URLs with the canonical link(s). It's also available as a
-[website](https://www.amputatorbot.com/) and [REST API](https://documenter.getpostman.com/view/12422626/UVC3kTs2), but these aren't open sourced here. 
+[website](https://www.amputatorbot.com/) and [REST API](https://documenter.getpostman.com/view/12422626/UVC3kTs2), but those haven't been made open source here.
 
 [**FAQ, About & Why**](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/)
 
