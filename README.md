@@ -1,6 +1,6 @@
 ![#AmputatorBot](/img/amputatorbot_logo_banner.png)
 
-TL;DR: [AmputatorBot](https://github.com/KilledMufasa/AmputatorBot) is a highly-specialised [Reddit](https://www.reddit.com/user/AmputatorBot)
+TL;DR: [AmputatorBot](https://github.com/KilledMufasa/AmputatorBot) is a highly specialised [Reddit](https://www.reddit.com/user/AmputatorBot)
 and [Twitter](https://twitter.com/AmputatorBot) bot that automatically replies to comments, submissions
 and tweets containing AMP URLs with the canonical link(s). It's also available as a
 [website](https://www.amputatorbot.com/) and [REST API](https://documenter.getpostman.com/view/12422626/UVC3kTs2), but these aren't open sourced here. 
@@ -60,7 +60,7 @@ and tweets containing AMP URLs with the canonical link(s). It's also available a
 - **Spread the word**: In the end, the only goal of AmputatorBot is to allow people to have an informed choice. You can help by simply spreading the word!
 
 ### Sponsor
-The bots, website and API cost about 10 euros (12 dollars) per month to host. I will use all donations strictly to break even. You can donate any amount via PayPal or with crypto. Thank you so much!
+The bots, website, and API cost about 10 euros (12 dollars) per month to host. I will use all donations strictly to break even. You can donate any amount via PayPal or with crypto. Thank you so much!
 - **PayPal**: [https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2)
 - **Bitcoin (BTC)**: 1GsspnGwbaXfMP2P6t9Hr5oQwCYZdsPHr
 - **Cardano (ADA)**: DdzFFzCqrht1gHfopZ7ddXfJFz9tXkhQERc6dzfP71Ve9NoJYk4jQ1wtW1LNCWokMPoDZ7xr7YvHqvt82tG3MsEukkkcQyvUxrwjLWqx
