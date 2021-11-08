@@ -35,7 +35,7 @@ and tweets containing AMP URLs with the canonical link(s). It's also available a
 
 ### See also:
 - Online version (recommended): [AmputatorBot.com](https://www.amputatorbot.com/)
-- Free and publicly available REST API to convert AMP URLs to canonical links: [API Documentation](https://documenter.getpostman.com/view/12422626/UVC3kTs2) & [Postman](https://www.postman.com/amputatorbot)
+- Free and publicly available REST API to convert AMP URLs to canonical links: [API Documentation](https://documenter.getpostman.com/view/12422626/UVC3n93T) & [Postman](https://www.postman.com/amputatorbot)
 - User-oriented, simplified changelog: [Changelog](https://www.reddit.com/r/AmputatorBot/comments/ch9fxp/changelog_of_amputatorbot/)
 - Community & Subreddit: [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/)
 ## Set up
