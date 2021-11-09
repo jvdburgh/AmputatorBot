@@ -16,7 +16,7 @@ def generate_reply(links: [Link], stream_type=None, np_subreddits=None, item_typ
     canonical_text_latest, canonical_text, cached_note, summoned_note, alt_link, who, what = "", "", "", "", "", "", ""
     n_amp_urls, n_can, n_cached = 0, 0, 0
     bot_or_human = "human" if from_online else "bot"
-    from_online_note = "| Generated with AmputatorBot" if from_online else ""
+    from_online_note = " | Generated with AmputatorBot " if from_online else " "
 
     if not from_online:
         # Check the type of the item, set the correct variables
@@ -64,7 +64,7 @@ def generate_reply(links: [Link], stream_type=None, np_subreddits=None, item_typ
     if n_can >= 1:
         intro_why = f"These should load faster, but AMP is controversial because of " \
                     f"[concerns over privacy and the Open Web]({static.FAQ_LINK})."
-        outro = f"\n\n*****\n\n ^(I'm a {bot_or_human} {from_online_note}| )[^(Why & About)]({static.FAQ_LINK})^" \
+        outro = f"\n\n*****\n\n ^(I'm a {bot_or_human}{from_online_note}| )[^(Why & About)]({static.FAQ_LINK})^" \
                 f"( | )[^(Summon: u/AmputatorBot)]({static.SUMMON_INFO_LINK})"
 
         # If there is only 1 canonical url, write a comment in singular
