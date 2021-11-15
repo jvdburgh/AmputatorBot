@@ -46,7 +46,7 @@ def get_path(filename, is_log=False) -> str:
 # If 'unique' is true, the file is first checked if it doesn't contain the item_to_add already
 def update_local_data(filename, item_to_add, unique=False):
     path = get_path(filename)
-    with open(path, "a") as f:
+    with open(path, "a+") as f:
         if unique and item_to_add in f.read().split():
             log.warning(f"Didn't add {item_to_add} to {filename}: not unique")
         else:
@@ -60,8 +60,6 @@ def remove_local_data(filename, item_to_remove):
     path = get_path(filename)
     with open(path, "a+") as f:
         updated_list = f.read().replace(f",{item_to_remove}", "")
-        f.close()
-    with open(path, "w") as f:
         f.write(updated_list)
         log.info(f"Removed {item_to_remove} from {filename}")
         f.close()

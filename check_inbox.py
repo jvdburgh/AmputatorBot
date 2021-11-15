@@ -13,10 +13,10 @@ AmputatorBot
 - Website: https://www.amputatorbot.com
 
 Method description: This method starts an inbox stream that checks u/AmputatorBot's inbox for
-opt-out requests, opt-back-in requests and most importantly, mentions. If AmputatorBot detects
-an AMP link in the parent of a mention, a reply a reply is made by u/AmputatorBot with the
-canonical link(s) and a DM is send to the summoner a link to the comment or an error description.
-If a user opts out or back in, the user receives a confirmation through DM.
+opt-out requests, opt-back-in requests, bans, moderator approval, and most importantly, mentions.
+If AmputatorBot detects an AMP link in the parent of a mention, a reply a reply is made by
+u/AmputatorBot with the canonical link(s) and a DM is send to the summoner a link to the comment
+ or an error description. If a user opts out or back in, the user receives a confirmation through DM.
 """
 
 import sys
@@ -270,7 +270,6 @@ def run_bot(type=Type.MENTION, use_gac=True, reply_to_item=True, save_to_databas
                     if is_banned:
                         update_local_data("disallowed_subreddits", subreddit, unique=True)
                         s.disallowed_subreddits.append(subreddit)
-                        log.info(f"Added {subreddit} to disallowed_subreddits")
                 else:
                     log.warning(f"Message wasn't send by a subreddit, but by {message.author.name}")
 
@@ -280,7 +279,6 @@ def run_bot(type=Type.MENTION, use_gac=True, reply_to_item=True, save_to_databas
                     log.info(f"AmputatorBot seems to be have been made a contributor by r/{subreddit}")
                     update_local_data("contributor_subreddits", subreddit, unique=True)
                     s.contributor_subreddits.append(subreddit)
-                    log.info(f"Added {subreddit} to contributor_subreddits")
                 else:
                     log.warning(f"Message wasn't send by a subreddit, but by {message.author.name}")
 
