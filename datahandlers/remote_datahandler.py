@@ -81,6 +81,7 @@ def setup_session(engine):
     try:
         Session = sessionmaker(bind=engine)
         session = Session()
+        session.commit()
         return session
     except (SQLAlchemyError, Exception):
         log.error(traceback.format_exc())
@@ -160,12 +161,13 @@ def get_entry_by_original_url(original_url, session=get_engine_session()) -> Opt
         q = q.order_by(Table.entry_id.desc())
         q = q.first()
         if q:
+            session.close()
             return q
 
     except (SQLAlchemyError, OperationalError, Exception):
         log.error(traceback.format_exc())
-        log.warning(f"Failed to get entry by original url {original_url}")
-
+        log.warning(f"Failed to get entry by original url {original_url}, rolling back.")
+        session.rollback()
     return None
 
 
