@@ -126,8 +126,9 @@ def run_bot(type=Type.MENTION, use_gac=True, reply_to_item=True, save_to_databas
                             parent_link=i.parent_link,
                             parent_subreddit=i.subreddit,
                             parent_type=i.parent_type.value,
-                            first_amp_url=i.links[0].origin.url,
+                            links=i.links,
                             canonical_text=reply_canonical_text)
+
                         s.praw_session.redditor(str(i.summoner)).message(subject, message)
                         log.info(f"Send summoner DM of type {result_code}")
 
@@ -147,8 +148,9 @@ def run_bot(type=Type.MENTION, use_gac=True, reply_to_item=True, save_to_databas
                                 parent_subreddit=i.subreddit,
                                 parent_type=i.parent_type.value,
                                 parent_link=i.parent_link,
-                                first_amp_url=i.links[0].origin.url,
+                                links=i.links,
                                 canonical_text=reply_canonical_text)
+
                             s.praw_session.redditor(str(i.summoner)).message(subject, message)
                             log.info(f"Send summoner DM of type {result_code}")
 
@@ -170,8 +172,9 @@ def run_bot(type=Type.MENTION, use_gac=True, reply_to_item=True, save_to_databas
                                 result_code=result_code,
                                 parent_type=i.parent_type.value,
                                 parent_link=i.parent_link,
-                                first_amp_url=i.links[0].origin.url,
+                                links=i.links,
                                 canonical_text=reply_canonical_text)
+
                             s.praw_session.redditor(str(i.summoner)).message(subject, message)
                             log.info(f"Send summoner DM of type {result_code}")
 
@@ -182,17 +185,17 @@ def run_bot(type=Type.MENTION, use_gac=True, reply_to_item=True, save_to_databas
                     s.mentions_failed.append(i.id)
 
                     # Check if the domain is problematic (meaning it's raising frequent errors)
-                    if any(link.origin.domain in s.problematic_domains for link in i.links):
+                    if any(link.origin and link.origin.domain in s.problematic_domains for link in i.links):
                         result_code = ResultCode.ERROR_PROBLEMATIC_DOMAIN
                     else:
                         result_code = ResultCode.ERROR_NO_CANONICALS
 
-                    # Generate and send an
+                    # Generate and send an error DM to the summoner
                     subject, message = dm_generator(
                         result_code=result_code,
                         parent_type=i.parent_type.value,
                         parent_link=i.parent_link,
-                        first_amp_url=i.links[0].origin.url)
+                        links=i.links)
 
                     s.praw_session.redditor(str(i.summoner)).message(subject, message)
 

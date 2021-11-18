@@ -1,16 +1,20 @@
 from typing import Tuple
 
+from models.link import Link
 from models.resultcode import ResultCode
 
 
 def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_type=None,
-                 parent_link=None, first_amp_url=None, canonical_text=None) -> Tuple[str, str]:
+                 parent_link=None, links=None, canonical_text=None) -> Tuple[str, str]:
+
+    first_amp_link: Link = next((link for link in links if link.origin and link.origin.is_amp), None)
+    first_amp_origin_url = first_amp_link.origin.url
 
     outro = "\n\nFeel free to leave feedback by contacting u/Killed_Mufasa, " \
             "by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by " \
             "[opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\n" \
             "Tip: With the online version of AmputatorBot it's easier than ever to remove AMP from your URLs. " \
-            f"Check out an example with your AMP link here: https://www.amputatorbot.com/?q={first_amp_url}"
+            f"Check out an example with your AMP link here: https://www.amputatorbot.com/?q={first_amp_origin_url}"
 
     good_human_for_trying = "PS: you're a very good human for trying! <3"
 
@@ -30,8 +34,7 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
                   f"to interact with this subreddit. But that doesn't stop us! Here are the canonical URLs you " \
                   f"requested: {canonical_text}\n\nMaybe _you_ can post it instead? o_0 You can easily generate a " \
                   f"comment to post, by [clicking here]" \
-                  f"(https://www.amputatorbot.com/?gc=true&q={first_amp_url}).\n\n" \
-
+                  f"(https://www.amputatorbot.com/?gc=true&q={first_amp_origin_url}).\n\n" \
 
     elif result_code == ResultCode.ERROR_DISALLOWED_SUBREDDIT:
         subject = "AmputatorBot ran into an error: Disallowed subreddit"
@@ -40,7 +43,7 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
                   f"But that doesn't stop us! Here are the canonical URLs you requested: {canonical_text}\n\n" \
                   f"Maybe _you_ can post it instead? o_0 You can easily generate a " \
                   f"comment to post, by [clicking here]" \
-                  f"(https://www.amputatorbot.com/?gc=true&q={first_amp_url}).\n\n" \
+                  f"(https://www.amputatorbot.com/?gc=true&q={first_amp_origin_url}).\n\n" \
                   f"{good_human_for_trying}{outro}"
 
     elif result_code == ResultCode.ERROR_NO_CANONICALS:
@@ -56,7 +59,7 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
     elif result_code == ResultCode.ERROR_PROBLEMATIC_DOMAIN:
         subject = "AmputatorBot ran into an error: Couldn't scrape website"
         message = f"u/AmputatorBot didn't reply to [the {parent_type} you summoned it for](https://www.reddit.com" \
-                  f"{parent_link}) because AmputatorBot couldn't scrape [this page]({first_amp_url}) and thus " \
+                  f"{parent_link}) because AmputatorBot couldn't scrape [this page]({first_amp_origin_url}) and thus " \
                   f"it couldn't find the canonical link. This is a known issue specific to this domain and a good " \
                   f"fix is currently not possible because the reasons for this error are beyond our control. " \
                   f"The most common cause for this error is that the website blocks bots or users from certain " \
@@ -73,7 +76,7 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
                   f"But that doesn't stop us! Here are the canonical URLs you requested: {canonical_text}\n\n" \
                   f"Maybe _you_ can post it instead? o_0 You can easily generate a " \
                   f"comment to post, by [clicking here]" \
-                  f"(https://www.amputatorbot.com/?gc=true&q={first_amp_url}).\n\n" \
+                  f"(https://www.amputatorbot.com/?gc=true&q={first_amp_origin_url}).\n\n" \
                   f"{good_human_for_trying}{outro}"
 
     elif result_code == ResultCode.ERROR_USER_OPTED_OUT:
