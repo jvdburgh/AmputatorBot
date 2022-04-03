@@ -27,7 +27,6 @@ and tweets containing AMP URLs with the canonical link(s). It's also available a
 - Object-oriented, allowing for a handy, free and publicly available API
 - Allow users to opt out and undo this
 - Send DMs when summoned by a user
-
 - Items interacted with are automatically being tracked
 - Log and datafiles are automatically generated
 
