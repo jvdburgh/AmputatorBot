@@ -83,8 +83,8 @@ class StdOutListener(tweepy.StreamListener):
                     cached_urls=cached_urls,
                     tweet=data,
                     data=self.s,
-                    history_failed=self.s.tweets_failed,
-                    history_success=self.s.tweets_success,
+                    history_err=self.s.tweets_err,
+                    history_ok=self.s.tweets_ok,
                     mustBeAMP=True,
                     mustNotBeRetweet=True,
                     mustBeCached=True,
@@ -112,20 +112,20 @@ class StdOutListener(tweepy.StreamListener):
                                                                in_reply_to_status_id=i.id,
                                                                auto_populate_reply_metadata=True)
                                 log.info(f"Replied to {i.id} with {reply.id}")
-                                update_local_data("tweets_success", i.id)
-                                self.s.tweets_success.append(i.id)
+                                update_local_data("tweets_ok", i.id)
+                                self.s.tweets_ok.append(i.id)
 
                             except (TweepError, Exception):
                                 log.warning("Couldn't post reply!")
                                 log.error(traceback.format_exc())
-                                update_local_data("tweets_failed", i.id)
-                                self.s.tweets_failed.append(i.id)
+                                update_local_data("tweets_err", i.id)
+                                self.s.tweets_err.append(i.id)
 
                     # If no canonicals were found, log the failed attempt
                     else:
                         log.warning("No canonicals found")
-                        update_local_data("tweets_failed", i.id)
-                        self.s.tweets_failed.append(i.id)
+                        update_local_data("tweets_err", i.id)
+                        self.s.tweets_err.append(i.id)
 
                     save_entry(save_to_database=self.save_to_database, entry_type=i.type.value, links=i.links)
 

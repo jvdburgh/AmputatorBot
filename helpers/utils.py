@@ -192,7 +192,7 @@ def get_page(url) -> Optional[Page]:
 
     # If the submitted page couldn't be fetched, throw an exception
     except (ConnectionError, Timeout, AttributeError, Exception):
-        log.warning(traceback.format_exc())
+        log.debug(traceback.format_exc())
         log.warning(f"Unable to fetch {url}")
         return None
 

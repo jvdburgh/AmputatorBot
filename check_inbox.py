@@ -86,15 +86,14 @@ def run_bot(type=Type.MENTION, use_gac=True, reply_to_item=True, save_to_databas
             meets_criteria, result_code = check_criteria(
                 item=i,
                 data=s,
-                history_failed=s.mentions_failed,
-                history_success=s.mentions_success,
+                history_err=s.mentions_err,
+                history_ok=s.mentions_ok,
                 mustBeAMP=True,
                 mustBeNew=True,
-                mustNotBeDisallowedSubreddit=True,
+                mustNotBeBannedInSubreddit=False,
                 mustNotHaveFailed=True,
                 mustNotBeMine=True,
-                mustNotBeOptedOut=True,
-                mustNotHaveDisallowedMods=True
+                mustNotBeOptedOut=True
             )
 
             # If it meets the criteria, try to find the canonicals and make a reply
@@ -115,10 +114,11 @@ def run_bot(type=Type.MENTION, use_gac=True, reply_to_item=True, save_to_databas
                         subreddit=i.subreddit,
                         summoned_link=i.context)
 
-                    # Send a DM if AmputatorBot can't reply because it's disallowed by a subreddit, mod or user
-                    if result_code == ResultCode.ERROR_DISALLOWED_SUBREDDIT \
-                            or result_code == ResultCode.ERROR_DISALLOWED_MOD \
-                            or result_code == ResultCode.ERROR_USER_OPTED_OUT:
+                    # Send a DM if AmputatorBot can't reply because it's banned by a subreddit or user
+                    if check_if_banned(i.subreddit, keepLog=False):
+                        result_code = ResultCode.ERROR_BANNED
+
+                    if result_code == ResultCode.ERROR_USER_OPTED_OUT or result_code == ResultCode.ERROR_BANNED:
 
                         # Generate and send an error DM dynamically based on the error
                         subject, message = dm_generator(
@@ -137,8 +137,8 @@ def run_bot(type=Type.MENTION, use_gac=True, reply_to_item=True, save_to_databas
                         try:
                             reply = parent.reply(reply_text)
                             log.info(f"Replied to {i.id} with {reply.name}")
-                            update_local_data("mentions_success", i.id)
-                            s.mentions_success.append(i.id)
+                            update_local_data("mentions_ok", i.id)
+                            s.mentions_ok.append(i.id)
 
                             # Generate and send a SUCCESS DM to the summoner
                             result_code = ResultCode.SUCCESS
@@ -157,14 +157,8 @@ def run_bot(type=Type.MENTION, use_gac=True, reply_to_item=True, save_to_databas
                         except (Forbidden, Exception):
                             log.warning("Couldn't post reply!")
                             log.error(traceback.format_exc())
-                            update_local_data("mentions_failed", i.id)
-                            s.mentions_failed.append(i.id)
-
-                            # Check if AmputatorBot is banned in the subreddit
-                            is_banned = check_if_banned(i.subreddit)
-                            if is_banned:
-                                update_local_data("disallowed_subreddits", i.subreddit, unique=True)
-                                s.disallowed_subreddits.append(i.subreddit)
+                            update_local_data("mentions_err", i.id)
+                            s.mentions_err.append(i.id)
 
                             # Generate and send an ERROR_REPLY_FAILED DM to the summoner
                             result_code = ResultCode.ERROR_REPLY_FAILED
@@ -181,8 +175,8 @@ def run_bot(type=Type.MENTION, use_gac=True, reply_to_item=True, save_to_databas
                 # If no canonicals were found, log the failed attempt
                 else:
                     log.warning("No canonicals found")
-                    update_local_data("mentions_failed", i.id)
-                    s.mentions_failed.append(i.id)
+                    update_local_data("mentions_err", i.id)
+                    s.mentions_err.append(i.id)
 
                     # Check if the domain is problematic (meaning it's raising frequent errors)
                     if any(link.origin and link.origin.domain in s.problematic_domains for link in i.links):
@@ -215,9 +209,8 @@ def run_bot(type=Type.MENTION, use_gac=True, reply_to_item=True, save_to_databas
                         s.praw_session.redditor(author).message(
                             subject="You have already opted out of AmputatorBot",
                             message="You have already opted out, so AmputatorBot won't reply to your comments "
-                                    "and submissions anymore. You will still be able to see AmputatorBot's replies to "
-                                    "other people's content. Block u/AmputatorBot if you don't want that either. "
-                                    "Cheers!")
+                                    "and submissions anymore. Another option to consider is blocking "
+                                    "u/AmputatorBot. Cheers!")
 
                     # If the user hasn't been opted out yet, add user to the list and notify the user
                     else:
@@ -228,9 +221,8 @@ def run_bot(type=Type.MENTION, use_gac=True, reply_to_item=True, save_to_databas
                             subject="You have successfully opted out of AmputatorBot",
                             message="You have successfully opted out of AmputatorBot. AmputatorBot won't reply to your "
                                     "comments and submissions anymore (although it can take up to 24 hours to fully "
-                                    "process your opt-out request). You will still be able to see AmputatorBot's "
-                                    "replies to other people's content. Block u/AmputatorBot if you don't want that "
-                                    "either. Cheers!")
+                                    "process your opt-out request). Another option to consider is blocking "
+                                    "u/AmputatorBot. Cheers!")
 
                 except (RedditAPIException, Forbidden, Exception):
                     log.error(traceback.format_exc())
@@ -265,26 +257,6 @@ def run_bot(type=Type.MENTION, use_gac=True, reply_to_item=True, save_to_databas
                     log.error(traceback.format_exc())
                     log.warning(f"Something went wrong while processing opt-back-in request {message.fullname}")
 
-            elif "banned" in subject:
-                subreddit = message.subreddit
-                if subreddit:
-                    log.info(f"New ban issued by r/{subreddit}")
-                    is_banned = check_if_banned(subreddit)
-                    if is_banned:
-                        update_local_data("disallowed_subreddits", subreddit, unique=True)
-                        s.disallowed_subreddits.append(subreddit)
-                else:
-                    log.warning(f"Message wasn't send by a subreddit, but by {message.author.name}")
-
-            elif "approved" in subject:
-                subreddit = message.subreddit
-                if subreddit:
-                    log.info(f"AmputatorBot seems to be have been made a contributor by r/{subreddit}")
-                    update_local_data("contributor_subreddits", subreddit, unique=True)
-                    s.contributor_subreddits.append(subreddit)
-                else:
-                    log.warning(f"Message wasn't send by a subreddit, but by {message.author.name}")
-
         else:
             log.warning(f"Unknown message type: {message.type}")
             continue
@@ -295,6 +267,10 @@ while True:
     try:
         run_bot()
         log.info("\nCompleted running the bot")
+        sleep(120)
+    except Forbidden:
+        log.warning("Error: 403 HTTP response")
+        log.warning("\nSomething went wrong while running the bot")
         sleep(120)
     except (RuntimeError, Exception):
         log.error(traceback.format_exc())

@@ -18,17 +18,20 @@ def get_submission_body(submission) -> str:
 
 
 # Check if AmputatorBot is banned in subreddit X
-def check_if_banned(subreddit) -> bool:
+def check_if_banned(subreddit, keepLog=True) -> bool:
     try:
         if subreddit.user_is_banned:
-            log.info(f"Ban by r/{subreddit} has been validated")
+            if keepLog:
+                log.info(f"Ban by r/{subreddit} has been validated")
             return True
 
         else:
-            log.warning("Couldn't validate ban, user isn't banned!")
+            if keepLog:
+                log.warning("Couldn't validate ban, user isn't banned!")
             return False
 
     except (Forbidden, NotFound, RedditAPIException, Exception):
-        log.error(traceback.format_exc())
-        log.warning("Couldn't validate ban, an error was raised!")
+        if keepLog:
+            log.error(traceback.format_exc())
+            log.warning("Couldn't validate ban, an error was raised!")
         return False

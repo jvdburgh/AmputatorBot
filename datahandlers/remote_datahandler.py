@@ -5,7 +5,7 @@ from typing import Optional
 
 import sshtunnel
 from sqlalchemy import create_engine
-from sqlalchemy.exc import SQLAlchemyError, OperationalError
+from sqlalchemy.exc import SQLAlchemyError, OperationalError, ProgrammingError
 from sqlalchemy.orm import sessionmaker
 
 from helpers import logger
@@ -164,10 +164,16 @@ def get_entry_by_original_url(original_url, session=get_engine_session()) -> Opt
             session.close()
             return q
 
+    except OperationalError:
+        log.error("OperationalError - MySQL connection likely not available")
+        log.warning(f"Failed to get entry by original url {original_url}, rolling back.")
+        session.rollback()
+
     except (SQLAlchemyError, OperationalError, Exception):
         log.error(traceback.format_exc())
         log.warning(f"Failed to get entry by original url {original_url}, rolling back.")
         session.rollback()
+
     return None
 
 
@@ -188,6 +194,10 @@ def add_data(session, entry_type=None, handled_utc=None, original_url=None,
         session.add(new_entry)
         session.commit()
         log.info("Entry send to database")
+
+    except ProgrammingError:
+        log.error("ProgrammingError - max_user_connections likely exceeded!")
+        log.warning("Couldn't send entry to database!")
 
     except (SQLAlchemyError, Exception):
         log.error(traceback.format_exc())

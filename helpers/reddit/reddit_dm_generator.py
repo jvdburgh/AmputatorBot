@@ -25,21 +25,10 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
                   f"Thanks for summoning me, I couldn't do this without you (no but literally!). " \
                   f"Good human! <3{outro}"
 
-    elif result_code == ResultCode.ERROR_DISALLOWED_MOD:
+    elif result_code == ResultCode.ERROR_BANNED:
         subject = "AmputatorBot ran into an error: Disallowed subreddit"
         message = f"u/AmputatorBot can't reply to [the {parent_type} you summoned it for](https://www.reddit.com" \
-                  f"{parent_link}) because r/{parent_subreddit} is being moderated by an anti-bot-bot. Because of " \
-                  f"this, u/AmputatorBot will be banned once it comments something, and the comment will be removed " \
-                  f"immediately. Unless r/{parent_subreddit} makes an exception for u/AmputatorBot, it won't be able " \
-                  f"to interact with this subreddit. But that doesn't stop us! Here are the canonical URLs you " \
-                  f"requested: {canonical_text}\n\nMaybe _you_ can post it instead? o_0 You can easily generate a " \
-                  f"comment to post, by [clicking here]" \
-                  f"(https://www.amputatorbot.com/?gc=true&q={first_amp_origin_url}).\n\n" \
-
-    elif result_code == ResultCode.ERROR_DISALLOWED_SUBREDDIT:
-        subject = "AmputatorBot ran into an error: Disallowed subreddit"
-        message = f"u/AmputatorBot can't reply to [the {parent_type} you summoned it for](https://www.reddit.com" \
-                  f"{parent_link}) because u/AmputatorBot is disallowed and/or banned in r/{parent_subreddit}." \
+                  f"{parent_link}) because u/AmputatorBot is banned in r/{parent_subreddit}. " \
                   f"But that doesn't stop us! Here are the canonical URLs you requested: {canonical_text}\n\n" \
                   f"Maybe _you_ can post it instead? o_0 You can easily generate a " \
                   f"comment to post, by [clicking here]" \
@@ -90,7 +79,7 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
     else:
         subject = "AmputatorBot ran into an error: Unknown error"
         message = f"u/AmputatorBot couldn't reply to [the {parent_type} you summoned it for](https://www.reddit.com" \
-                  f"{parent_link}) because of an unknown error ('{result_code.value}') - that's all we know." \
+                  f"{parent_link}) because of an unknown error ('{result_code.value}') - that's all we know. " \
                   f"We'll do our best to fix this going forward. In the meantime, maybe " \
                   f"you can try to find the canonical(s) manually and post it for the others? o_0\n\n" \
                   f"{good_human_for_trying}{outro}"

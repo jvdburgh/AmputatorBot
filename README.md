@@ -20,7 +20,7 @@ and tweets containing AMP URLs with the canonical link(s). It's also available a
 - Detect AMP links using 14 patterns, and reply to items containing them with the canonical link and some info
 - Compare and test canonicals and pick the best
 - Stream Reddit comments, submissions, inbox messages and Tweets
-- Extensively tested using a (private) database of over 140.000 AMP links and their canonicals, also functioning as caching
+- Extensively tested using a (private) database of over 200K AMP links and their canonicals, also functioning as caching
 
 ### Nice bonuses:
 - Detect unique URLs with [URLExtract](https://github.com/lipoja/URLExtract) and strip them of any artifacts
@@ -28,9 +28,7 @@ and tweets containing AMP URLs with the canonical link(s). It's also available a
 - Allow users to opt out and undo this
 - Send DMs when summoned by a user
 
-### Good to know:
-- Bans, contributor statuses and items interacted with are automatically being tracked
-- Subreddits need to opt-in of AmputatorBot
+- Items interacted with are automatically being tracked
 - Log and datafiles are automatically generated
 
 ### See also:
@@ -44,12 +42,12 @@ and tweets containing AMP URLs with the canonical link(s). It's also available a
 2. Run `pip install -r requirements.txt` to install dependencies
 3. Change the filename of `static.txt` to `.py` (see `/static`)
 4. Configure the application by tweaking `static.py` (required)
-6. Choose which `check-[...].py` script to run
+6. Choose a `check-[...].py` script to run
 7. Configure the script's settings in `run_bot()`. Set everything (`guess_and_check`, `reply_to_post`, `save_to_database`) to `False` when starting out. Consider deleting or disabling the database canonical method.
 8. Run the script - All logs and required datafiles should be automatically and dynamically created.
 9. Stop the script.
-10. Check out the new files in `/data` and edit them to your liking. Odds are you want to add subreddits to `allowed_subreddits.txt` (e.g.: `,sub1,sub2`)
-11. Re-run the script
+10. Check out the new files in `/data` and edit them to your liking.
+11. Re-run the script and enjoy!
 
 ## Support the project
 

@@ -27,7 +27,7 @@ from datahandlers.remote_datahandler import save_entry
 from helpers import logger
 from helpers.criteria_checker import check_criteria
 from helpers.reddit.reddit_comment_generator import generate_reply
-from helpers.reddit.reddit_utils import get_submission_body, check_if_banned
+from helpers.reddit.reddit_utils import get_submission_body
 from helpers.utils import get_urls_info, get_urls
 from models import stream
 from models.item import Item
@@ -40,10 +40,9 @@ def run_bot(type=Type.SUBMISSION, use_gac=False, reply_to_item=True, save_to_dat
     # Get the stream instance (contains session, type and data)
     s = stream.get_stream(type)
     log.info("Set up new stream")
-    streamed_subreddits = "+".join(s.allowed_subreddits + s.contributor_subreddits)
 
     # Start the stream
-    for submission in s.praw_session.subreddit(streamed_subreddits).stream.submissions():
+    for submission in s.praw_session.subreddit("all").stream.submissions():
         # Generate an item with all the relevant data
         i = Item(
             type=type,
@@ -56,15 +55,14 @@ def run_bot(type=Type.SUBMISSION, use_gac=False, reply_to_item=True, save_to_dat
         meets_criteria, result_code = check_criteria(
             item=i,
             data=s,
-            history_failed=s.submissions_failed,
-            history_success=s.submissions_success,
+            history_err=s.submissions_err,
+            history_ok=s.submissions_ok,
             mustBeAMP=True,
             mustBeNew=True,
-            mustNotBeDisallowedSubreddit=False,
+            mustNotBeBannedInSubreddit=True,
             mustNotHaveFailed=True,
             mustNotBeMine=True,
-            mustNotBeOptedOut=True,
-            mustNotHaveDisallowedMods=False
+            mustNotBeOptedOut=True
         )
 
         # If it meets the criteria, try to find the canonicals and make a reply
@@ -89,26 +87,20 @@ def run_bot(type=Type.SUBMISSION, use_gac=False, reply_to_item=True, save_to_dat
                     try:
                         reply = submission.reply(reply_text)
                         log.info(f"Replied to {i.id} with {reply.name}")
-                        update_local_data("submissions_success", i.id)
-                        s.submissions_success.append(i.id)
+                        update_local_data("submissions_ok", i.id)
+                        s.submissions_ok.append(i.id)
 
                     except (Forbidden, Exception):
                         log.warning("Couldn't post reply!")
                         log.error(traceback.format_exc())
-                        update_local_data("submissions_failed", i.id)
-                        s.submissions_failed.append(i.id)
-
-                        # Check if AmputatorBot is banned in the subreddit
-                        is_banned = check_if_banned(i.subreddit)
-                        if is_banned:
-                            update_local_data("disallowed_subreddits", i.subreddit, unique=True)
-                            s.disallowed_subreddits.append(i.subreddit)
+                        update_local_data("submissions_err", i.id)
+                        s.submissions_err.append(i.id)
 
             # If no canonicals were found, log the failed attempt
             else:
                 log.warning("No canonicals found")
-                update_local_data("submissions_failed", i.id)
-                s.submissions_failed.append(i.id)
+                update_local_data("submissions_err", i.id)
+                s.submissions_err.append(i.id)
 
             save_entry(save_to_database=save_to_database, entry_type=type.value, links=i.links)
 
@@ -117,6 +109,10 @@ while True:
     try:
         run_bot()
         log.info("\nCompleted running the bot")
+        sleep(120)
+    except Forbidden:
+        log.warning("Error: 403 HTTP response")
+        log.warning("\nSomething went wrong while running the bot")
         sleep(120)
     except (RuntimeError, Exception):
         log.error(traceback.format_exc())

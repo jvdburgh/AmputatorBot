@@ -30,9 +30,6 @@ class Stream:
     def __init__(self, type):
         # Basic items
         self.type = type
-        self.allowed_subreddits = get_data("allowed_subreddits")
-        self.contributor_subreddits = get_data("contributor_subreddits")
-        self.disallowed_subreddits = get_data("disallowed_subreddits")
         self.disallowed_users = get_data("disallowed_users")
         self.np_subreddits = get_data("np_subreddits")
         self.praw_session = reddit_login.get_praw_session()
@@ -42,16 +39,16 @@ class Comment(Stream):
     def __init__(self, type):
         super().__init__(type)
         # Items specific to the comment stream
-        self.comments_success = get_data("comments_success")
-        self.comments_failed = get_data("comments_failed")
+        self.comments_ok = get_data("comments_ok")
+        self.comments_err = get_data("comments_err")
 
 
 class Submission(Stream):
     def __init__(self, type):
         super().__init__(type)
         # Items specific to the submission stream
-        self.submissions_success = get_data("submissions_success")
-        self.submissions_failed = get_data("submissions_failed")
+        self.submissions_ok = get_data("submissions_ok")
+        self.submissions_err = get_data("submissions_err")
 
 
 class Mention(Stream):
@@ -59,8 +56,8 @@ class Mention(Stream):
         super().__init__(type)
         # Items specific to the mention stream
         self.disallowed_mods = get_data("disallowed_mods")
-        self.mentions_success = get_data("mentions_success")
-        self.mentions_failed = get_data("mentions_failed")
+        self.mentions_ok = get_data("mentions_ok")
+        self.mentions_err = get_data("mentions_err")
         self.problematic_domains = get_data("problematic_domains")
 
 
@@ -68,6 +65,6 @@ class Tweet:
     def __init__(self, type):
         # Items specific to the tweet stream
         self.type = type
-        self.tweets_success = get_data("tweets_success")
-        self.tweets_failed = get_data("tweets_failed")
+        self.tweets_ok = get_data("tweets_ok")
+        self.tweets_err = get_data("tweets_err")
         self.disallowed_twitterers = get_data("disallowed_twitterers")

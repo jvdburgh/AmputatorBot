@@ -10,7 +10,7 @@ log = logger.get_log(sys)
 
 
 # Check if the tweet meets the specified criteria
-def check_tweet_criteria(item, cached_urls=None, tweet=None, data=None, history_failed=None, history_success=None,
+def check_tweet_criteria(item, cached_urls=None, tweet=None, data=None, history_err=None, history_ok=None,
                          return_if_false=True, mustBeAMP=False, mustNotBeRetweet=False, mustBeCached=False,
                          mustBeNew=False, mustNotHaveFailed=False, mustNotBeMine=False, mustNotBeOptedOut=False)\
         -> Tuple[bool, ResultCode]:
@@ -37,14 +37,14 @@ def check_tweet_criteria(item, cached_urls=None, tweet=None, data=None, history_
 
     # Must be new
     if mustBeNew:
-        if item.id in history_success:
+        if item.id in history_ok:
             result_code = ResultCode.ERROR_OTHER
             if return_if_false:
                 return False, result_code
 
     # Must not have failed before
     if mustNotHaveFailed:
-        if item.id in history_failed:
+        if item.id in history_err:
             result_code = ResultCode.ERROR_OTHER
             if return_if_false:
                 return False, result_code
