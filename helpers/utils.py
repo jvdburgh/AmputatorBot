@@ -49,7 +49,7 @@ def get_url_info(url, use_gac, max_depth) -> Link:
 
     origin = UrlMeta(url=remove_markdown(url))
     origin.is_valid = check_if_valid_url(origin.url)
-    origin.is_amp = check_if_amp(origin.url)
+    origin.is_amp = check_if_amp(origin.url) and not any(map(origin.url.__contains__, static.DENYLISTED_DOMAINS))
 
     if origin.is_valid:
         if origin.is_amp:
