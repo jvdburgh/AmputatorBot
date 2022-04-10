@@ -7,6 +7,7 @@ MAX_DEPTH = 3
 PROTOCOL_KEYWORDS = ["https://", "http://"]
 AMP_KEYWORDS = ["/amp", "amp/", ".amp", "amp.", "?amp", "amp?", "=amp",
                 "amp=", "&amp", "amp&", "%amp", "amp%", "_amp", "amp_"]
+DENYLISTED_DOMAINS = ["bandcamp.com", "progonlymusic.com", "spotify.com", "youtube.com"]
 
 # Reddit API credentials for PRAW
 USERNAME = "RedditUsername"

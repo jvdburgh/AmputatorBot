@@ -26,14 +26,11 @@ def check_if_amp(string) -> bool:
     string = string.lower()
 
     # Detect if the string contains links
-    protocol_keywords = static.PROTOCOL_KEYWORDS
-    if not any(map(string.__contains__, protocol_keywords)):
+    if not any(map(string.__contains__, static.PROTOCOL_KEYWORDS)):
         return False
 
     # Detect if the string contains common AMP keywords
-    amp_keywords = static.AMP_KEYWORDS
-
-    return any(map(string.__contains__, amp_keywords))
+    return any(map(string.__contains__, static.AMP_KEYWORDS))
 
 
 # Check if the page is hosted by Google, Ampproject or Bing

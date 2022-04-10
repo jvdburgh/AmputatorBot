@@ -143,8 +143,7 @@ def get_can_url_with_regex(soup, regex) -> Optional[str]:
 
 
 def get_can_url_with_guess_and_check(url) -> Optional[str]:
-    amp_keywords = static.AMP_KEYWORDS
-    for keyword in amp_keywords:
+    for keyword in static.AMP_KEYWORDS:
         if keyword in url:
             guessed_url = url.replace(keyword, "")
             if check_if_valid_url(guessed_url):
