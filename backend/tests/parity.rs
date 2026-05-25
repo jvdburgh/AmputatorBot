@@ -36,7 +36,7 @@ use std::path::Path;
 use anyhow::Result;
 use serde::Deserialize;
 
-use amputatorbot_backend::canonical::{Page, PageSource, ResolveOpts, resolve};
+use amputatorbot_backend::canonical::{Database, Page, PageSource, ResolveOpts, resolve};
 
 #[derive(Debug, Deserialize)]
 struct FixtureRecord {
@@ -68,6 +68,24 @@ impl PageSource for RecordedPageSource {
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("no recorded HTML for {url}"));
         ready(result)
+    }
+}
+
+/// Always-empty `Database` for the parity test.
+///
+/// We deliberately don't replay the legacy DATABASE-method hits here: the
+/// legacy bot's cache populated over years from the same canonical-finding
+/// methods, so seeding it would only make the parity test compare the
+/// resolver against itself. Comparing the fresh resolver against the recorded
+/// canonical (whatever method originally found it) is the honest measure.
+struct EmptyDb;
+
+impl Database for EmptyDb {
+    fn lookup_canonical(
+        &self,
+        _original_url: &str,
+    ) -> impl Future<Output = Result<Option<String>>> + Send {
+        ready(Ok(None))
     }
 }
 
@@ -177,7 +195,7 @@ async fn parity_against_recorded_urlconversions() {
             continue;
         }
 
-        let link = resolve(&source, &f.original_url, ResolveOpts::default()).await;
+        let link = resolve(&source, &EmptyDb, &f.original_url, ResolveOpts::default()).await;
         let found = link.canonical.as_ref().and_then(|c| c.url.clone());
 
         match (f.expected_canonical.as_deref(), found.as_deref()) {

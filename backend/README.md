@@ -21,12 +21,60 @@ mise install              # Rust stable + Node 22 + pnpm + just + lefthook
 cargo install \
     cargo-nextest \
     cargo-deny \
-    cargo-watch
+    cargo-watch \
+    sqlx-cli --version "^0.8" --no-default-features --features rustls,postgres
 lefthook install          # registers pre-commit hooks
 ```
 
 If you only ever do `just` commands you'll never need to type `cargo`
 directly.
+
+Docker Desktop (or OrbStack / colima) is required for the local Postgres
+container that backs the `/api/v1/convert` cache. The first `just db-up`
+will pull `postgres:17-alpine` (~110 MB).
+
+## Database
+
+Local Postgres 17 runs in Docker, defined in the root `docker-compose.yml`.
+The backend connects via `DATABASE_URL`; defaults to
+`postgres://amputatorbot:amputatorbot@localhost:5432/amputatorbot`.
+
+Day-to-day (all from repo root):
+
+| Command | What it does |
+|---|---|
+| `just db-up` | Boot Postgres in the background. Idempotent. |
+| `just db-down` | Stop the container (keeps the data volume). |
+| `just db-nuke` | Stop + delete the data volume — full reset. |
+| `just db-migrate` | Apply pending sqlx migrations explicitly. |
+| `just db-seed` | Load the committed 10k URLConversions sample into `links`. |
+| `just db-seed path=<csv>` | Load any CSV with the same column order (e.g. your full ~1.7M-row legacy export). |
+
+Migrations are also auto-applied on backend startup via `sqlx::migrate!()`,
+so `just db-migrate` is mainly for "fresh schema without booting the
+server".
+
+### sqlx offline mode
+
+The DATABASE-method query in `src/canonical/pg_database.rs` uses the
+compile-time-checked `sqlx::query!` macro. To avoid requiring a live DB
+during `cargo build` (which would also break CI and Docker builds),
+metadata for each macro invocation is cached in `backend/.sqlx/` and
+committed to git. `cargo build` reads from there when `SQLX_OFFLINE=true`
+or when no `DATABASE_URL` is set.
+
+**When you change any `sqlx::query!` SQL or the schema:** re-run
+`cargo sqlx prepare` (from `backend/`, with `DATABASE_URL` set and PG
+running) and commit the updated `.sqlx/` JSON. CI will fail if `.sqlx/`
+drifts from the actual queries.
+
+### URL-length cap
+
+Both `original_url` and `canonical_url` are constrained to ≤ 2048 chars
+in `001_initial.sql`. Mirrored in Rust as `canonical::MAX_URL_LEN` and
+enforced by the resolver's validity gate. Legacy rows longer than this
+are filtered during `just db-seed` via a staging-table pass; the recipe
+reports the imported/skipped counts.
 
 ## Daily commands
 
@@ -150,10 +198,12 @@ backend/
 │   │   └── record_fixtures.rs # the CSV→HTML recorder
 │   ├── canonical/             # the engine
 │   │   ├── amp_detect.rs      # is_amp_url, is_cached_amp
+│   │   ├── database.rs        # Database trait (PG abstraction for tests)
 │   │   ├── domain.rs          # extract_domain via psl crate
 │   │   ├── http_fetcher.rs    # production PageSource impl (reqwest)
 │   │   ├── page.rs            # Page struct
 │   │   ├── page_source.rs     # PageSource trait
+│   │   ├── pg_database.rs     # PgDatabase — Database impl backed by sqlx
 │   │   ├── resolver.rs        # resolve() — the depth loop
 │   │   ├── resolve_opts.rs    # ResolveOpts struct
 │   │   ├── url_extract.rs     # extract_urls, remove_markdown
@@ -168,7 +218,7 @@ backend/
 │   │       ├── tco_pagetitle.rs
 │   │       ├── meta_redirect.rs
 │   │       ├── guess_and_check.rs
-│   │       └── (database — wired in M3)
+│   │       └── database.rs    # DATABASE cache lookup (M3)
 │   ├── models/                # API JSON shapes
 │   │   ├── url_meta.rs        # UrlMeta (base shape)
 │   │   ├── canonical.rs       # Canonical struct
@@ -176,6 +226,9 @@ backend/
 │   │   └── link.rs            # Link (the top-level response item)
 │   └── readability/
 │       └── mod.rs             # dom_smoothie wrapper + similarity scoring
+├── migrations/                # sqlx-managed schema migrations
+│   └── 001_initial.sql        # links table + enums + indexes + URL-length checks
+├── .sqlx/                     # cached query metadata (committed; see "sqlx offline mode")
 └── tests/
     ├── fixtures/
     │   ├── urlconversions/    # committed CSVs from the legacy DB

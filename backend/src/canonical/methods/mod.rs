@@ -16,6 +16,7 @@ use crate::models::CanonicalType;
 
 pub mod bing_original;
 pub mod canurl;
+pub mod database;
 pub mod google_js;
 pub mod google_manual;
 pub mod guess_and_check;

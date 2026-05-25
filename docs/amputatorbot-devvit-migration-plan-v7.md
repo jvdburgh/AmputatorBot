@@ -40,7 +40,7 @@ Claude prepares the exact commands and tells Joris when to run them. Reading cod
 - Reddit bot (Python + PRAW) → Devvit app (TypeScript, `@devvit/web`)
 - HTTP API (Flask) → Rust (Axum + Mozilla-Readability-port + sqlx)
 - Website (Flask + Bootstrap) → Astro 5 + Tailwind 4 + shadcn/ui
-- Database (MySQL on PythonAnywhere) → Postgres 16 on Scaleway Managed Database
+- Database (MySQL on PythonAnywhere) → Postgres 17 on Scaleway Managed Database
 - Host (PythonAnywhere) → Scaleway (Paris, France — EU-originated managed cloud)
 
 **Architectural model change:** Devvit is per-subreddit opt-in, not global. Mods install the app per sub; it can't see content where it isn't installed. Replies post as per-install app identity, not `u/AmputatorBot`. Accepted. Estimated reply-volume drop: 30–60%.
@@ -67,7 +67,7 @@ Claude prepares the exact commands and tells Joris when to run them. Reading cod
 | **HTML parsing** | `scraper` crate (built on `html5ever`) |
 | **HTTP client** | `reqwest` |
 | **Postgres driver** | `sqlx` (compile-time-checked queries) |
-| **Database** | Postgres 16 on Scaleway Managed Database (DB DEV-S equivalent or next tier up, sized for ~2GB + growth headroom). 1.7M rows confirmed. |
+| **Database** | Postgres 17 on Scaleway Managed Database (DB DEV-S equivalent or next tier up, sized for ~2GB + growth headroom). 1.7M rows confirmed. |
 | **Website** | Astro 5 + Tailwind 4 + shadcn/ui |
 | **Hosting** | Scaleway Serverless Containers (Paris/AMS, EU-originated French cloud) |
 | **Single service** | One Rust binary serves `/api/*` and Astro static via `tower-http::ServeDir` |
@@ -117,7 +117,7 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 
 - **`git mv` everything old into `archive/` in one commit.** Sledgehammer. Old PRAW bot keeps running on PythonAnywhere as a fallback — there's no race to retire it.
 
-- **Six milestones, no calendar.** Local-first: M1–M5 are all local development (scaffolding, canonical engine, API parity, Devvit playtest, Astro). M6 is the cloud + public launch (Scaleway provisioning, prod data migration, DNS cutover, App Directory). No external deadline (bounty is Dec 2026). Old bot covers production. Learning Rust + Devvit + Astro is part of the goal, so pacing should match comprehension, not a schedule.
+- **Six milestones, no calendar.** Local-first: M1–M5 are all local development (scaffolding, canonical engine, API parity, Astro, Devvit playtest). M6 is the cloud + public launch (Scaleway provisioning, prod data migration, DNS cutover, App Directory). No external deadline (bounty is Dec 2026). Old bot covers production. Learning Rust + Devvit + Astro is part of the goal, so pacing should match comprehension, not a schedule.
 
 ---
 
@@ -179,7 +179,7 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 │       confidence via Mozilla Readability),  │
 │     DATABASE (cache lookup)                 │
 │                                             │
-│   Postgres 16 (Scaleway Managed Database):  │
+│   Postgres 17 (Scaleway Managed Database):  │
 │     links, optouts, replies, kill_switch    │
 └─────────────────────────────────────────────┘
 ```
@@ -583,9 +583,13 @@ CREATE TABLE links (
     canonical_type canonical_type,                        -- null when canonical_url is null
     note           TEXT
 );
-CREATE INDEX idx_links_original_url  ON links (original_url);
-CREATE INDEX idx_links_canonical_url ON links (canonical_url);
-CREATE INDEX idx_links_handled_utc   ON links (handled_utc);
+-- Composite supports `WHERE original_url = $1 ORDER BY handled_utc DESC
+-- LIMIT 1` (the DATABASE-method lookup) as an index-only scan. Btree
+-- prefix matching means it also covers plain `WHERE original_url = $1`,
+-- so a separate single-column index on `original_url` is redundant.
+CREATE INDEX idx_links_original_url_handled ON links (original_url, handled_utc DESC);
+CREATE INDEX idx_links_canonical_url        ON links (canonical_url);
+CREATE INDEX idx_links_handled_utc          ON links (handled_utc);
 ```
 
 Schema decisions (these supersede earlier "drop dead columns" / "modernize" wording in v7):
@@ -608,16 +612,18 @@ psql "$DATABASE_URL" -c "\
 
 ~1.7M rows in under a minute. No SSH tunnel, no sqlx wiring just for the import, no Rust binary to maintain.
 
-**No opt-out migration.** Per-user opt-outs in the new world are handled via Devvit modmail (M4) → privileged `POST /api/v1/optout` against Scaleway PG. Legacy opt-outs would re-engage on cutover, accepted tradeoff.
+**No opt-out migration.** Per-user opt-outs in the new world are handled via Devvit modmail (M5) → privileged `POST /api/v1/optout` against Scaleway PG. Legacy opt-outs would re-engage on cutover, accepted tradeoff.
 
 #### Tasks
 
-1. `docker-compose.yml` at repo root for local Postgres 16 + `DATABASE_URL` plumbing in the backend.
+1. `docker-compose.yml` at repo root for local Postgres 17 + `DATABASE_URL` plumbing in the backend.
 2. `backend/migrations/001_initial.sql` with the schema above; sqlx-migrate setup.
-3. **DATABASE canonical method** — port the 11th method (stubbed in M2.5):
+3. **DATABASE canonical method** — port the 11th method (stubbed in M2.5). Modernized from the legacy `LIMIT 1`: prefer the most-recently-resolved canonical, since the bot has run for years and the "right" canonical for a given URL can change over time (sites move, canonical-finding has improved). `entry_id DESC` is a deterministic tiebreaker. The composite index makes this an index-only scan.
    ```sql
-   SELECT canonical_url, canonical_type FROM links
-   WHERE original_url = $1 AND canonical_url IS NOT NULL LIMIT 1
+   SELECT canonical_url FROM links
+   WHERE original_url = $1 AND canonical_url IS NOT NULL
+   ORDER BY handled_utc DESC, entry_id DESC
+   LIMIT 1
    ```
 4. `PgPool` plumbed into `MethodContext` (parallels how `PageSource` got added in M2.8).
 5. Axum handler for `GET /api/v1/convert` wrapping `canonical::resolve()`.
@@ -631,7 +637,27 @@ psql "$DATABASE_URL" -c "\
 
 **Production data migration to Scaleway PG happens in M6**, not here. M3 just verifies the schema + `\copy` flow against a local Docker Postgres.
 
-### M4 — Devvit bot E2E
+### M4 — Astro website (local)
+
+**Done when:** the full Astro site builds locally, all content is in place, the ConverterForm works against the local Rust backend, and the two-stage Dockerfile produces a single image containing both the Rust binary and the Astro static bundle.
+
+**Why M4 (before Devvit):** the website turns the abstract Rust backend into something visible — buttons to click, a form to paste URLs into, immediate "it works" feedback. Easier to keep momentum and easier to validate the API contract by hand.
+
+Tasks:
+- Audit live site: every page, every piece of content
+- Port content to Astro: landing, FAQ (MDX), About / Why (MDX), changelog link
+- Build ConverterForm React island in `src/components/react/ConverterForm.tsx` (shadcn `<Input>`, `<Button>`, `<Card>`). POSTs to `/api/v1/convert` on same origin.
+- **Tailwind prefix: `ab:`** — all utility classes are namespaced (e.g. `ab:flex ab:gap-4 ab:bg-zinc-50`). Configured in `tailwind.config.ts` via `prefix: 'ab:'`. Keeps styles isolated; avoids any collision with shadcn or future host pages.
+- Copy icons/logos from `archive/AmputatorBotCom/static/` to `website/public/`
+- Update root `Dockerfile` (or backend's) to be two-stage: Astro build → Rust build → final image with `dist/` copied into the Rust container's static dir served by `tower-http::ServeDir`
+- Verify locally: `docker run` the combined image, hit `http://localhost:8080/` (Astro static), `http://localhost:8080/api/v1/convert?q=...` (Rust API)
+- Vitest tests for the ConverterForm component
+
+**Ask points:** Live-site content audit (anything surprising). Whether to keep `/about` route names matching the legacy site or rename freely.
+
+**No cloud, no DNS, no Devvit publish here** — that's M6.
+
+### M5 — Devvit bot E2E
 
 **Done when:** AMP comment in r/test → bot replies with correct canonical; dedup prevents double-reply; opt-out via modmail works end-to-end.
 
@@ -655,23 +681,6 @@ Tasks:
 - Vitest unit tests for trigger handlers (mocked backend, mocked Reddit context)
 
 **Ask points:** Welcome modmail content. Exact reply markdown format (final pass).
-
-### M5 — Astro website (local)
-
-**Done when:** the full Astro site builds locally, all content is in place, the ConverterForm works against the local Rust backend, and the two-stage Dockerfile produces a single image containing both the Rust binary and the Astro static bundle.
-
-Tasks:
-- Audit live site: every page, every piece of content
-- Port content to Astro: landing, FAQ (MDX), About / Why (MDX), changelog link
-- Build ConverterForm React island in `src/components/react/ConverterForm.tsx` (shadcn `<Input>`, `<Button>`, `<Card>`). POSTs to `/api/v1/convert` on same origin.
-- Copy icons/logos from `archive/AmputatorBotCom/static/` to `website/public/`
-- Update root `Dockerfile` (or backend's) to be two-stage: Astro build → Rust build → final image with `dist/` copied into the Rust container's static dir served by `tower-http::ServeDir`
-- Verify locally: `docker run` the combined image, hit `http://localhost:8080/` (Astro static), `http://localhost:8080/api/v1/convert?q=...` (Rust API)
-- Vitest tests for the ConverterForm component
-
-**Ask points:** Live-site content audit (anything surprising). Whether to keep `/about` route names matching the legacy site or rename freely.
-
-**No cloud, no DNS, no Devvit publish here** — that's M6.
 
 ### M6 — Cloud deployment + public launch
 
@@ -749,7 +758,7 @@ Each canonical method tested in isolation with HTML fixtures in `backend/tests/f
 
 Per-pattern positive + negative fixtures, including the false-positive cases (`&amp;`, `lamp_post`, etc.).
 
-### Devvit-side unit tests (M4)
+### Devvit-side unit tests (M5)
 
 Vitest. Mock backend client, mock Reddit context. Assert dedup, opt-out short-circuit, reply markdown.
 

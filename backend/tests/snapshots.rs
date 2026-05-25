@@ -21,7 +21,7 @@ use std::future::{Future, ready};
 use anyhow::Result;
 use insta::assert_json_snapshot;
 
-use amputatorbot_backend::canonical::{Page, PageSource, ResolveOpts, resolve};
+use amputatorbot_backend::canonical::{Database, Page, PageSource, ResolveOpts, resolve};
 
 struct MockPageSource {
     pages: HashMap<String, Page>,
@@ -58,6 +58,20 @@ impl PageSource for MockPageSource {
     }
 }
 
+/// Always-empty `Database` — snapshot tests don't exercise the DATABASE
+/// method (its own unit tests in `src/canonical/methods/database.rs` cover
+/// that path with a populated mock).
+struct EmptyDb;
+
+impl Database for EmptyDb {
+    fn lookup_canonical(
+        &self,
+        _original_url: &str,
+    ) -> impl Future<Output = Result<Option<String>>> + Send {
+        ready(Ok(None))
+    }
+}
+
 fn rel_canonical(href: &str) -> String {
     format!(
         r#"<!doctype html><html><head><link rel="canonical" href="{href}"></head><body>x</body></html>"#
@@ -68,7 +82,7 @@ fn rel_canonical(href: &str) -> String {
 async fn snapshot_rel_canonical() {
     let amp = "https://www.google.com/amp/s/example.eu/article";
     let mock = MockPageSource::new().with(amp, &rel_canonical("https://example.eu/article"));
-    let link = resolve(&mock, amp, ResolveOpts::default()).await;
+    let link = resolve(&mock, &EmptyDb, amp, ResolveOpts::default()).await;
     assert_json_snapshot!(link);
 }
 
@@ -79,7 +93,7 @@ async fn snapshot_og_url_canonical() {
         <meta property="og:url" content="https://example.eu/post-42">
     </head><body>x</body></html>"#;
     let mock = MockPageSource::new().with(amp, html);
-    let link = resolve(&mock, amp, ResolveOpts::default()).await;
+    let link = resolve(&mock, &EmptyDb, amp, ResolveOpts::default()).await;
     assert_json_snapshot!(link);
 }
 
@@ -89,7 +103,7 @@ async fn snapshot_non_amp_origin_returns_empty_link() {
     // origin.is_amp = false and no canonicals.
     let url = "https://news.ycombinator.com/item?id=42";
     let mock = MockPageSource::new();
-    let link = resolve(&mock, url, ResolveOpts::default()).await;
+    let link = resolve(&mock, &EmptyDb, url, ResolveOpts::default()).await;
     assert_json_snapshot!(link);
 }
 
@@ -102,7 +116,7 @@ async fn snapshot_amputeestore_false_positive_short_circuits() {
     // = false, canonical-finding never runs.
     let url = "https://amputeestore.com/products/tamarack-glidewear-prosthetic-liner-patch";
     let mock = MockPageSource::new();
-    let link = resolve(&mock, url, ResolveOpts::default()).await;
+    let link = resolve(&mock, &EmptyDb, url, ResolveOpts::default()).await;
     assert_json_snapshot!(link);
 }
 
@@ -116,7 +130,7 @@ async fn snapshot_dead_end_amp_with_cached_origin_surfaces_amp_canonical() {
     let mock = MockPageSource::new()
         .with(origin, &rel_canonical(stuck))
         .with(stuck, &rel_canonical(stuck));
-    let link = resolve(&mock, origin, ResolveOpts::default()).await;
+    let link = resolve(&mock, &EmptyDb, origin, ResolveOpts::default()).await;
     assert_json_snapshot!(link);
 }
 
@@ -129,7 +143,7 @@ async fn snapshot_depth_recursion_through_amp_chain() {
     let mock = MockPageSource::new()
         .with(origin, &rel_canonical(intermediate))
         .with(intermediate, &rel_canonical(final_url));
-    let link = resolve(&mock, origin, ResolveOpts::default()).await;
+    let link = resolve(&mock, &EmptyDb, origin, ResolveOpts::default()).await;
     assert_json_snapshot!(link);
 }
 
@@ -141,7 +155,7 @@ async fn snapshot_multiple_canonical_signals_sorted_by_similarity() {
         <meta property="og:url" content="https://example.eu/totally-different-path">
     </head><body>x</body></html>"#;
     let mock = MockPageSource::new().with(amp, html);
-    let link = resolve(&mock, amp, ResolveOpts::default()).await;
+    let link = resolve(&mock, &EmptyDb, amp, ResolveOpts::default()).await;
     assert_json_snapshot!(link);
 }
 
@@ -152,7 +166,7 @@ async fn snapshot_meta_refresh_canonical() {
         <meta http-equiv="refresh" content="0; url=https://example.eu/article">
     </head></html>"#;
     let mock = MockPageSource::new().with(amp, html);
-    let link = resolve(&mock, amp, ResolveOpts::default()).await;
+    let link = resolve(&mock, &EmptyDb, amp, ResolveOpts::default()).await;
     assert_json_snapshot!(link);
 }
 
@@ -165,7 +179,7 @@ async fn snapshot_schema_mainentity_canonical() {
           "headline": "x" }
     </script></head><body>x</body></html>"#;
     let mock = MockPageSource::new().with(amp, html);
-    let link = resolve(&mock, amp, ResolveOpts::default()).await;
+    let link = resolve(&mock, &EmptyDb, amp, ResolveOpts::default()).await;
     assert_json_snapshot!(link);
 }
 
@@ -175,6 +189,6 @@ async fn snapshot_fetch_failure_returns_empty_link() {
     // empty Link (origin populated, canonicals empty, no canonical).
     let amp = "https://www.google.com/amp/s/example.eu/article";
     let mock = MockPageSource::new();
-    let link = resolve(&mock, amp, ResolveOpts::default()).await;
+    let link = resolve(&mock, &EmptyDb, amp, ResolveOpts::default()).await;
     assert_json_snapshot!(link);
 }

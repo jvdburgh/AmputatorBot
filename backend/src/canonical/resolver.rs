@@ -30,8 +30,9 @@ use std::cmp::Ordering;
 use url::Url;
 
 use super::amp_detect::{is_amp_url, is_cached_amp};
+use super::database::Database;
 use super::domain::extract_domain;
-use super::methods::{CanonicalFlags, MethodContext, guess_and_check, try_method};
+use super::methods::{CanonicalFlags, MethodContext, database, guess_and_check, try_method};
 use super::page_source::PageSource;
 use super::resolve_opts::ResolveOpts;
 use crate::models::{Canonical, CanonicalType, Link, UrlMeta};
@@ -43,7 +44,12 @@ use crate::readability::article_similarity;
 /// **Never returns an error** — transport failures, AMP-detection misses,
 /// and dead-end depth loops all surface as a `Link` whose `canonical`
 /// stays `None`. Matches the Python contract.
-pub async fn resolve<P: PageSource>(fetcher: &P, origin_url: &str, opts: ResolveOpts) -> Link {
+pub async fn resolve<P: PageSource, D: Database>(
+    fetcher: &P,
+    db: &D,
+    origin_url: &str,
+    opts: ResolveOpts,
+) -> Link {
     let origin = build_origin_meta(origin_url);
     let mut link = Link::new(origin.clone());
 
@@ -77,7 +83,7 @@ pub async fn resolve<P: PageSource>(fetcher: &P, origin_url: &str, opts: Resolve
                 original_url: origin_url,
                 flags,
             };
-            if let Some(canonical) = run_method(method, &ctx, fetcher, origin_url).await {
+            if let Some(canonical) = run_method(method, &ctx, fetcher, db, origin_url).await {
                 let is_non_amp = canonical.is_amp == Some(false);
                 link.canonicals.push(canonical);
 
@@ -157,13 +163,14 @@ fn build_origin_meta(url: &str) -> UrlMeta {
 /// Run a single method and return the first valid candidate as a fully-
 /// populated `Canonical`. Mirrors the Python `get_canonical_with_soup`
 /// behavior of returning one canonical per method invocation.
-async fn run_method<P: PageSource>(
+async fn run_method<P: PageSource, D: Database>(
     method: CanonicalType,
     ctx: &MethodContext<'_>,
     fetcher: &P,
+    db: &D,
     origin_url: &str,
 ) -> Option<Canonical> {
-    gather_candidates(method, ctx, fetcher)
+    gather_candidates(method, ctx, fetcher, db)
         .await
         .into_iter()
         .find(|c| is_acceptable_canonical_url(c, ctx.url))
@@ -174,19 +181,23 @@ async fn run_method<P: PageSource>(
 ///
 /// Most methods are synchronous (just-HTML-scraping, handled by
 /// [`try_method`]). `GUESS_AND_CHECK` is async because it issues additional
-/// HTTP fetches per keyword mutation. `DATABASE` is stubbed until M3 wires
-/// in sqlx.
-async fn gather_candidates<P: PageSource>(
+/// HTTP fetches per keyword mutation. `DATABASE` is async because it queries
+/// Postgres.
+async fn gather_candidates<P: PageSource, D: Database>(
     method: CanonicalType,
     ctx: &MethodContext<'_>,
     fetcher: &P,
+    db: &D,
 ) -> Vec<String> {
     match method {
         CanonicalType::GuessAndCheck => guess_and_check::find(ctx, fetcher)
             .await
             .map(|u| vec![u])
             .unwrap_or_default(),
-        CanonicalType::Database => Vec::new(),
+        CanonicalType::Database => database::find(ctx, db)
+            .await
+            .map(|u| vec![u])
+            .unwrap_or_default(),
         _ => try_method(method, ctx),
     }
 }
@@ -194,11 +205,17 @@ async fn gather_candidates<P: PageSource>(
 /// Gate every candidate URL through these checks before treating it as a
 /// real canonical:
 ///
-/// 1. **Not equal to the input URL** — same URL means the scraper found a self-reference
-/// 2. **Parses as a URL** — discard syntactic garbage.
-/// 3. **Has a non-trivial path** — reject root-only URLs (e.g. `https://example.eu`), these are false positives.
+/// 1. **Not equal to the input URL** — same URL means the scraper found a self-reference.
+/// 2. **Within the URL-length cap** — see [`crate::canonical::MAX_URL_LEN`]. Mirrors
+///    the SQL `CHECK` so we never produce a canonical the DB would reject, and
+///    filters out pathological tracking-blob URLs that can't be cached.
+/// 3. **Parses as a URL** — discard syntactic garbage.
+/// 4. **Has a non-trivial path** — reject root-only URLs (e.g. `https://example.eu`); these are false positives.
 fn is_acceptable_canonical_url(candidate: &str, input_url: &str) -> bool {
     if candidate == input_url {
+        return false;
+    }
+    if candidate.len() > super::MAX_URL_LEN {
         return false;
     }
     let Ok(parsed) = Url::parse(candidate) else {
@@ -280,6 +297,7 @@ mod tests {
 
     use super::*;
     use crate::canonical::Page;
+    use crate::canonical::database::Database;
     use crate::canonical::page_source::PageSource;
 
     /// In-memory `PageSource` for tests. Maps URL strings to pre-built
@@ -321,6 +339,20 @@ mod tests {
         }
     }
 
+    /// Always-empty [`Database`] for resolver tests that don't exercise the
+    /// DATABASE method's hit-path. (The DATABASE method's own tests live in
+    /// `methods/database.rs` and use a populated MockDatabase there.)
+    struct EmptyDb;
+
+    impl Database for EmptyDb {
+        fn lookup_canonical(
+            &self,
+            _original_url: &str,
+        ) -> impl Future<Output = Result<Option<String>>> + Send {
+            ready(Ok(None))
+        }
+    }
+
     fn rel_canonical_html(canonical_href: &str) -> String {
         format!(
             r#"<!doctype html><html><head><link rel="canonical" href="{canonical_href}"></head><body>x</body></html>"#
@@ -333,6 +365,7 @@ mod tests {
         let mock = MockPageSource::new();
         let link = resolve(
             &mock,
+            &EmptyDb,
             "https://news.ycombinator.com/item?id=42",
             ResolveOpts::default(),
         )
@@ -346,7 +379,7 @@ mod tests {
     #[tokio::test]
     async fn returns_empty_for_malformed_url() {
         let mock = MockPageSource::new();
-        let link = resolve(&mock, "not a url", ResolveOpts::default()).await;
+        let link = resolve(&mock, &EmptyDb, "not a url", ResolveOpts::default()).await;
         assert!(link.canonicals.is_empty());
         assert_eq!(link.origin.is_valid, Some(false));
     }
@@ -358,7 +391,7 @@ mod tests {
         let target = "https://example.eu/article";
         let mock = MockPageSource::new().with(amp_url, &rel_canonical_html(target));
 
-        let link = resolve(&mock, amp_url, ResolveOpts::default()).await;
+        let link = resolve(&mock, &EmptyDb, amp_url, ResolveOpts::default()).await;
 
         assert!(
             !link.canonicals.is_empty(),
@@ -384,7 +417,7 @@ mod tests {
             .with(origin, &rel_canonical_html(intermediate_amp))
             .with(intermediate_amp, &rel_canonical_html(final_canonical));
 
-        let link = resolve(&mock, origin, ResolveOpts::default()).await;
+        let link = resolve(&mock, &EmptyDb, origin, ResolveOpts::default()).await;
 
         let canonical = link.canonical.expect("should resolve through the chain");
         assert_eq!(canonical.url.as_deref(), Some(final_canonical));
@@ -402,7 +435,7 @@ mod tests {
             .with(origin, &rel_canonical_html(stuck))
             .with(stuck, &rel_canonical_html(stuck)); // self-loop forces dead-end
 
-        let link = resolve(&mock, origin, ResolveOpts::default()).await;
+        let link = resolve(&mock, &EmptyDb, origin, ResolveOpts::default()).await;
 
         assert!(link.canonical.is_none(), "no non-AMP canonical exists");
         let amp = link.amp_canonical.expect("amp_canonical should fall back");
@@ -416,6 +449,7 @@ mod tests {
         let mock = MockPageSource::new();
         let link = resolve(
             &mock,
+            &EmptyDb,
             "https://www.google.com/amp/s/example.eu/article",
             ResolveOpts::default(),
         )
@@ -437,7 +471,7 @@ mod tests {
         </head><body>x</body></html>"#;
         let mock = MockPageSource::new().with(amp, html);
 
-        let link = resolve(&mock, amp, ResolveOpts::default()).await;
+        let link = resolve(&mock, &EmptyDb, amp, ResolveOpts::default()).await;
         assert!(
             link.canonical.is_none(),
             "expected no canonical (root URL filtered), got {:?}",
@@ -459,8 +493,34 @@ mod tests {
         </head></html>"#;
         let mock = MockPageSource::new().with(amp, html);
 
-        let link = resolve(&mock, amp, ResolveOpts::default()).await;
+        let link = resolve(&mock, &EmptyDb, amp, ResolveOpts::default()).await;
         assert!(link.canonical.is_none());
+    }
+
+    #[tokio::test]
+    async fn rejects_canonical_url_exceeding_max_length() {
+        // A <link rel="canonical"> pointing at a 3000-character URL — over the
+        // 2048-char cap. Must be filtered: producing it would (a) violate the
+        // DB CHECK on insert and (b) almost always indicate a tracking-blob or
+        // malformed redirect rather than a real article.
+        let amp = "https://www.google.com/amp/s/example.eu/article";
+        let long_path = "/article?q=".to_string() + &"x".repeat(3000);
+        let too_long = format!("https://example.eu{long_path}");
+        assert!(too_long.len() > crate::canonical::MAX_URL_LEN);
+        let html = format!(
+            r#"<!doctype html><html><head><link rel="canonical" href="{too_long}"></head><body>x</body></html>"#
+        );
+        let mock = MockPageSource::new().with(amp, &html);
+
+        let link = resolve(&mock, &EmptyDb, amp, ResolveOpts::default()).await;
+        assert!(
+            link.canonical.is_none(),
+            "too-long canonical should be filtered"
+        );
+        assert!(
+            link.canonicals.is_empty(),
+            "too-long canonical should not appear in canonicals"
+        );
     }
 
     #[tokio::test]
@@ -479,7 +539,7 @@ mod tests {
         );
         let mock = MockPageSource::new().with(amp, &html);
 
-        let link = resolve(&mock, amp, ResolveOpts::default()).await;
+        let link = resolve(&mock, &EmptyDb, amp, ResolveOpts::default()).await;
         let canonical = link.canonical.expect("should pick one");
         assert_eq!(canonical.url.as_deref(), Some(very_similar));
 
