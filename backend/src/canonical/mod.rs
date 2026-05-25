@@ -8,8 +8,10 @@
 
 pub mod amp_detect;
 pub mod http;
+pub mod methods;
 pub mod url_extract;
 
 pub use amp_detect::{is_amp_url, is_cached_amp};
 pub use http::{HttpFetcher, Page};
+pub use methods::{CanonicalFlags, MethodContext, try_method};
 pub use url_extract::{extract_urls, remove_markdown};
