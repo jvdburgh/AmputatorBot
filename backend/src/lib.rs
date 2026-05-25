@@ -5,3 +5,4 @@
 
 pub mod canonical;
 pub mod models;
+pub mod readability;
