@@ -7,5 +7,7 @@
 //! priority order — see [`crate::models::CanonicalType::ALL`].
 
 pub mod amp_detect;
+pub mod url_extract;
 
 pub use amp_detect::{is_amp_url, is_cached_amp};
+pub use url_extract::{extract_urls, remove_markdown};

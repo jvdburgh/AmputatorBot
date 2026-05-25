@@ -60,6 +60,7 @@ dependencies = [
  "chrono",
  "dom_smoothie",
  "insta",
+ "linkify",
  "regex",
  "reqwest",
  "scraper",
@@ -1285,6 +1286,15 @@ checksum = "2e99fb7a497b1e3339bc746195567ed8d3e24945ecd636e3619d20b9de9e9149"
 dependencies = [
  "pkg-config",
  "vcpkg",
+]
+
+[[package]]
+name = "linkify"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92f9ae2f3d31697697311f016320fe984127e636b45cf5eb5c175b7eb103dadb"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]
