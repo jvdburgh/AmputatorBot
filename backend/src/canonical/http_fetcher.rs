@@ -1,16 +1,16 @@
-//! HTTP fetch layer for canonical-finding.
+//! [`HttpFetcher`] — the production [`crate::canonical::PageSource`] impl.
 //!
-//! Ports `archive/helpers/utils.py:get_page` + `get_randomized_headers`.
-//! Holds a shared `reqwest::Client` with sane defaults (timeout, redirect
-//! policy), wraps a single fetch into a [`Page`] result.
-//!
-//! User-agent rotation is preserved from the legacy bot — picks one of 10
-//! mobile UAs at random per request to reduce the chance of upstream 403s.
+//! Wraps a shared `reqwest::Client` with sane defaults (timeout, redirect
+//! policy, rustls TLS), rotating user-agent per request to reduce upstream
+//! 403s. Ports `archive/helpers/utils.py:get_page` + `get_randomized_headers`.
 
+use std::future::Future;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
 use scraper::{Html, Selector};
+
+use crate::canonical::{Page, PageSource};
 
 /// User-agent strings rotated through per-request.
 ///
@@ -61,30 +61,6 @@ const ACCEPT_HEADER: &str =
 const ACCEPT_LANGUAGE: &str = "en-US";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 const MAX_REDIRECTS: usize = 10;
-
-/// A fetched HTML page, ready for canonical-method scraping.
-///
-/// Ports `archive/models/page.py:Page`. We store the **raw HTML** rather
-/// than a pre-parsed `scraper::Html` so individual canonical methods
-/// can reparse with the right selector each. Parsing is cheap and the
-/// methods do their own queries.
-#[derive(Debug, Clone)]
-pub struct Page {
-    /// Final URL after redirects (mirrors Python's `req.url`).
-    pub current_url: String,
-    pub status_code: u16,
-    /// `<title>` text, or `"Error: Title not found"` if absent (Python parity).
-    pub title: String,
-    pub html: String,
-}
-
-impl Page {
-    /// Parse the HTML on demand. Each canonical method calls this fresh —
-    /// avoids holding a non-`Send` parsed DOM in a struct field.
-    pub fn parse(&self) -> Html {
-        Html::parse_document(&self.html)
-    }
-}
 
 /// Shared HTTP client for canonical-finding.
 ///
@@ -144,6 +120,13 @@ impl HttpFetcher {
     }
 }
 
+impl PageSource for HttpFetcher {
+    fn fetch(&self, url: &str) -> impl Future<Output = Result<Page>> + Send {
+        // Delegate to the inherent method on HttpFetcher.
+        HttpFetcher::fetch(self, url)
+    }
+}
+
 /// Pick a user-agent string at random from [`USER_AGENTS`].
 fn random_user_agent() -> &'static str {
     let idx = fastrand::usize(0..USER_AGENTS.len());
@@ -173,7 +156,6 @@ mod tests {
 
     #[test]
     fn random_user_agent_returns_a_known_ua() {
-        // Run many draws; every result should be in the known set.
         for _ in 0..100 {
             let ua = random_user_agent();
             assert!(USER_AGENTS.contains(&ua));

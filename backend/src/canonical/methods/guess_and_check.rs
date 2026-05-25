@@ -20,7 +20,7 @@ use scraper::{Html, Selector};
 use url::Url;
 
 use super::MethodContext;
-use crate::canonical::HttpFetcher;
+use crate::canonical::PageSource;
 use crate::canonical::amp_detect::AMP_KEYWORDS;
 use crate::readability::{article_similarity, extract_article_text};
 
@@ -72,7 +72,7 @@ fn guessed_page_links_back_to_amp(guessed_html: &str, origin_url: &str) -> bool 
 ///
 /// Returns the first accepted canonical, or `None` if every keyword mutation
 /// either fails to fetch, returns non-200, or fails the similarity check.
-pub async fn find(ctx: &MethodContext<'_>, fetcher: &HttpFetcher) -> Option<String> {
+pub async fn find<P: PageSource>(ctx: &MethodContext<'_>, fetcher: &P) -> Option<String> {
     if !ctx.flags.use_gac {
         return None;
     }

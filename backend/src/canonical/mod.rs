@@ -7,11 +7,15 @@
 //! priority order — see [`crate::models::CanonicalType::ALL`].
 
 pub mod amp_detect;
-pub mod http;
+pub mod http_fetcher;
 pub mod methods;
+pub mod page;
+pub mod page_source;
 pub mod url_extract;
 
 pub use amp_detect::{is_amp_url, is_cached_amp};
-pub use http::{HttpFetcher, Page};
+pub use http_fetcher::HttpFetcher;
 pub use methods::{CanonicalFlags, MethodContext, try_method};
+pub use page::Page;
+pub use page_source::PageSource;
 pub use url_extract::{extract_urls, remove_markdown};

@@ -4,9 +4,11 @@
 //! (alphabetical), so `serde_json` produces a byte-identical response shape.
 
 pub mod canonical;
+pub mod canonical_type;
 pub mod link;
 pub mod url_meta;
 
-pub use canonical::{Canonical, CanonicalType};
+pub use canonical::Canonical;
+pub use canonical_type::CanonicalType;
 pub use link::Link;
 pub use url_meta::UrlMeta;
