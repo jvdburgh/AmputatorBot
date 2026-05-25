@@ -59,6 +59,7 @@ dependencies = [
  "axum",
  "chrono",
  "dom_smoothie",
+ "fastrand",
  "insta",
  "linkify",
  "regex",
