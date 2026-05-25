@@ -113,18 +113,24 @@ struct Stats {
     skipped: usize,
 }
 
+/// Where the human-readable parity report gets written after every run.
+/// `cat backend/tests/parity-report.md` to see what happened.
+const REPORT_PATH: &str = "tests/parity-report.md";
+
 #[tokio::test]
 async fn parity_against_recorded_urlconversions() {
     let fixtures_dir = Path::new("tests/fixtures/html");
     let fixtures = load_fixtures(fixtures_dir);
 
     if fixtures.is_empty() {
-        eprintln!(
-            "[parity] No fixtures in {} — run `cargo run --bin record_fixtures -- \
-             --input tests/fixtures/urlconversions/URLConversions_500_including_failed_and_false_positives.csv` \
+        let msg = format!(
+            "[parity] No fixtures in {} — run\n  \
+             cargo run --bin record_fixtures -- --input tests/fixtures/urlconversions/URLConversions_500_including_failed_and_false_positives.csv\n\
              then re-run this test. Skipping.",
             fixtures_dir.display()
         );
+        eprintln!("{msg}");
+        let _ = fs::write(REPORT_PATH, format!("# Parity report\n\n{msg}\n"));
         return;
     }
 
@@ -132,6 +138,8 @@ async fn parity_against_recorded_urlconversions() {
     let source = build_page_source(&fixtures);
     let mut stats = Stats::default();
     let mut mismatches: Vec<(i64, String, String, String)> = Vec::new();
+    let mut legacy_only: Vec<(i64, String, String)> = Vec::new();
+    let mut new_only: Vec<(i64, String, String)> = Vec::new();
 
     for f in &fixtures {
         if f.html.is_empty() || f.status_code != 200 {
@@ -148,8 +156,14 @@ async fn parity_against_recorded_urlconversions() {
                 stats.mismatch_url += 1;
                 mismatches.push((f.csv_id, f.original_url.clone(), exp.into(), got.into()));
             }
-            (Some(_), None) => stats.legacy_only += 1,
-            (None, Some(_)) => stats.new_only += 1,
+            (Some(exp), None) => {
+                stats.legacy_only += 1;
+                legacy_only.push((f.csv_id, f.original_url.clone(), exp.into()));
+            }
+            (None, Some(got)) => {
+                stats.new_only += 1;
+                new_only.push((f.csv_id, f.original_url.clone(), got.into()));
+            }
             (None, None) => stats.matched += 1,
         }
     }
@@ -161,34 +175,103 @@ async fn parity_against_recorded_urlconversions() {
         0.0
     };
 
-    eprintln!(
-        "\n[parity] {matched}/{assessed} matched ({rate:.1}%) \
-         | mismatch_url={mm} legacy_only={lo} new_only={no} skipped={sk}",
-        matched = stats.matched,
-        assessed = assessed,
-        rate = rate,
-        mm = stats.mismatch_url,
-        lo = stats.legacy_only,
-        no = stats.new_only,
-        sk = stats.skipped,
-    );
+    let report = build_report(&stats, assessed, rate, &mismatches, &legacy_only, &new_only);
 
-    if !mismatches.is_empty() {
-        eprintln!("\n[parity] first 10 mismatches:");
-        for (id, url, exp, got) in mismatches.iter().take(10) {
-            eprintln!("  csv_id={id} url={url}");
-            eprintln!("    expected: {exp}");
-            eprintln!("    found:    {got}");
-        }
+    eprintln!("\n{report}");
+    if let Err(e) = fs::write(REPORT_PATH, &report) {
+        eprintln!("[parity] (couldn't write {REPORT_PATH}: {e})");
+    } else {
+        eprintln!("[parity] full report written to backend/{REPORT_PATH}");
     }
 
     // Hard floor: if we matched 0 across the board with non-empty fixtures
     // present, something's broken (probably the resolver, not the data).
-    // We don't assert a tighter rate yet — that'll get ratcheted up as bugs
-    // surface and get fixed in follow-up commits.
+    // Tighter parity-rate assertions will land as we ratchet up.
     assert!(
         assessed == 0 || stats.matched > 0,
         "parity test produced 0 matches across {assessed} assessed fixtures — \
          the resolver is broken or fixtures are corrupt"
     );
+}
+
+fn build_report(
+    stats: &Stats,
+    assessed: usize,
+    rate: f64,
+    mismatches: &[(i64, String, String, String)],
+    legacy_only: &[(i64, String, String)],
+    new_only: &[(i64, String, String)],
+) -> String {
+    use std::fmt::Write as _;
+    let mut s = String::new();
+
+    let _ = writeln!(s, "# Parity report");
+    let _ = writeln!(s);
+    let _ = writeln!(
+        s,
+        "**{matched}/{assessed} matched** ({rate:.1}%) — parity against the \
+         legacy Python bot's `URLConversions` table.",
+        matched = stats.matched,
+        assessed = assessed,
+        rate = rate,
+    );
+    let _ = writeln!(s);
+    let _ = writeln!(s, "| Bucket | Count |");
+    let _ = writeln!(s, "|---|---|");
+    let _ = writeln!(s, "| matched | {} |", stats.matched);
+    let _ = writeln!(
+        s,
+        "| mismatch_url (both found, disagree) | {} |",
+        stats.mismatch_url
+    );
+    let _ = writeln!(s, "| legacy_only (we missed it) | {} |", stats.legacy_only);
+    let _ = writeln!(
+        s,
+        "| new_only (we found, legacy didn't — could be a fixed false positive) | {} |",
+        stats.new_only
+    );
+    let _ = writeln!(s, "| skipped (no HTML / non-200) | {} |", stats.skipped);
+    let _ = writeln!(s);
+
+    if !mismatches.is_empty() {
+        let _ = writeln!(
+            s,
+            "## Mismatches ({} total, first 25 shown)",
+            mismatches.len()
+        );
+        let _ = writeln!(s);
+        for (id, url, exp, got) in mismatches.iter().take(25) {
+            let _ = writeln!(s, "- **csv_id={id}** `{url}`");
+            let _ = writeln!(s, "  - expected: `{exp}`");
+            let _ = writeln!(s, "  - found:    `{got}`");
+        }
+        let _ = writeln!(s);
+    }
+
+    if !legacy_only.is_empty() {
+        let _ = writeln!(
+            s,
+            "## Legacy-only ({} total, first 10 shown) — resolver missed these",
+            legacy_only.len()
+        );
+        let _ = writeln!(s);
+        for (id, url, exp) in legacy_only.iter().take(10) {
+            let _ = writeln!(s, "- **csv_id={id}** `{url}` → legacy: `{exp}`");
+        }
+        let _ = writeln!(s);
+    }
+
+    if !new_only.is_empty() {
+        let _ = writeln!(
+            s,
+            "## New-only ({} total, first 10 shown) — resolver found something legacy didn't",
+            new_only.len()
+        );
+        let _ = writeln!(s);
+        for (id, url, got) in new_only.iter().take(10) {
+            let _ = writeln!(s, "- **csv_id={id}** `{url}` → found: `{got}`");
+        }
+    }
+
+    s
 }

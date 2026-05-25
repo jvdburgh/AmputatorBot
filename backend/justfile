@@ -33,6 +33,16 @@ deny:
 dev:
     cargo watch -x run
 
+# Run the parity test against recorded HTML fixtures, streaming output
+# in real time (default nextest hides stdout/stderr for passing tests).
+# Also writes a Markdown summary to tests/parity-report.md.
+parity:
+    cargo nextest run --test parity --no-capture
+
+# Record HTML fixtures from a URLConversions CSV. Idempotent — re-runnable.
+record-fixtures CSV="tests/fixtures/urlconversions/URLConversions_500_including_failed_and_false_positives.csv":
+    cargo run --release --bin record_fixtures -- --input {{CSV}}
+
 # Build release binary
 build:
     cargo build --release

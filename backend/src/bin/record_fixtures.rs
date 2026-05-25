@@ -128,7 +128,11 @@ async fn record_one(fetcher: &HttpFetcher, row: CsvRow, output: &Path, force: bo
     let page = match fetcher.fetch(&row.original_url).await {
         Ok(p) => p,
         Err(e) => {
-            tracing::warn!(csv_id = row.csv_id, url = %row.original_url, error = %e, "fetch failed");
+            // `?e` uses anyhow's Debug impl, which prints the full cause
+            // chain ("Caused by: …"). `%e` (Display) only shows the top
+            // context. We want the full chain so we can tell apart DNS,
+            // TLS, HTTP-status, redirect-loop, timeout, etc.
+            tracing::warn!(csv_id = row.csv_id, url = %row.original_url, error = ?e, "fetch failed");
             return Outcome::Failed;
         }
     };
