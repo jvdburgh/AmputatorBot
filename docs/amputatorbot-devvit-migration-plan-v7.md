@@ -1,0 +1,753 @@
+ Let# AmputatorBot → Devvit Migration Plan v7
+
+**Status:** living draft
+**Drafted:** 2026-05-25
+**Budget cap:** €15/month total
+**Bounty deadline:** Dec 31, 2026 (Reddit Developer Platform App Migration Program)
+
+---
+
+## Working style — READ THIS FIRST
+
+Joris likes to be consulted on architectural decisions before code is written. For any choice that's:
+
+- About which library, framework, or pattern to use
+- About data model design or schema decisions
+- About how to structure a new module or layer
+- About cost vs. complexity tradeoffs
+- About deviating from this plan in any non-trivial way
+
+…stop and ask before proceeding. Surface the options, explain the tradeoffs honestly (including pushback if you disagree), and wait for a decision. Mechanical implementation work doesn't need consultation; architectural shape does.
+
+**External actions Joris does manually, not Claude:**
+
+- Running queries against the production MySQL / Postgres databases (Claude can write the SQL; Joris executes it)
+- Signing up for services (Scaleway, Reddit developer account, App Directory submission, bounty program registration)
+- Anything that hits an external account with Joris's identity (OAuth logins, `devvit login`, `scw init`, billing changes)
+- DNS changes in Cloudflare
+- Stopping/starting the production PythonAnywhere bot
+- `git push` to production-affecting remotes
+- Publishing the Devvit app (`devvit upload --publish`)
+
+Claude prepares the exact commands and tells Joris when to run them. Reading code, writing code, running local tests, local Docker builds, local `cargo`/`npm` — Claude does those.
+
+---
+
+## Project context
+
+**What AmputatorBot is:** A Reddit bot that detects AMP URLs in comments/posts/PMs and replies with the canonical (non-AMP) link. Maintained by Joris (`u/Killed_Mufasa`). Live at https://github.com/jvdburgh/AmputatorBot. ~181 GitHub stars. Runs at scale. Reddit's Developer Platform migration program offers $1,000 to bots that migrate from the Data API to Devvit by Dec 31, 2026.
+
+**What's being migrated:**
+- Reddit bot (Python + PRAW) → Devvit app (TypeScript, `@devvit/web`)
+- HTTP API (Flask) → Rust (Axum + Mozilla-Readability-port + sqlx)
+- Website (Flask + Bootstrap) → Astro 5 + Tailwind 4 + shadcn/ui
+- Database (MySQL on PythonAnywhere) → Postgres 16 on Scaleway Managed Database
+- Host (PythonAnywhere) → Scaleway (Paris, France — EU-originated managed cloud)
+
+**Architectural model change:** Devvit is per-subreddit opt-in, not global. Mods install the app per sub; it can't see content where it isn't installed. Replies post as per-install app identity, not `u/AmputatorBot`. Accepted. Estimated reply-volume drop: 30–60%.
+
+**Goals (user-stated):**
+1. Modern stack, learn things along the way (Rust, Devvit, Astro/Tailwind4/shadcn)
+2. API contract stays backwards-compatible
+3. Old bot keeps running indefinitely as a fallback — we can break things on the new side without consequence
+4. Sledgehammer through the rewrite; preserve old code in `archive/`
+
+---
+
+## Locked decisions
+
+| | |
+|---|---|
+| **Path** | Per-subreddit opt-in, parallel-run cutover (old bot kept alive) |
+| **Devvit SDK** | `@devvit/web` (modern server model) |
+| **Devvit config** | `devvit.json` (official format with `$schema`) |
+| **Devvit scaffold** | `reddit/devvit-template-bare`, stripped of post/menu UI |
+| **Backend language** | Rust |
+| **Backend framework** | Axum 0.8 (Tokio + Hyper) |
+| **Article extraction** | `dom_smoothie` crate (≈0.17, Rust Readability port that closely tracks Mozilla's `readability.js`, actively maintained as of 2026-03) |
+| **HTML parsing** | `scraper` crate (built on `html5ever`) |
+| **HTTP client** | `reqwest` |
+| **Postgres driver** | `sqlx` (compile-time-checked queries) |
+| **Database** | Postgres 16 on Scaleway Managed Database (DB DEV-S equivalent or next tier up, sized for ~2GB + growth headroom). 1.7M rows confirmed. |
+| **Website** | Astro 5 + Tailwind 4 + shadcn/ui |
+| **Hosting** | Scaleway Serverless Containers (Paris/AMS, EU-originated French cloud) |
+| **Single service** | One Rust binary serves `/api/*` and Astro static via `tower-http::ServeDir` |
+| **Observability** | Scaleway Cockpit (built-in logs + metrics) only initially |
+| **Code hosting** | GitHub (existing monorepo) |
+| **DNS** | Cloudflare (existing) — also handles rate limiting |
+| **API auth on `/convert`** | None — fully open |
+| **API auth on `/optout` (privileged write)** | Single shared bearer secret (env var on both Rust + Devvit) |
+| **Rate limiting** | Cloudflare only, no Rust middleware |
+| **Domain** | Single — everything on `www.amputatorbot.com` |
+| **Test subreddit** | r/test |
+| **AI tooling** | Claude Code + Devvit MCP + JetBrains MCP in IntelliJ |
+| **Per-user opt-out** | Kept (via Devvit modmail) |
+| **Per-subreddit opt-out** | Dropped (mods uninstall instead) |
+| **Karma threshold** | None |
+| **App Directory submitter** | `u/Killed_Mufasa` |
+
+---
+
+## Why these choices
+
+The rationale behind the decisions above. Each was a deliberate pick over a credible alternative.
+
+- **Rust + Axum over Node/TS or Python.** Single static binary, no runtime, no virtualenv, no `node_modules`. The hard parts of Rust (lifetimes, unsafe, advanced generics) don't really show up in this kind of service (HTTP fetch + regex + HTML query + DB write), so the learning curve is mostly `Result`/`?`, async/Tokio, and sqlx macros — all worth knowing. Axum 0.8 is the consensus framework in 2026 (Tokio + Hyper + Tower middleware). sqlx gives compile-time-checked queries.
+
+C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The existing bot uses `newspaper3k` + `difflib.SequenceMatcher` for guess-and-check confidence scoring (`helpers/article_comparer.py`). For the Rust port we want a Mozilla-Readability-aligned extractor. The candidates as of May 2026:
+  - `dom_smoothie` 0.17 (last release 2026-03, ~40k recent downloads, repo `niklak/dom_smoothie`) — closely follows `readability.js`, two modes (Mozilla-mimic + custom), JSON-LD + OG metadata parsing, actively maintained.
+  - `readability` 0.3 by kumabook (last release 2023-12, stagnant) — port of arc90's original Readability (predates Mozilla's fork). Higher historical download count but unmaintained.
+  - `readable-readability` 0.4 (last release 2022-12, stagnant).
+  - `llm_readability` 0.0.17 (active but 0.0.x — too early-stage for production).
+
+  `dom_smoothie` wins on active maintenance + explicit Mozilla `readability.js` lineage. We use its standard (Mozilla-mimic) mode for similarity scoring. No spike needed; pin to `dom_smoothie = "0.17"` in M2.
+
+- **No auth on `/convert`, bearer secret on privileged routes.** Production currently has `authorization_required=False` (`AmputatorBotCom/main.py:162`). No one depends on bearer auth. Cloudflare handles abuse. A single shared secret on the privileged opt-out endpoint is simpler than HMAC and entirely adequate (TLS terminates at Scaleway, the secret only ever lives in env vars).
+
+- **Cloudflare-side rate limiting.** Cloudflare already fronts the domain. Per-IP rules there are zero Rust code and configurable without redeploy.
+
+- **Modmail-only opt-out.** Reddit verifies identity for free via modmail. Blocking `u/AmputatorBot` won't work in the new world — replies post as per-install app identity, not a single account. So an explicit opt-out mechanism is needed, and a public POST endpoint would invite "opt out u/SomeoneElse" abuse.
+
+- **Modernize the DB schema during migration.** The migration tool runs once. Cleaning up `VARCHAR(4000)` → `TEXT`, adding the indices that `models/table.py` lacks, and dropping any dead columns is cheap to do once and never again.
+
+- **Logs-only observability initially.** Scaleway Cockpit (the built-in log + metric stream) is enough to grep when issues show up. Add Sentry/Bugsink only if log-grep becomes painful.
+
+- **Port the existing AMP detection + canonical methods, but fix false positives in place.** The 14 substring patterns (`static/static.py`) are noisy (`&amp;` HTML entities, `lamp_post`, `streaming_amplifier`). The 10 canonical methods and their order in `helpers/canonical_methods.py` are well-tuned and stay. The improvements happen at the AMP-detection layer (word boundaries, scoping to URL components after extraction) and in fast-path allowlists for high-signal markers.
+
+- **Refresh bot reply markdown.** One-time design pass on a new template, applied at migration. Doesn't need to look identical to the old bot.
+
+- **`git mv` everything old into `archive/` in one commit.** Sledgehammer. Old PRAW bot keeps running on PythonAnywhere as a fallback — there's no race to retire it.
+
+- **Five milestones, no calendar.** No external deadline (bounty is Dec 2026, plenty of headroom). Old bot covers production. Learning Rust + Devvit + Astro is part of the goal, so pacing should match comprehension, not a schedule.
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│ Subreddit X (mod installed amputatorbot)    │
+│   Comments / posts / modmail                │
+└──────────────┬──────────────────────────────┘
+               │ Devvit triggers (HTTP POST to internal routes)
+               ▼
+┌─────────────────────────────────────────────┐
+│ Devvit app (Node, @devvit/web)              │
+│   Runs on Reddit infrastructure             │
+│                                             │
+│   Internal HTTP routes:                     │
+│     /internal/triggers/comment-submit       │
+│     /internal/triggers/post-submit          │
+│     /internal/triggers/modmail              │
+│     /internal/on-app-install                │
+│                                             │
+│   Devvit Redis (built-in):                  │
+│     handled:{commentId}  TTL 1h             │
+│     optout:{username}    TTL 24h            │
+│                                             │
+│   Per-install settings:                     │
+│     autoReply, customFooter, killSwitch     │
+│                                             │
+│   Allowlist (devvit.json):                  │
+│     http.domains: ["www.amputatorbot.com"]  │
+└──────────────┬──────────────────────────────┘
+               │ HTTPS:
+               │   GET  /api/v1/convert?q=...&gac=true&md=3      (open, no auth)
+               │   GET  /api/v1/optout/<user>                    (bearer-auth)
+               │   POST /api/v1/optout      body: {user, source} (bearer-auth)
+               ▼
+┌─────────────────────────────────────────────┐
+│ Cloudflare (DNS + rate limiting + WAF)      │
+└──────────────┬──────────────────────────────┘
+               ▼
+┌─────────────────────────────────────────────┐
+│ Scaleway (Paris/AMS, EU)                    │
+│ www.amputatorbot.com                        │
+│                                             │
+│   Rust backend (Axum 0.8) — single binary   │
+│     /api/v1/convert    (existing contract)  │
+│     /api/v1/health                          │
+│     /api/v1/optout     (bearer-auth)        │
+│     fallback → Astro static (ServeDir)      │
+│                                             │
+│   Canonical-finding (10 methods, same       │
+│   order as Python impl):                    │
+│     REL, CANURL, OG_URL,                    │
+│     GOOGLE_MANUAL_REDIRECT, GOOGLE_JS_…,    │
+│     BING_ORIGINAL_URL, SCHEMA_MAINENTITY,   │
+│     TCO_PAGETITLE, META_REDIRECT,           │
+│     GUESS_AND_CHECK (article-similarity     │
+│       confidence via Mozilla Readability),  │
+│     DATABASE (cache lookup)                 │
+│                                             │
+│   Postgres 16 (Scaleway Managed Database):  │
+│     links, optouts, replies, kill_switch    │
+└─────────────────────────────────────────────┘
+```
+
+**Why single Rust service serving API + static site:** Devvit's allowlist is domain-level. One Scaleway Serverless Container keeps the deploy story simple. `tower-http::ServeDir` as fallback is ~5 lines.
+
+---
+
+## API contract (from `AmputatorBotCom/main.py:161+`)
+
+**Endpoint:** `GET|POST /api/v1/convert`
+
+**Query params:**
+- `q` (required) — URL or text containing URLs
+- `gac` — guess-and-check, default `true`
+- `md` — max depth, default `static.MAX_DEPTH` (port the value)
+- `gc` — generate reply markdown in response, default `false`
+- `r` — redirect mode (303 to canonical instead of returning JSON), default `false`
+
+### URL encoding behavior — both must work
+
+The API supports two callers: well-behaved clients that percent-encode their URLs, and humans who paste raw URLs into a browser address bar. Both need to work, and the heuristic in `get_query_url` (`AmputatorBotCom/main.py:116-127` + `:196-199`) is how the existing API distinguishes them.
+
+**Encoded path** — standard behavior:
+- Caller: `?q=https%3A%2F%2Fwww.google.com%2Famp%2Fs%2Fexample.com%2Famp%2F&gac=true&md=3`
+- Detected by: `q` value contains `%20` (the spec-encoding for a space, which any encoder uses when the URL contains spaces). In the existing heuristic this stands in for "the client encoded the string properly."
+- Handled by: `request.args[q]` — standard Flask/Axum query parsing. Order of params doesn't matter.
+
+**Unencoded path** — pragmatic fallback:
+- Caller: `?gac=true&md=3&q=https://www.google.com/amp/s/example.com/amp/`
+- Detected by: `q` doesn't contain `%20`.
+- Handled by: take the entire raw query string, strip known params (`md=...`, `gac=true|false`, `q=`), treat what's left as the URL. This is why raw URLs with their own `?` and `&` survive — they're never parsed as query params.
+- **Hard requirement: `q` must be the last query param** in unencoded mode. Otherwise the strip pass leaves residual params glued to the URL. Document this in the API docs and in the inline error message when the heuristic produces something that doesn't parse as a URL.
+
+The Rust impl must replicate both modes exactly. Test fixtures must cover:
+- Encoded URL with `q` last
+- Encoded URL with `q` not last
+- Unencoded URL with `q` last (the common human-pastes-into-browser case)
+- Unencoded URL containing `?` and `&` in the path/query
+- Unencoded URL containing what looks like `gac=` or `md=` literally in the path (edge case — current impl would strip these incorrectly; document as known limitation)
+
+**Response (200):** array of `Link` objects matching `models/link.py`. Each contains:
+```jsonc
+{
+  "origin": { "domain": "google", "url": "...", "is_amp": true, "is_cached": true, "is_valid": true },
+  "canonicals": [ /* array of {domain, url, type, is_amp, is_cached, is_valid, is_alt, url_similarity} */ ],
+  "canonical":   { /* best pick, same shape as canonicals[i] */ },
+  "amp_canonical": null  // or a Canonical when origin is the AMP page itself
+}
+```
+
+Confirmed against live API probe — same shape, same `type` enum values (`DATABASE`, `GOOGLE_MANUAL_REDIRECT`, `REL`, `CANURL`, `OG_URL`, etc. from `CanonicalType` in `models/link.py:23-34`).
+
+**Status codes:**
+- `200` — at least one canonical found
+- `303` — redirect mode (`r=true`) successful
+- `400` — missing `q`
+- `406` — no AMP detected (`result_code=error_no_amp`)
+- `500` — unknown error
+- `560` — no canonicals found
+- `561` — problematic domain (from `data/problematic_domains.txt`)
+
+**Bearer auth:** present in code, currently `authorization_required=False`. **Drop in v7 entirely.**
+
+---
+
+## AMP detection — port + improve
+
+**Existing logic:** 14 substring patterns in `static/static.py:8-9` (`/amp`, `amp/`, `.amp`, `amp.`, `?amp`, `amp?`, `=amp`, `amp=`, `&amp`, `amp&`, `%amp`, `amp%`, `_amp`, `amp_`), scanned against lowercase body in `helpers/checker_utils.py:check_if_amp`.
+
+**Port direction:** keep the spirit (broad keyword match) but reduce false positives:
+
+- `&amp` → require not followed by `;` (HTML entity)
+- `_amp` / `amp_` → require word boundary on at least one side, or scope to URL path components
+- All patterns: apply to extracted URL strings only (after URL extraction), not raw body text
+- Add small allowlist of high-signal AMP markers as fast-path: `*.cdn.ampproject.org`, `www.google.com/amp/s/`, `www.bing.com/amp/`, `?amp=1`, `?output=amp`, `amp.*` subdomain — short-circuit to "is AMP" without further pattern matching
+
+Tests per pattern with positive + negative fixtures (incl. `&amp;` HTML entity, `lamp_post`, `streaming_amplifier`, etc.).
+
+---
+
+## Canonical-finding — port verbatim, same order
+
+10 methods in `CanonicalType` enum (`models/link.py:23-34`). Execution flow in `helpers/canonical_methods.py`. Port to Rust with the same priority order:
+
+1. **REL** — `<link rel="canonical">`
+2. **CANURL** — regex on `canurl` query/path
+3. **OG_URL** — `<meta property="og:url">`
+4. **GOOGLE_MANUAL_REDIRECT** — Google AMP cache URL pattern parsing
+5. **GOOGLE_JS_REDIRECT** — Google AMP cache JS-redirect handling
+6. **BING_ORIGINAL_URL** — Bing AMP cache original-URL extraction
+7. **SCHEMA_MAINENTITY** — `<script type="application/ld+json">` schema.org `mainEntity`
+8. **TCO_PAGETITLE** — t.co page title heuristic
+9. **META_REDIRECT** — `<meta http-equiv="refresh">`
+10. **GUESS_AND_CHECK** — pattern-based canonical guess + article-similarity confidence scoring via Mozilla Readability port. Thresholds: `>0.6` high (`is_valid=true`), `>0.35` medium, else reject. Mirrors `canonical_methods.py:152-157`.
+11. **DATABASE** — cached canonical lookup (separate from the 10; used as a fast-path before/after methods)
+
+`is_valid` confidence flag on each canonical reflects how strong the signal is. Don't drop this — public consumers may filter on it.
+
+---
+
+## Privileged routes (bearer-auth)
+
+Single shared secret. Set as `AMPBOT_PRIVILEGED_SECRET` on both:
+- Backend: set `AMPBOT_PRIVILEGED_SECRET` in the Scaleway Serverless Container's environment variables (via console or `scw container container update`). Generate with `openssl rand -hex 32`.
+- Devvit: `devvit settings set AMPBOT_PRIVILEGED_SECRET "<same value>"`
+
+Routes:
+- `GET /api/v1/optout/:user` — returns `{ "opted_out": bool }`. Devvit caches in Redis 24h.
+- `POST /api/v1/optout` — body: `{ "user": "string", "action": "opt_in" | "opt_out", "source": "modmail" }`. Writes to Postgres `optouts` table.
+
+Both require `Authorization: Bearer <secret>` header. 401 otherwise.
+
+---
+
+## Repo layout (post-archive)
+
+```
+AmputatorBot/
+├── archive/                          # M1: everything below moved here in one git mv
+│   ├── check_comments.py
+│   ├── check_submissions.py
+│   ├── check_inbox.py
+│   ├── check_tweets.py
+│   ├── helpers/
+│   ├── datahandlers/
+│   ├── models/
+│   ├── data/
+│   ├── static/
+│   ├── AmputatorBotCom/              # full Flask app, incl. main.py with the API contract
+│   ├── img/
+│   ├── test*.py
+│   ├── requirements.txt
+│   └── README-archive.md             # pointer back to v7 plan
+├── backend/                          # Rust
+│   ├── Cargo.toml
+│   ├── Cargo.lock
+│   ├── Dockerfile
+│   ├── rust-toolchain.toml           # pins stable + rustfmt + clippy
+│   ├── deny.toml                     # cargo-deny config
+│   ├── justfile                      # project-local tasks
+│   ├── migrations/                   # sqlx
+│   ├── src/
+│   │   ├── main.rs
+│   │   ├── routes/
+│   │   ├── canonical/                # 10 methods + amp_detect + url_extract
+│   │   ├── db/
+│   │   └── readability/              # dom_smoothie wrapper + similarity
+│   ├── tests/
+│   │   ├── fixtures/
+│   │   │   └── urlconversions.json   # user-supplied test cases
+│   │   ├── snapshots/                # insta golden JSON
+│   │   ├── parity.rs                 # new-vs-live API parity
+│   │   ├── canonical_methods.rs
+│   │   └── amp_detect.rs
+│   └── tools/
+│       └── mysql_to_postgres/        # one-shot migration binary
+├── devvit-app/                       # TypeScript
+│   ├── devvit.json
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── biome.json                    # Biome lint + format config
+│   ├── justfile
+│   └── src/server/
+│       ├── index.ts
+│       ├── routes/triggers.ts
+│       ├── core/
+│       │   ├── ampDetect.ts          # mirrors backend logic
+│       │   ├── urlExtract.ts
+│       │   └── reply.ts              # new reply markdown
+│       ├── backend/client.ts         # bearer-auth privileged calls
+│       ├── storage/{dedup,optoutCache}.ts
+│       └── settings.ts
+├── website/                          # Astro
+│   ├── astro.config.mjs
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── biome.json
+│   ├── justfile
+│   ├── src/
+│   │   ├── pages/                    # index.astro, faq.mdx, about.mdx
+│   │   ├── components/react/         # ConverterForm island
+│   │   └── components/ui/            # shadcn
+│   └── public/                       # icons/logos copied from archive/AmputatorBotCom/static/
+├── .github/
+│   ├── workflows/                    # path-filtered CI per project (backend, devvit-app, website, security)
+│   └── dependabot.yml                # Cargo + npm + Actions + Docker dep updates
+├── docs/
+│   └── amputatorbot-devvit-migration-plan-v7.md   # this file
+├── .editorconfig
+├── .gitignore
+├── mise.toml                         # pins Rust + Node versions for the repo
+├── lefthook.yml                      # pre-commit hooks dispatcher
+├── justfile                          # root tasks: just test, just lint, just fmt
+├── pnpm-workspace.yaml               # ties devvit-app + website together
+└── README.md                         # rewritten for new architecture
+```
+
+---
+
+## Development environment
+
+One-time setup before M1. Doing this up front means the IDE and AI tooling are ready when implementation starts.
+
+### IntelliJ + Claude Code + MCPs
+
+IntelliJ 2025.2+ ships with a built-in MCP server. Enable it so Claude Code can read open files, run code, and use IDE-side tooling.
+
+1. **Enable IntelliJ MCP server.** Settings → Tools → MCP Server → check **Enable MCP Server**.
+2. **Auto-configure for Claude Code.** Same panel → "Clients Auto-Configuration" → **Auto-Configure for Claude Code**. This writes the JetBrains entry to `~/.claude.json`.
+3. **Add the Devvit MCP.** From a terminal:
+   ```bash
+   claude mcp add devvit -- npx -y @devvit/mcp
+   ```
+   This registers the official Devvit MCP server (`reddit/devvit-mcp`). Restart Claude Code afterward.
+4. **Verify both are connected.** In Claude Code, run `/mcp` — should list `jetbrains` and `devvit`.
+
+### Reddit/Devvit reference material for Claude
+
+Two docs to add to the context Claude Code sees during this migration:
+
+- **https://developers.reddit.com/docs/llms-full.txt** — the full Devvit docs flattened for LLM consumption. Either WebFetch on demand during a task, or save a snapshot to `docs/reference/devvit-llms-full.txt` and reference it from prompts so it's available offline.
+- **https://developers.reddit.com/docs/guides/ai** — Reddit's official guide for using AI assistants (Claude included) to build Devvit apps. Worth reading once and skimming when you hit Devvit-specific decisions.
+
+When asking Claude Code to write Devvit code, the prompt should ideally cite which section of the llms-full doc applies. The Devvit MCP can answer many of these without you having to paste.
+
+### Other toolchain checks
+
+```bash
+node --version      # need v22.x
+rustc --version     # need 1.80+; if missing: curl https://sh.rustup.rs -sSf | sh
+cargo --version
+
+npm install -g devvit
+devvit login        # browser OAuth as u/Killed_Mufasa
+devvit whoami       # confirms username
+
+brew install scw   # or download from github.com/scaleway/scaleway-cli releases
+scw init           # browser OAuth to a Scaleway account, sets up org + project
+```
+
+If Rust is brand new on this machine: `rustup default stable`.
+
+### Reddit Developer Platform migration program
+
+Apply at https://support.reddithelp.com/hc/en-us/articles/47822311698452 before M5:
+- Bot: `u/AmputatorBot`, operating since ~2019
+- Migration target: Devvit, ETA in line with M5
+- Submitter: `u/Killed_Mufasa`
+
+Anchoring the registration date probably helps bounty selection.
+
+### Pre-M1 data sizing
+
+Known (measured 2026-05-25 by Joris): `URLConversions` table is **~1.7M rows at 42.56 MB total**. That's ~26 bytes/row on disk (MySQL InnoDB compression on the URL strings is doing real work). Plenty of headroom in any managed PG plan — the smallest Scaleway tier (DB DEV-S, ~€13–15/mo) handles this with **100x growth headroom** before we'd need to size up. Joris provisions it during M1; no further sizing analysis needed.
+
+---
+
+## Development tooling & CI/CD
+
+Modern stack. Each tool picked for "what devs in 2026 actually like and use" rather than legacy familiarity. All tools below are either Rust-written (fast), industry-default, or both.
+
+### Tool version management
+- **`mise`** (https://mise.jdx.dev) — replaces `nvm` + `rustup` + `asdf` + similar with one tool. `mise.toml` at repo root pins Rust + Node versions; `mise install` reproduces the toolchain on any machine.
+
+### Rust (`backend/`)
+
+| Concern | Tool | Notes |
+|---|---|---|
+| Format | `rustfmt` | Default config + `imports_granularity = "Crate"`. `cargo fmt --check` in CI. |
+| Lint | `clippy` | `-D warnings` in CI. Curated `clippy.toml` if we hit noisy lints. |
+| Test | **`cargo nextest`** | ~60% faster than `cargo test`, better grouped output, per-test isolation. |
+| Snapshot tests | **`insta`** | JSON golden-file tests for API responses. `cargo insta review` for diffs. |
+| Coverage | `cargo-llvm-cov` | Optional. Native, fast. |
+| Security + license audit | **`cargo deny`** | One tool for: known vuln advisories, license violations, duplicate transitive deps. CI-enforced. |
+| Pre-commit | Triggered by `lefthook` | Runs `cargo fmt --check` + `cargo clippy --no-deps` on staged Rust files only. |
+
+`rust-toolchain.toml` in `backend/` pins the toolchain channel (stable) and required components (`rustfmt`, `clippy`).
+
+### TypeScript (`devvit-app/`) + Astro (`website/`)
+
+| Concern | Tool | Notes |
+|---|---|---|
+| Package manager | **`pnpm`** | Fast, disk-efficient via content-addressed store, monorepo-friendly. Devvit + Astro both support it. |
+| Format + Lint | **Biome** (https://biomejs.dev) | Single Rust-written tool replacing ESLint + Prettier. 10–100× faster. Handles JS, TS, JSX, JSON. One config file (`biome.json`) per project. |
+| Type check | **`tsgo --noEmit`** (TypeScript Native Preview, Go port — ~10× faster than `tsc`) for devvit-app + `astro check` (website, uses bundled TS) | CI-enforced. Installed via `@typescript/native-preview` (currently in preview/alpha — fine for a personal project, downgrade to `tsc` if any incompatibility surfaces). |
+| Test | **Vitest** | Devvit's default test runner. Astro's recommended choice. ESM-native, Vite-aligned. |
+| Pre-commit | Triggered by `lefthook` | Runs `biome check --write` on staged JS/TS files only. |
+
+### Cross-cutting
+
+- **`just`** (https://github.com/casey/just) — Rust-written task runner, replaces Make. One `justfile` at repo root and one per subproject. `just test`, `just lint`, `just fmt`, `just dev` work consistently across all three projects.
+- **`lefthook`** (https://lefthook.dev) — Git hook manager. Fast, parallel, language-agnostic. One `lefthook.yml` at root dispatches to per-project formatters/linters on staged files.
+- **`.editorconfig`** at root — tabs/spaces, line endings, trailing whitespace.
+- **Dependabot** — dependency updates. Configured via `.github/dependabot.yml`. Manages Cargo, npm, GitHub Actions, Docker base images. Native GitHub integration, zero external app to install.
+- **Conventional Commits** — lightly recommended in commit messages (not enforced by hook). Helpful for future changelog generation if we ever want it.
+
+### CI — GitHub Actions
+
+Path-filtered workflows so a TS change doesn't run Rust tests and vice versa.
+
+| Workflow file | Triggers on | Steps |
+|---|---|---|
+| `.github/workflows/backend.yml` | `backend/**`, `Cargo.lock` | Cache cargo + sccache → `cargo fmt --check` → `cargo clippy -- -D warnings` → `cargo nextest run` → `cargo deny check` |
+| `.github/workflows/devvit-app.yml` | `devvit-app/**` | Cache pnpm store → `pnpm install --frozen-lockfile` → `pnpm biome ci` → `pnpm tsgo --noEmit` → `pnpm vitest run` |
+| `.github/workflows/website.yml` | `website/**` | Cache pnpm → `pnpm install --frozen-lockfile` → `pnpm biome ci` → `pnpm astro check` → `pnpm vitest run` → `pnpm astro build` |
+| `.github/workflows/security.yml` | weekly cron + push to `master` | CodeQL (built-in) + `cargo deny check advisories` + secret scanning verify |
+| `.github/workflows/release.yml` | tag push (optional, M5+) | Build Docker image → push to Scaleway Container Registry → deploy/update Serverless Container |
+
+GitHub's free tier covers all of this for a public repo.
+
+### Why these (rather than alternatives)
+
+- **Biome over ESLint + Prettier:** one tool, one config, Rust-written, 10–100× faster. Increasingly the 2026 default. The only reasons to keep ESLint+Prettier are existing config bulk or a specific plugin Biome doesn't support yet — neither applies here.
+- **`cargo nextest` over `cargo test`:** faster, better output, per-test isolation. Drop-in replacement.
+- **`cargo deny` over `cargo audit` + `cargo license`:** one tool covers vulns, licenses, and dep duplication. CI step is unified.
+- **`just` over Make:** modern, fast, predictable cross-shell behavior, no `.PHONY` ceremony.
+- **`lefthook` over `husky`:** language-agnostic (we have Rust + TS + Astro in one repo), fast, parallel by default.
+- **`mise` over `asdf` + per-language version managers:** single tool covers Node, Rust, anything else we add. Rust-written, fast.
+- **`pnpm` over `npm` or `yarn`:** faster installs, disk-efficient. Devvit + Astro both support it.
+- **Not Bun:** great runtime, but Devvit's CLI + MCP are tested against Node + pnpm. Sticking with the ecosystem default reduces friction. Revisit later if Bun gains official Devvit support.
+
+---
+
+## Milestones
+
+No calendar. Each milestone has a clear "done" criterion.
+
+### M1 — Sledgehammer + scaffold + tooling
+
+**Done when:** old code in `archive/`, three empty project skeletons in place, root tooling configured, each project deploys a "hello world" somewhere reachable, CI green on the first PR.
+
+Tasks (code/structure):
+- `git mv` all old code into `archive/`, single commit, write `archive/README-archive.md`
+- Init `backend/` with `cargo init`, minimal `main.rs` exposing `GET /api/v1/health`, Dockerfile (multi-stage, `cargo chef` for cached deps), deploy to Scaleway Serverless Containers (push image to Scaleway Container Registry, then deploy the container)
+- Init `devvit-app/` from `reddit/devvit-template-bare`, strip post/menu UI, configure `devvit.json` per architecture, `devvit playtest` to r/test (no triggers wired yet — just install)
+- Init `website/` via `pnpm create astro@latest`, add Tailwind 4 + shadcn, single landing page, `pnpm astro build` outputs to `dist/`
+- Scaleway account + Managed Database instance provisioned + Serverless Container deployed (Joris does the signup + provisioning)
+- Hello-world Rust health endpoint returns 200 at the Scaleway-assigned container endpoint URL
+
+Tasks (tooling, in order):
+- Add `.editorconfig` and `.gitignore` at root
+- Add `mise.toml` pinning Rust stable + Node v22 LTS; verify `mise install` reproduces
+- Add `pnpm-workspace.yaml` declaring `devvit-app` and `website` as workspaces
+- Add `lefthook.yml` at root with the per-project pre-commit dispatchers
+- Add `.github/dependabot.yml` with ecosystems: `cargo` (backend/), `npm` (devvit-app/ + website/), `github-actions` (.github/workflows/), `docker` (backend/Dockerfile)
+- Add root `justfile` with `test`, `lint`, `fmt`, `dev` recipes that fan out to per-project justfiles
+- Per-project: `backend/rust-toolchain.toml`, `backend/deny.toml`, `backend/justfile`, `devvit-app/biome.json`, `devvit-app/justfile`, `website/biome.json`, `website/justfile`
+- Add the four GitHub Actions workflows (`backend.yml`, `devvit-app.yml`, `website.yml`, `security.yml`) with path filters
+- Open a draft PR with the M1 scaffold; confirm all four CI workflows trigger correctly and pass on the empty projects
+
+**Ask points:** Scaleway Container Registry quotas / image size limits. Container cold-start latency for a Rust binary (typically fast, worth measuring). Devvit MCP availability.
+
+### M2 — Canonical engine in Rust + parity tests
+
+**Done when:** all 10 canonical methods ported; AMP detection ported with false-positive fixes; fixture-based parity test suite green on user-supplied URLConversations.
+
+Tasks:
+- Wire `dom_smoothie` (≈0.17) as the article extractor. Use its Mozilla-mimic mode. Wrap in `backend/src/readability/` with a small adapter (`fn extract_article_text(html: &str) -> String`) so the rest of the code doesn't depend on the crate's surface directly.
+- Port 10 canonical methods one by one, with per-method unit tests
+- Port AMP detection with the improvements outlined above
+- Port URL extraction (Rust `url` crate + regex pass for unstructured text)
+- Write `backend/tests/parity.rs` — reads `fixtures/urlconversions.json`, runs each through both the local Rust impl and the live API at `www.amputatorbot.com/api/v1/convert`, diffs the canonical pick. Reports drift with readable output.
+- Snapshot tests: ~20 representative cases as golden JSON files in `backend/tests/snapshots/`
+- All `cargo test` green
+
+**Ask points:** Edge cases in canonical methods that don't translate cleanly (duck typing, ad-hoc normalization) — surface, don't paper over. If `dom_smoothie`'s standard mode produces similarity scores that misalign with the existing `>0.6` / `>0.35` thresholds on the fixture set, retune the thresholds rather than swapping the extractor.
+
+### M3 — `/api/v1/convert` parity + DB migration
+
+**Done when:** endpoint matches live response shape byte-for-byte on the snapshot set; Postgres provisioned, MySQL data migrated; `?r=true` redirect mode works; `gc=true` generates the new reply markdown.
+
+Tasks:
+- Wire `convert` route — same params, same `%20` heuristic, same status codes, same response shape (incl. `is_alt`, `is_cached`, `url_similarity` fields)
+- Write `migrations/001_initial.sql` — Postgres schema, **modernized**: `TEXT` not `VARCHAR(4000)` for URLs, indices on `(original_url)`, `(canonical_url)`, `(created_at)`, drop any dead columns from MySQL schema after auditing `models/table.py`
+- Write `tools/mysql_to_postgres/` — one-shot binary, SSH tunnel to PythonAnywhere MySQL, paged read, `ON CONFLICT DO NOTHING` write to Postgres
+- Run migration with small batch first (`LIMIT 100`), then full
+- Deploy to Scaleway; switch staging DNS to point at new backend; smoke-test from curl
+- New bot reply markdown — designed, reviewed, applied to `gc=true` output
+
+**Ask points:** MySQL schema details (which columns are actually used). Final Postgres schema (modernization scope). New reply markdown — needs visual review.
+
+### M4 — Devvit bot E2E
+
+**Done when:** AMP comment in r/test → bot replies with correct canonical; dedup prevents double-reply; opt-out via modmail works end-to-end.
+
+Tasks:
+- Port AMP detection patterns to TS (`devvit-app/src/server/core/ampDetect.ts`) — mirror Rust logic
+- Write `backend/client.ts` — fetch wrapper, bearer auth for privileged routes, no auth for `/convert`
+- Implement `/internal/triggers/comment-submit`:
+  - Extract URLs from comment body
+  - Filter AMP
+  - Check Devvit Redis dedup (`handled:{commentId}`)
+  - Check Devvit Redis opt-out cache (`optout:{username}`); on miss, `GET /api/v1/optout/:user`, cache 24h
+  - If opted out → return early
+  - `GET /api/v1/convert?q=<url>&gac=true&md=3`
+  - Build reply markdown, `context.reddit.submitComment`
+  - Mark Redis dedup with 1h TTL
+- Implement `/internal/triggers/post-submit` — same flow, URLs sourced from `title + url + body`
+- Implement `/internal/triggers/modmail` — parse `opt me out` / `opt me in`, `POST /api/v1/optout`, reply confirmation
+- Implement `/internal/on-app-install` — send welcome modmail
+- Settings: `autoReply` (bool, default true), `customFooter` (optional), `killSwitch` (bool, default false)
+- `devvit upload && devvit playtest r/test` — full smoke test with 5+ URLs from fixtures
+- Vitest unit tests for trigger handlers (mocked backend, mocked Reddit context)
+
+**Ask points:** Welcome modmail content. Exact reply markdown format (final pass).
+
+### M5 — Website + cutover
+
+**Done when:** Astro site live at `www.amputatorbot.com`; old bot still running in parallel; r/AmputatorBot announcement posted; App Directory submission in flight.
+
+Tasks:
+- Audit live site: every page, every piece of content
+- Port content to Astro: landing, FAQ (MDX), About / Why (MDX), changelog link
+- Build ConverterForm React island in `src/components/react/ConverterForm.tsx` (shadcn `<Input>`, `<Button>`, `<Card>`). POSTs to `/api/v1/convert` on same origin.
+- Copy icons/logos from `archive/AmputatorBotCom/static/` to `website/public/`
+- Two-stage Dockerfile: Astro build → Rust build → final image with `dist/` copied into the Rust container's static dir
+- Deploy; verify same-origin form submission works
+- Switch DNS (`www.amputatorbot.com` → Scaleway Serverless Container endpoint) in Cloudflare
+- Submit Devvit app to App Directory (`devvit upload --publish`), write `termsprivacy.md`
+- Install on r/AmputatorBot (canary), then r/test
+- Draft + post r/AmputatorBot sticky announcement explaining the migration + per-install identity reality
+- Send modmail wave to top N subreddits (by historical link volume)
+- Old PythonAnywhere bot stays running — no kill, no DNS pressure
+- Monitor Scaleway Cockpit logs for 72h
+
+**Ask points:** Live-site content audit (anything surprising). DNS switch timing. Outreach list size and tone.
+
+---
+
+## Testing strategy
+
+The load-bearing question: did we preserve canonical correctness while changing everything else?
+
+### Fixture-based parity (M2 + M3)
+
+User provides `backend/tests/fixtures/urlconversions.json`:
+```json
+[
+  {
+    "original_url": "https://www.google.com/amp/s/electrek.co/2018/06/19/.../amp/",
+    "expected_canonical": "https://electrek.co/2018/06/19/.../",
+    "expected_type": "GOOGLE_MANUAL_REDIRECT",
+    "notes": "optional"
+  }
+]
+```
+
+`cargo test --test parity` runs each through:
+1. New Rust impl directly
+2. Live `https://www.amputatorbot.com/api/v1/convert` (old API)
+
+Asserts:
+- New canonical matches expected
+- OR new canonical "better" by rule (non-AMP when old returned AMP)
+- Reports any drift in a readable diff
+
+### Snapshot tests (M2)
+
+~20 representative responses checked into `backend/tests/snapshots/*.json`. Catches response-shape drift. `INSTA_UPDATE=1 cargo test` to regenerate when intentionally changing shape.
+
+### Per-method unit tests (M2)
+
+Each canonical method tested in isolation with HTML fixtures in `backend/tests/fixtures/html/`. No network. Fast feedback.
+
+### AMP detection tests (M2)
+
+Per-pattern positive + negative fixtures, including the false-positive cases (`&amp;`, `lamp_post`, etc.).
+
+### Devvit-side unit tests (M4)
+
+Vitest. Mock backend client, mock Reddit context. Assert dedup, opt-out short-circuit, reply markdown.
+
+### Manual smoke (M3, M4, M5)
+
+- `curl` 10 known URLs against new endpoint, compare to live
+- `devvit playtest r/test`: post 5+ fixtures as AMP comments, eyeball replies
+- Browser test the Astro ConverterForm with the same fixtures
+
+### What we don't test
+
+- Production traffic — the old bot keeps running, so the new one isn't load-bearing for users until M5+
+- DDoS / abuse — Cloudflare's problem
+- Devvit infra behavior — Reddit's problem
+
+---
+
+## Gotchas (relevant ones only)
+
+### Rust-specific
+- First `cargo build` pulls all transitive deps, ~5 min. Subsequent incremental ~10 sec. Use `cargo check` for fast iteration.
+- `sqlx::query!` is compile-time-checked against live DB. Set `DATABASE_URL` at compile time, or use `cargo sqlx prepare` for offline.
+- `reqwest` defaults to no redirects-on-POST. For redirect-chain canonical methods, configure: `ClientBuilder::redirect(Policy::limited(10))`.
+- Borrow checker errors are educational — read them; the compiler usually tells you exactly what to fix.
+
+### API contract
+- The `%20` heuristic is the most fragile thing in the port. Test extensively. Public consumers depend on unencoded-URL behavior.
+- `is_alt`, `is_cached`, `url_similarity` are all in the response shape — port them, don't skip.
+- 303 redirect mode (`?r=true`) — implement, even if you'd rather not.
+
+### Devvit
+- Use `@devvit/web`, not `@devvit/public-api` (legacy Blocks).
+- Bot replies post as **per-install app identity**, not `u/AmputatorBot`. Communicate in launch announcement.
+- `permissions.http.domains` is domain-level only.
+- Triggers are HTTP routes — Reddit POSTs to internal paths.
+- `devvit playtest` for one-sub dev install; only `--publish` at M5.
+
+### Scaleway
+- Deploy flow: build Docker image locally → push to Scaleway Container Registry → deploy/update Serverless Container at that image tag. Automate via the `scw` CLI or the Terraform provider once it's working manually.
+- Serverless Containers bind to the port set via `PORT` env var (default 8080). The Rust binary should read `PORT` and bind to `0.0.0.0:$PORT`.
+- Cold-start latency on first request after idle (auto-pause). For a Rust binary this is typically <500ms but worth measuring. If unacceptable, set min-scale to 1 (costs a bit more, no pauses).
+- Container memory + CPU are configured per-deployment. Start small (256MB / 100m vCPU) and scale up if profiling shows pressure.
+- Managed Database: use the `DATABASE_URL` Scaleway exposes; sslmode=require by default.
+- Cockpit (logs/metrics) is enabled per-project — turn it on at provisioning time.
+- Cost watch: Serverless Containers free tier is generous, but check the dashboard occasionally — runaway loops can chew through GB-seconds quickly.
+
+### Astro + shadcn
+- Path alias `@/*` required in `tsconfig.json` before `shadcn init`.
+- React-context-heavy shadcn components (Popover, Dialog, Tabs) need single-`.tsx`-file composition. Not an issue for a single ConverterForm.
+- `client:load` for the converter island.
+
+### Don't-shoot-yourself-in-the-foot
+- Never commit the privileged bearer secret or the Postgres URL. Use Scaleway container env vars + `devvit settings set`.
+- Old PRAW bot keeps running — don't accidentally stop it.
+- Rotate credentials in `archive/static/static.py` and `archive/AmputatorBotCom/main.py` — they're checked into git history. Anything reachable (Reddit OAuth secrets, Twitter keys, SSH passwords, MySQL passwords) needs rotation regardless of the archive move.
+
+---
+
+## Cost summary
+
+| Component | Provider | Cost |
+|---|---|---|
+| Devvit app runtime | Reddit | €0 |
+| Backend (Rust) | Scaleway Serverless Containers | ~€0–3/mo (free tier covers bot-scale traffic) |
+| Postgres (42.56 MB, 1.7M rows) | Scaleway Managed Database, smallest tier (DB DEV-S) | ~€13–15/mo |
+| Container Registry (Docker images) | Scaleway Container Registry | ~€0–1/mo (small image footprint) |
+| Logs + metrics | Scaleway Cockpit | included |
+| Code hosting | GitHub | €0 |
+| DNS + rate limiting | Cloudflare | €0 (free tier) |
+| Old site (kept running) | PythonAnywhere | $14/mo, indefinitely |
+
+**Honest framing:** all-in for the new stack is **~€15–18/mo**, roughly the same as the current PythonAnywhere bill. This migration is not a cost-reduction play; it's modernization + learning + bounty eligibility. With PythonAnywhere kept in parallel, the total monthly outlay during co-existence is ~€28–32. Steady state (if PA is ever cancelled) returns to ~€15–18.
+
+---
+
+## References
+
+### Reddit
+- Migration program: https://support.reddithelp.com/hc/en-us/articles/47822311698452
+- Devvit docs: https://developers.reddit.com/docs
+- Devvit MCP: https://github.com/reddit/devvit-mcp
+- Devvit template: https://github.com/reddit/devvit-template-bare
+
+### Stack
+- Axum: https://docs.rs/axum/latest/axum/
+- sqlx: https://docs.rs/sqlx/latest/sqlx/
+- scraper: https://docs.rs/scraper/latest/scraper/
+- reqwest: https://docs.rs/reqwest/latest/reqwest/
+- Astro: https://docs.astro.build
+- shadcn Astro install: https://ui.shadcn.com/docs/installation/astro
+
+### Scaleway
+- Serverless Containers: https://www.scaleway.com/en/docs/serverless-containers/
+- Managed PostgreSQL: https://www.scaleway.com/en/docs/managed-databases-for-postgresql-and-mysql/
+- Pricing: https://www.scaleway.com/en/pricing/
+- `scw` CLI: https://github.com/scaleway/scaleway-cli
+
+### Existing AmputatorBot
+- Repo: https://github.com/jvdburgh/AmputatorBot
+- Postman docs: https://documenter.getpostman.com/view/12422626/UVC3n93T
