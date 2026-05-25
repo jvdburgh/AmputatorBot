@@ -3,7 +3,6 @@
 **Status:** living draft
 **Drafted:** 2026-05-25
 **Budget cap:** €15/month total
-**Bounty deadline:** Dec 31, 2026 (Reddit Developer Platform App Migration Program)
 
 ---
 
@@ -118,7 +117,7 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 
 - **`git mv` everything old into `archive/` in one commit.** Sledgehammer. Old PRAW bot keeps running on PythonAnywhere as a fallback — there's no race to retire it.
 
-- **Five milestones, no calendar.** No external deadline (bounty is Dec 2026, plenty of headroom). Old bot covers production. Learning Rust + Devvit + Astro is part of the goal, so pacing should match comprehension, not a schedule.
+- **Six milestones, no calendar.** Local-first: M1–M5 are all local development (scaffolding, canonical engine, API parity, Devvit playtest, Astro). M6 is the cloud + public launch (Scaleway provisioning, prod data migration, DNS cutover, App Directory). No external deadline (bounty is Dec 2026). Old bot covers production. Learning Rust + Devvit + Astro is part of the goal, so pacing should match comprehension, not a schedule.
 
 ---
 
@@ -426,9 +425,9 @@ If Rust is brand new on this machine: `rustup default stable`.
 
 ### Reddit Developer Platform migration program
 
-Apply at https://support.reddithelp.com/hc/en-us/articles/47822311698452 before M5:
+Apply at https://support.reddithelp.com/hc/en-us/articles/47822311698452 before M6:
 - Bot: `u/AmputatorBot`, operating since ~2019
-- Migration target: Devvit, ETA in line with M5
+- Migration target: Devvit, ETA in line with M6
 - Submitter: `u/Killed_Mufasa`
 
 Anchoring the registration date probably helps bounty selection.
@@ -488,7 +487,7 @@ Path-filtered workflows so a TS change doesn't run Rust tests and vice versa.
 | `.github/workflows/devvit-app.yml` | `devvit-app/**` | Cache pnpm store → `pnpm install --frozen-lockfile` → `pnpm biome ci` → `pnpm tsgo --noEmit` → `pnpm vitest run` |
 | `.github/workflows/website.yml` | `website/**` | Cache pnpm → `pnpm install --frozen-lockfile` → `pnpm biome ci` → `pnpm astro check` → `pnpm vitest run` → `pnpm astro build` |
 | `.github/workflows/security.yml` | weekly cron + push to `master` | CodeQL (built-in) + `cargo deny check advisories` + secret scanning verify |
-| `.github/workflows/release.yml` | tag push (optional, M5+) | Build Docker image → push to Scaleway Container Registry → deploy/update Serverless Container |
+| `.github/workflows/release.yml` | tag push (optional, M6+) | Build Docker image → push to Scaleway Container Registry → deploy/update Serverless Container |
 
 GitHub's free tier covers all of this for a public repo.
 
@@ -509,30 +508,30 @@ GitHub's free tier covers all of this for a public repo.
 
 No calendar. Each milestone has a clear "done" criterion.
 
-### M1 — Sledgehammer + scaffold + tooling
+### M1 — Sledgehammer + scaffold + tooling (local only)
 
-**Done when:** old code in `archive/`, three empty project skeletons in place, root tooling configured, each project deploys a "hello world" somewhere reachable, CI green on the first PR.
+**Done when:** old code in `archive/`, three empty project skeletons in place, root tooling configured, every project's local check pipeline (`just check`) is green, lefthook pre-commit hooks fire.
 
 Tasks (code/structure):
 - `git mv` all old code into `archive/`, single commit, write `archive/README-archive.md`
-- Init `backend/` with `cargo init`, minimal `main.rs` exposing `GET /api/v1/health`, Dockerfile (multi-stage, `cargo chef` for cached deps), deploy to Scaleway Serverless Containers (push image to Scaleway Container Registry, then deploy the container)
-- Init `devvit-app/` from `reddit/devvit-template-bare`, strip post/menu UI, configure `devvit.json` per architecture, `devvit playtest` to r/test (no triggers wired yet — just install)
-- Init `website/` via `pnpm create astro@latest`, add Tailwind 4 + shadcn, single landing page, `pnpm astro build` outputs to `dist/`
-- Scaleway account + Managed Database instance provisioned + Serverless Container deployed (Joris does the signup + provisioning)
-- Hello-world Rust health endpoint returns 200 at the Scaleway-assigned container endpoint URL
+- Init `backend/` with `cargo init`, minimal `main.rs` exposing `GET /api/v1/health`, Dockerfile (multi-stage, `cargo chef` for cached deps)
+- Init `devvit-app/` with minimal Hono server using `@devvit/web/server`'s `createServer` + `@hono/node-server`'s `getRequestListener`; configure `devvit.json` and `vite.config.ts` per Devvit docs (Vite plugin via `@devvit/start/vite`)
+- Init `website/` (Astro 6 + Tailwind 4 + React 19), single landing page, `pnpm astro build` outputs to `dist/`
 
 Tasks (tooling, in order):
 - Add `.editorconfig` and `.gitignore` at root
-- Add `mise.toml` pinning Rust stable + Node v22 LTS; verify `mise install` reproduces
-- Add `pnpm-workspace.yaml` declaring `devvit-app` and `website` as workspaces
-- Add `lefthook.yml` at root with the per-project pre-commit dispatchers
-- Add `.github/dependabot.yml` with ecosystems: `cargo` (backend/), `npm` (devvit-app/ + website/), `github-actions` (.github/workflows/), `docker` (backend/Dockerfile)
+- Add `mise.toml` pinning Rust stable + Node 22 + pnpm 11 + just + lefthook; verify `mise install` reproduces
+- Add `pnpm-workspace.yaml` declaring `devvit-app` and `website` as workspaces (incl. `allowBuilds` for esbuild/protobufjs/sharp under pnpm v10+)
+- Add `lefthook.yml` at root with per-project pre-commit dispatchers (rustfmt + clippy / biome)
+- Add `.github/dependabot.yml` with ecosystems: `cargo`, `npm`, `github-actions`, `docker`
 - Add root `justfile` with `test`, `lint`, `fmt`, `dev` recipes that fan out to per-project justfiles
 - Per-project: `backend/rust-toolchain.toml`, `backend/deny.toml`, `backend/justfile`, `devvit-app/biome.json`, `devvit-app/justfile`, `website/biome.json`, `website/justfile`
 - Add the four GitHub Actions workflows (`backend.yml`, `devvit-app.yml`, `website.yml`, `security.yml`) with path filters
-- Open a draft PR with the M1 scaffold; confirm all four CI workflows trigger correctly and pass on the empty projects
+- Open a draft PR; confirm all four CI workflows trigger correctly and pass on the empty projects
 
-**Ask points:** Scaleway Container Registry quotas / image size limits. Container cold-start latency for a Rust binary (typically fast, worth measuring). Devvit MCP availability.
+**Ask points:** Devvit MCP availability. Any remaining framework picks (Hono vs. Express was resolved in favor of Hono for modernity).
+
+**Scaleway is intentionally NOT in M1.** Local-first: prove the toolchain works end-to-end before engaging with any cloud provider. Cloud provisioning + deployment is M6.
 
 ### M2 — Canonical engine in Rust + parity tests
 
@@ -549,19 +548,20 @@ Tasks:
 
 **Ask points:** Edge cases in canonical methods that don't translate cleanly (duck typing, ad-hoc normalization) — surface, don't paper over. If `dom_smoothie`'s standard mode produces similarity scores that misalign with the existing `>0.6` / `>0.35` thresholds on the fixture set, retune the thresholds rather than swapping the extractor.
 
-### M3 — `/api/v1/convert` parity + DB migration
+### M3 — `/api/v1/convert` parity + DB migration tool (local)
 
-**Done when:** endpoint matches live response shape byte-for-byte on the snapshot set; Postgres provisioned, MySQL data migrated; `?r=true` redirect mode works; `gc=true` generates the new reply markdown.
+**Done when:** endpoint matches live response shape byte-for-byte on the snapshot set running against a local Docker Postgres; the MySQL→Postgres migration tool is written and tested on a small sample; `?r=true` redirect mode works; `gc=true` generates the new reply markdown.
 
 Tasks:
 - Wire `convert` route — same params, same `%20` heuristic, same status codes, same response shape (incl. `is_alt`, `is_cached`, `url_similarity` fields)
 - Write `migrations/001_initial.sql` — Postgres schema, **modernized**: `TEXT` not `VARCHAR(4000)` for URLs, indices on `(original_url)`, `(canonical_url)`, `(created_at)`, drop any dead columns from MySQL schema after auditing `models/table.py`
-- Write `tools/mysql_to_postgres/` — one-shot binary, SSH tunnel to PythonAnywhere MySQL, paged read, `ON CONFLICT DO NOTHING` write to Postgres
-- Run migration with small batch first (`LIMIT 100`), then full
-- Deploy to Scaleway; switch staging DNS to point at new backend; smoke-test from curl
+- Spin up local Postgres for development (`docker compose up postgres` or similar) so the Rust backend has a real DB to talk to without Scaleway
+- Write `tools/mysql_to_postgres/` — one-shot binary, SSH tunnel to PythonAnywhere MySQL, paged read, `ON CONFLICT DO NOTHING` write to Postgres. Test it locally against a fixture-sized MySQL dump or a `LIMIT 100` sample.
 - New bot reply markdown — designed, reviewed, applied to `gc=true` output
 
 **Ask points:** MySQL schema details (which columns are actually used). Final Postgres schema (modernization scope). New reply markdown — needs visual review.
+
+**Production data migration to Scaleway PG happens in M6**, not here. M3 only verifies the tool works.
 
 ### M4 — Devvit bot E2E
 
@@ -588,26 +588,52 @@ Tasks:
 
 **Ask points:** Welcome modmail content. Exact reply markdown format (final pass).
 
-### M5 — Website + cutover
+### M5 — Astro website (local)
 
-**Done when:** Astro site live at `www.amputatorbot.com`; old bot still running in parallel; r/AmputatorBot announcement posted; App Directory submission in flight.
+**Done when:** the full Astro site builds locally, all content is in place, the ConverterForm works against the local Rust backend, and the two-stage Dockerfile produces a single image containing both the Rust binary and the Astro static bundle.
 
 Tasks:
 - Audit live site: every page, every piece of content
 - Port content to Astro: landing, FAQ (MDX), About / Why (MDX), changelog link
 - Build ConverterForm React island in `src/components/react/ConverterForm.tsx` (shadcn `<Input>`, `<Button>`, `<Card>`). POSTs to `/api/v1/convert` on same origin.
 - Copy icons/logos from `archive/AmputatorBotCom/static/` to `website/public/`
-- Two-stage Dockerfile: Astro build → Rust build → final image with `dist/` copied into the Rust container's static dir
-- Deploy; verify same-origin form submission works
-- Switch DNS (`www.amputatorbot.com` → Scaleway Serverless Container endpoint) in Cloudflare
+- Update root `Dockerfile` (or backend's) to be two-stage: Astro build → Rust build → final image with `dist/` copied into the Rust container's static dir served by `tower-http::ServeDir`
+- Verify locally: `docker run` the combined image, hit `http://localhost:8080/` (Astro static), `http://localhost:8080/api/v1/convert?q=...` (Rust API)
+- Vitest tests for the ConverterForm component
+
+**Ask points:** Live-site content audit (anything surprising). Whether to keep `/about` route names matching the legacy site or rename freely.
+
+**No cloud, no DNS, no Devvit publish here** — that's M6.
+
+### M6 — Cloud deployment + public launch
+
+**Done when:** the Astro+Rust container is live at `www.amputatorbot.com` on Scaleway, prod Postgres holds the migrated dataset, the Devvit app is in the App Directory, r/AmputatorBot has the announcement sticky, and the old PythonAnywhere bot is still running in parallel as a safety net.
+
+Cloud setup (Joris does the signups; Claude prepares exact commands):
+- Provision Scaleway Managed Database for PostgreSQL (DB DEV-S tier; the live MySQL is 42.56 MB so smallest tier is plenty)
+- Provision Scaleway Container Registry namespace
+- Note connection strings + registry URL; Joris sets the env vars on the Serverless Container
+
+Production data migration:
+- Run the M3 `tools/mysql_to_postgres/` binary against the live PythonAnywhere MySQL → Scaleway PG. Small batch first (`LIMIT 100`), verify, then full.
+
+Deploy:
+- Build the two-stage Astro+Rust Docker image, push to Scaleway Container Registry
+- Deploy the Serverless Container; configure env vars (`DATABASE_URL`, `AMPBOT_PRIVILEGED_SECRET`)
+- Smoke-test the container endpoint via `curl` (health, `/api/v1/convert`, static page, `?r=true` redirect)
+- Switch DNS (`www.amputatorbot.com` → Scaleway Serverless Container endpoint) in Cloudflare; verify TLS
+
+Public launch:
 - Submit Devvit app to App Directory (`devvit upload --publish`), write `termsprivacy.md`
 - Install on r/AmputatorBot (canary), then r/test
 - Draft + post r/AmputatorBot sticky announcement explaining the migration + per-install identity reality
 - Send modmail wave to top N subreddits (by historical link volume)
+
+Post-launch:
 - Old PythonAnywhere bot stays running — no kill, no DNS pressure
 - Monitor Scaleway Cockpit logs for 72h
 
-**Ask points:** Live-site content audit (anything surprising). DNS switch timing. Outreach list size and tone.
+**Ask points:** DNS switch timing. Outreach list size and tone. Welcome modmail content. Whether to keep the old PythonAnywhere bot running indefinitely or set a sunset date.
 
 ---
 
@@ -654,7 +680,7 @@ Per-pattern positive + negative fixtures, including the false-positive cases (`&
 
 Vitest. Mock backend client, mock Reddit context. Assert dedup, opt-out short-circuit, reply markdown.
 
-### Manual smoke (M3, M4, M5)
+### Manual smoke (M3, M4, M5, M6)
 
 - `curl` 10 known URLs against new endpoint, compare to live
 - `devvit playtest r/test`: post 5+ fixtures as AMP comments, eyeball replies
@@ -662,7 +688,7 @@ Vitest. Mock backend client, mock Reddit context. Assert dedup, opt-out short-ci
 
 ### What we don't test
 
-- Production traffic — the old bot keeps running, so the new one isn't load-bearing for users until M5+
+- Production traffic — the old bot keeps running, so the new one isn't load-bearing for users until M6+
 - DDoS / abuse — Cloudflare's problem
 - Devvit infra behavior — Reddit's problem
 
@@ -686,7 +712,7 @@ Vitest. Mock backend client, mock Reddit context. Assert dedup, opt-out short-ci
 - Bot replies post as **per-install app identity**, not `u/AmputatorBot`. Communicate in launch announcement.
 - `permissions.http.domains` is domain-level only.
 - Triggers are HTTP routes — Reddit POSTs to internal paths.
-- `devvit playtest` for one-sub dev install; only `--publish` at M5.
+- `devvit playtest` for one-sub dev install; only `--publish` at M6.
 
 ### Scaleway
 - Deploy flow: build Docker image locally → push to Scaleway Container Registry → deploy/update Serverless Container at that image tag. Automate via the `scw` CLI or the Terraform provider once it's working manually.
