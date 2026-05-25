@@ -1,0 +1,78 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="content-section">
+    <form method="POST" action="" id="input_form">
+        {{ form.hidden_tag() }}
+        <fieldset class="form-group">
+            <legend class="">Remove AMP from your URLs</legend>
+            <div class="form-group">
+                {{ form.query.label(class="form-control-label") }}
+                {% if form.query.errors %}
+                {{ form.query(class="form-control form-control-lg is-invalid") }}
+                <div class="invalid-feedback">
+                    {% for error in form.query.errors %}
+                    <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                {{ form.query(class="form-control form-control-lg") }}
+                {% endif %}
+            </div>
+        </fieldset>
+        <div class="form-group">
+            {{ form.submit(class="main-button") }}
+            <div id="toggle-optional" onclick="toggleOptional(this)">+ Show optional settings</div>
+        </div>
+        <div class="form-group d-none" id="optional">
+            <div class="margin" style="margin-top:.5rem;"></div>
+            {{ form.generate_comment.label(class="form-control-label") }}
+            {% if form.generate_comment.errors %}
+            {{ form.generate_comment(class="form-control form-control-lg is-invalid") }}
+            <div class="invalid-feedback">
+                {% for error in form.generate_comment.errors %}
+                <span>{{ error }}</span>
+                {% endfor %}
+            </div>
+            {% else %}
+            {{ form.generate_comment(class="form-control form-control-lg") }}
+            {% endif %}
+
+            {{ form.use_gac.label(class="form-control-label") }}
+            {% if form.use_gac.errors %}
+            {{ form.use_gac(class="form-control form-control-lg is-invalid") }}
+            <div class="invalid-feedback">
+                {% for error in form.use_gac.errors %}
+                <span>{{ error }}</span>
+                {% endfor %}
+            </div>
+            {% else %}
+            {{ form.use_gac(class="form-control form-control-lg") }}
+            {% endif %}
+
+            {{ form.max_depth.label(class="form-control-label") }}
+            {% if form.max_depth.errors %}
+            {{ form.max_depth(class="form-control form-control-lg is-invalid") }}
+            <div class="invalid-feedback">
+                {% for error in form.max_depth.errors %}
+                <span>{{ error }}</span>
+                {% endfor %}
+            </div>
+            {% else %}
+            {{ form.max_depth(class="form-control form-control-lg") }}
+            {% endif %}
+
+            {{ form.should_redirect.label(class="form-control-label") }}
+            {% if form.should_redirect.errors %}
+            {{ form.should_redirect(class="form-control form-control-lg is-invalid") }}
+            <div class="invalid-feedback">
+                {% for error in form.should_redirect.errors %}
+                <span>{{ error }}</span>
+                {% endfor %}
+            </div>
+            {% else %}
+            {{ form.should_redirect(class="form-control form-control-lg") }}
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock content %}
