@@ -40,7 +40,9 @@ parity:
     cargo nextest run --test parity --no-capture
 
 # Record HTML fixtures from a URLConversions CSV. Idempotent — re-runnable.
-record-fixtures CSV="tests/fixtures/urlconversions/URLConversions_500_including_failed_and_false_positives.csv":
+# Default is the 10k-row unfiltered sample (includes failures + false
+# positives). Pass a path to override.
+record-fixtures CSV="tests/fixtures/urlconversions/10000_conversions_unfiltered.csv":
     cargo run --release --bin record_fixtures -- --input {{CSV}}
 
 # Build release binary

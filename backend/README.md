@@ -76,17 +76,18 @@ bot recorded.
 #### Step 1 — Record fixtures
 
 Fetch every URL in a CSV export and save the response to
-`tests/fixtures/html/<csv_id>.json`:
+`tests/fixtures/html/<entry_id>.json`:
 
 ```bash
 just record-fixtures
 ```
 
-That uses the default CSV (the 500-row sample). For the larger 7000-row
-set:
+That uses the default CSV (`10000_conversions_unfiltered.csv` — a random
+10k-row slice including failures and false positives). For the
+successes-only set:
 
 ```bash
-just record-fixtures tests/fixtures/urlconversions/URLConversions_7000_successful.csv
+just record-fixtures tests/fixtures/urlconversions/10000_conversions_with_canonical.csv
 ```
 
 Properties:
@@ -95,7 +96,8 @@ Properties:
   re-run is safe.
 - **Respectful.** Default 4 concurrent fetches, 15s timeout, rotating
   Firefox user agent.
-- **Slow.** Roughly 5 minutes for 500 rows, 30+ minutes for 7000.
+- **Slow.** Roughly an hour for the full 10k set; faster for repeat runs
+  since existing fixtures are skipped.
 
 The HTML directory (`tests/fixtures/html/`) is gitignored — generated
 content, can be re-built on demand.

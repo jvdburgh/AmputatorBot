@@ -10,12 +10,13 @@
 //! ```bash
 //! cd backend
 //! cargo run --bin record_fixtures -- \
-//!     --input tests/fixtures/urlconversions/URLConversions_500_including_failed_and_false_positives.csv \
+//!     --input tests/fixtures/urlconversions/10000_conversions_unfiltered.csv \
 //!     --output tests/fixtures/html
 //! ```
 //!
-//! CSV schema (no header, comma-separated):
-//!   id, type, timestamp_utc, original_url, canonical_url, canonical_type, note
+//! CSV schema (header row required):
+//!   entry_id, entry_type, handled_utc, original_url, canonical_url,
+//!   canonical_type, note
 
 use std::path::{Path, PathBuf};
 
@@ -76,7 +77,7 @@ struct CsvRow {
 
 fn read_csv(path: &Path) -> Result<Vec<CsvRow>> {
     let mut reader = csv::ReaderBuilder::new()
-        .has_headers(false)
+        .has_headers(true)
         .flexible(true)
         .from_path(path)
         .with_context(|| format!("opening {}", path.display()))?;
@@ -85,6 +86,9 @@ fn read_csv(path: &Path) -> Result<Vec<CsvRow>> {
         .records()
         .filter_map(|r| r.ok())
         .filter_map(|r| {
+            // Columns by name (positional fallback if header doesn't match):
+            //   0=entry_id, 1=entry_type, 2=handled_utc, 3=original_url,
+            //   4=canonical_url, 5=canonical_type, 6=note
             let csv_id: i64 = r.get(0)?.parse().ok()?;
             let original_url = r.get(3)?.trim().to_string();
             if original_url.is_empty() {

@@ -38,8 +38,11 @@ pub(crate) const AMP_KEYWORDS: &[&str] = &[
 /// Ports `archive/static/static.py:10`. These are domains where the substring
 /// match historically misfired, so the legacy bot just bailed.
 const DENYLISTED_DOMAINS: &[&str] = &[
+    "video.twimg.kim",
     "bandcamp.com",
     "progonlymusic.com",
+    "redd.it",
+    "reddit.com",
     "spotify.com",
     "youtube.com",
 ];
@@ -154,8 +157,8 @@ mod tests {
 
     #[test]
     fn rejects_amputeestore_false_positive() {
-        // This is the canonical false-positive case from the URLConversions
-        // 500-row sample — the legacy substring scan flagged these as AMP
+        // This is the canonical false-positive case in the URLConversions
+        // fixture set — the legacy substring scan flagged these as AMP
         // because `/amp` matches against `//amp` after the scheme. Our
         // component-scoped scan correctly says no.
         assert!(!is_amp_url(

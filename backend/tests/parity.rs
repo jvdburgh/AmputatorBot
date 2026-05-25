@@ -6,9 +6,8 @@
 //!
 //! ```bash
 //! cd backend
-//! cargo run --bin record_fixtures -- \
-//!   --input tests/fixtures/urlconversions/URLConversions_500_including_failed_and_false_positives.csv
-//! cargo nextest run --test parity
+//! just record-fixtures      # populates tests/fixtures/html/ (default CSV)
+//! just parity               # runs this test with output streamed
 //! ```
 //!
 //! If `tests/fixtures/html/` is empty (gitignored, never recorded locally),
@@ -124,9 +123,8 @@ async fn parity_against_recorded_urlconversions() {
 
     if fixtures.is_empty() {
         let msg = format!(
-            "[parity] No fixtures in {} — run\n  \
-             cargo run --bin record_fixtures -- --input tests/fixtures/urlconversions/URLConversions_500_including_failed_and_false_positives.csv\n\
-             then re-run this test. Skipping.",
+            "[parity] No fixtures in {} — run `just record-fixtures` to \
+             populate them, then re-run this test. Skipping.",
             fixtures_dir.display()
         );
         eprintln!("{msg}");

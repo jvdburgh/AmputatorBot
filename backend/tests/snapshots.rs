@@ -95,11 +95,11 @@ async fn snapshot_non_amp_origin_returns_empty_link() {
 
 #[tokio::test]
 async fn snapshot_amputeestore_false_positive_short_circuits() {
-    // The famous false-positive shape from the 500-row fixture sample. The
-    // legacy substring-AMP-detect flagged `amputeestore.com` URLs as AMP
-    // (because `//a...mp` after the scheme spans `/amp`). Our component-
-    // scoped detector correctly rejects them — origin.is_amp = false,
-    // canonical-finding never runs.
+    // The famous false-positive shape in the URLConversions fixture set.
+    // The legacy substring-AMP-detect flagged `amputeestore.com` URLs as
+    // AMP (because `//a...mp` after the scheme spans `/amp`). Our
+    // component-scoped detector correctly rejects them — origin.is_amp
+    // = false, canonical-finding never runs.
     let url = "https://amputeestore.com/products/tamarack-glidewear-prosthetic-liner-patch";
     let mock = MockPageSource::new();
     let link = resolve(&mock, url, ResolveOpts::default()).await;
