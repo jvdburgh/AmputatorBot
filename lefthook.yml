@@ -8,12 +8,14 @@ pre-commit:
     backend-fmt:
       root: "backend/"
       glob: "*.rs"
-      run: cargo fmt --all -- --check
+      # mise exec — lefthook spawns a fresh shell that doesn't pick up mise's
+      # shim-PATH, so we explicitly route through mise to find cargo.
+      run: mise exec -- cargo fmt --all -- --check
 
     backend-clippy:
       root: "backend/"
       glob: "*.rs"
-      run: cargo clippy --all-targets --quiet -- -D warnings
+      run: mise exec -- cargo clippy --all-targets --quiet -- -D warnings
 
     devvit-app-biome:
       root: "devvit-app/"
