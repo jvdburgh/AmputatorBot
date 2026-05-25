@@ -25,7 +25,10 @@ use url::Url;
 /// Applied against each URL component (host, path, query) by
 /// [`is_amp_url`]. The order is preserved from the legacy bot, though
 /// short-circuit evaluation means it doesn't strictly matter.
-const AMP_KEYWORDS: &[&str] = &[
+///
+/// Visible to the rest of `canonical::` because GUESS_AND_CHECK mutates
+/// URLs by removing each keyword in turn — see `methods::guess_and_check`.
+pub(crate) const AMP_KEYWORDS: &[&str] = &[
     "/amp", "amp/", ".amp", "amp.", "?amp", "amp?", "=amp", "amp=", "&amp", "amp&", "%amp", "amp%",
     "_amp", "amp_",
 ];

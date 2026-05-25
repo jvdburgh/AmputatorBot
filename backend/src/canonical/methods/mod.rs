@@ -18,6 +18,7 @@ pub mod bing_original;
 pub mod canurl;
 pub mod google_js;
 pub mod google_manual;
+pub mod guess_and_check;
 pub mod meta_redirect;
 pub mod og_url;
 pub mod rel;
@@ -89,8 +90,10 @@ pub fn try_method(method: CanonicalType, ctx: &MethodContext<'_>) -> Vec<String>
         CanonicalType::SchemaMainentity => schema_mainentity::find(ctx),
         CanonicalType::TcoPagetitle => tco_pagetitle::find(ctx),
         CanonicalType::MetaRedirect => meta_redirect::find(ctx),
-        // GUESS_AND_CHECK lands in M2.6 (needs the readability adapter for
-        // article-similarity scoring). DATABASE lands in M3 (needs sqlx).
+        // GUESS_AND_CHECK is async (issues a second HTTP fetch) and lives in
+        // `guess_and_check::find` — the orchestrator awaits it directly
+        // rather than routing through this sync dispatch. DATABASE lands
+        // with the M3 sqlx + Postgres work.
         CanonicalType::GuessAndCheck | CanonicalType::Database => Vec::new(),
     }
 }
