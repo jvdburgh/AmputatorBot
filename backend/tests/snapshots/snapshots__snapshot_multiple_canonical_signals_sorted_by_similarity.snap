@@ -1,0 +1,46 @@
+---
+source: tests/snapshots.rs
+expression: link
+---
+{
+  "amp_canonical": null,
+  "canonical": {
+    "domain": "example",
+    "is_alt": false,
+    "is_amp": false,
+    "is_cached": null,
+    "is_valid": true,
+    "type": "REL",
+    "url": "https://example.com/article-2024-tesla",
+    "url_similarity": 0.7835051546391752
+  },
+  "canonicals": [
+    {
+      "domain": "example",
+      "is_alt": false,
+      "is_amp": false,
+      "is_cached": null,
+      "is_valid": true,
+      "type": "REL",
+      "url": "https://example.com/article-2024-tesla",
+      "url_similarity": 0.7835051546391752
+    },
+    {
+      "domain": "example",
+      "is_alt": false,
+      "is_amp": false,
+      "is_cached": null,
+      "is_valid": true,
+      "type": "OG_URL",
+      "url": "https://example.com/totally-different-path",
+      "url_similarity": 0.45544554455445546
+    }
+  ],
+  "origin": {
+    "domain": "google",
+    "is_amp": true,
+    "is_cached": true,
+    "is_valid": true,
+    "url": "https://www.google.com/amp/s/example.com/article-2024-tesla"
+  }
+}

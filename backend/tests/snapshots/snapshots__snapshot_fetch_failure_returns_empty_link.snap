@@ -1,0 +1,16 @@
+---
+source: tests/snapshots.rs
+expression: link
+---
+{
+  "amp_canonical": null,
+  "canonical": null,
+  "canonicals": [],
+  "origin": {
+    "domain": "google",
+    "is_amp": true,
+    "is_cached": true,
+    "is_valid": true,
+    "url": "https://www.google.com/amp/s/example.com/article"
+  }
+}
