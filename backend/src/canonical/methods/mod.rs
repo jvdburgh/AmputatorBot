@@ -104,7 +104,7 @@ pub fn try_method(method: CanonicalType, ctx: &MethodContext<'_>) -> Vec<String>
 ///
 /// Ports `archive/helpers/canonical_methods.py:get_can_url_with_regex`.
 /// `\/` is unescaped to `/` — some scripts emit JSON-encoded URLs like
-/// `https:\/\/example.com\/`.
+/// `https:\/\/example.eu\/`.
 pub(crate) fn find_in_inline_scripts(html: &Html, pattern: &Regex) -> Option<String> {
     static SCRIPT: std::sync::LazyLock<Selector> =
         std::sync::LazyLock::new(|| Selector::parse("script:not([src])").expect("script selector"));
@@ -143,30 +143,30 @@ mod tests {
     #[test]
     fn resolve_protocol_relative() {
         assert_eq!(
-            resolve_against("https://example.com/page", "//cdn.example.com/img").as_deref(),
-            Some("https://cdn.example.com/img")
+            resolve_against("https://example.eu/page", "//cdn.example.eu/img").as_deref(),
+            Some("https://cdn.example.eu/img")
         );
     }
 
     #[test]
     fn resolve_root_relative() {
         assert_eq!(
-            resolve_against("https://example.com/page", "/other/path").as_deref(),
-            Some("https://example.com/other/path")
+            resolve_against("https://example.eu/page", "/other/path").as_deref(),
+            Some("https://example.eu/other/path")
         );
     }
 
     #[test]
     fn resolve_absolute_passes_through() {
         assert_eq!(
-            resolve_against("https://example.com/page", "https://other.example/x").as_deref(),
+            resolve_against("https://example.eu/page", "https://other.example/x").as_deref(),
             Some("https://other.example/x")
         );
     }
 
     #[test]
     fn resolve_empty_returns_none() {
-        assert!(resolve_against("https://example.com", "").is_none());
+        assert!(resolve_against("https://example.eu", "").is_none());
     }
 
     #[test]

@@ -11,8 +11,8 @@ expression: link
     "is_cached": null,
     "is_valid": true,
     "type": "REL",
-    "url": "https://example.com/article/",
-    "url_similarity": 0.691358024691358
+    "url": "https://example.eu/article/",
+    "url_similarity": 0.6835443037974683
   },
   "canonicals": [
     {
@@ -22,8 +22,8 @@ expression: link
       "is_cached": false,
       "is_valid": true,
       "type": "REL",
-      "url": "https://example.com/article/amp/",
-      "url_similarity": 0.7529411764705882
+      "url": "https://example.eu/article/amp/",
+      "url_similarity": 0.7469879518072289
     },
     {
       "domain": "example",
@@ -32,8 +32,8 @@ expression: link
       "is_cached": null,
       "is_valid": true,
       "type": "REL",
-      "url": "https://example.com/article/",
-      "url_similarity": 0.691358024691358
+      "url": "https://example.eu/article/",
+      "url_similarity": 0.6835443037974683
     }
   ],
   "origin": {
@@ -41,6 +41,6 @@ expression: link
     "is_amp": true,
     "is_cached": true,
     "is_valid": true,
-    "url": "https://www.google.com/amp/s/example.com/article/amp/"
+    "url": "https://www.google.com/amp/s/example.eu/article/amp/"
   }
 }

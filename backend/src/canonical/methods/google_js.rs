@@ -60,53 +60,53 @@ mod tests {
     #[test]
     fn skips_when_not_google_redirect() {
         let page = page_with(
-            r#"<script>var redirectUrl = "https://example.com";</script>"#,
-            "https://example.com/",
+            r#"<script>var redirectUrl = "https://example.eu";</script>"#,
+            "https://example.eu/",
         );
-        let r = find(&ctx(&page, "https://example.com/"));
+        let r = find(&ctx(&page, "https://example.eu/"));
         assert!(r.is_empty());
     }
 
     #[test]
     fn extracts_redirect_url_from_js() {
-        let url = "https://www.google.com/url?q=https://example.com&sa=t";
+        let url = "https://www.google.com/url?q=https://example.eu&sa=t";
         let page = page_with(
             r#"<html><body><script>
-                var redirectUrl = "https://example.com/article";
+                var redirectUrl = "https://example.eu/article";
             </script></body></html>"#,
             url,
         );
         let r = find(&ctx(&page, url));
-        assert_eq!(r, vec!["https://example.com/article"]);
+        assert_eq!(r, vec!["https://example.eu/article"]);
     }
 
     #[test]
     fn handles_single_quoted_url() {
         let url = "https://www.google.com/url?q=foo";
         let page = page_with(
-            r#"<script>var redirectUrl = 'https://example.com/article';</script>"#,
+            r#"<script>var redirectUrl = 'https://example.eu/article';</script>"#,
             url,
         );
         let r = find(&ctx(&page, url));
-        assert_eq!(r, vec!["https://example.com/article"]);
+        assert_eq!(r, vec!["https://example.eu/article"]);
     }
 
     #[test]
     fn unescapes_forward_slashes() {
         let url = "https://www.google.com/url?q=foo";
         let page = page_with(
-            r#"<script>var redirectUrl = "https:\/\/example.com\/article";</script>"#,
+            r#"<script>var redirectUrl = "https:\/\/example.eu\/article";</script>"#,
             url,
         );
         let r = find(&ctx(&page, url));
-        assert_eq!(r, vec!["https://example.com/article"]);
+        assert_eq!(r, vec!["https://example.eu/article"]);
     }
 
     #[test]
     fn returns_empty_when_pattern_absent() {
         let url = "https://www.google.com/url?q=foo";
         let page = page_with(
-            r#"<script>var somethingElse = "https://example.com";</script>"#,
+            r#"<script>var somethingElse = "https://example.eu";</script>"#,
             url,
         );
         let r = find(&ctx(&page, url));

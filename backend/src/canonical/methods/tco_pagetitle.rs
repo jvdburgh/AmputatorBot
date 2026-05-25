@@ -50,7 +50,7 @@ mod tests {
 
     #[test]
     fn skips_non_tco_urls() {
-        let url = "https://example.com/x?amp=1";
+        let url = "https://example.eu/x?amp=1";
         let page = page_with("https://target.com/article", url);
         assert!(find(&ctx(&page, url)).is_empty());
     }

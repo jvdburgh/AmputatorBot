@@ -66,17 +66,17 @@ fn rel_canonical(href: &str) -> String {
 
 #[tokio::test]
 async fn snapshot_rel_canonical() {
-    let amp = "https://www.google.com/amp/s/example.com/article";
-    let mock = MockPageSource::new().with(amp, &rel_canonical("https://example.com/article"));
+    let amp = "https://www.google.com/amp/s/example.eu/article";
+    let mock = MockPageSource::new().with(amp, &rel_canonical("https://example.eu/article"));
     let link = resolve(&mock, amp, ResolveOpts::default()).await;
     assert_json_snapshot!(link);
 }
 
 #[tokio::test]
 async fn snapshot_og_url_canonical() {
-    let amp = "https://amp.example.com/post-42";
+    let amp = "https://amp.example.eu/post-42";
     let html = r#"<!doctype html><html><head>
-        <meta property="og:url" content="https://example.com/post-42">
+        <meta property="og:url" content="https://example.eu/post-42">
     </head><body>x</body></html>"#;
     let mock = MockPageSource::new().with(amp, html);
     let link = resolve(&mock, amp, ResolveOpts::default()).await;
@@ -111,8 +111,8 @@ async fn snapshot_dead_end_amp_with_cached_origin_surfaces_amp_canonical() {
     // Origin is a Google AMP-cache URL. After exhausting depth every
     // canonical is still AMP → amp_canonical falls back so the caller
     // gets something better than the cached URL.
-    let origin = "https://www.google.com/amp/s/example.com/article/amp/";
-    let stuck = "https://example.com/article/amp/";
+    let origin = "https://www.google.com/amp/s/example.eu/article/amp/";
+    let stuck = "https://example.eu/article/amp/";
     let mock = MockPageSource::new()
         .with(origin, &rel_canonical(stuck))
         .with(stuck, &rel_canonical(stuck));
@@ -122,9 +122,9 @@ async fn snapshot_dead_end_amp_with_cached_origin_surfaces_amp_canonical() {
 
 #[tokio::test]
 async fn snapshot_depth_recursion_through_amp_chain() {
-    let origin = "https://www.google.com/amp/s/example.com/article/amp/";
-    let intermediate = "https://example.com/article/amp/";
-    let final_url = "https://example.com/article/";
+    let origin = "https://www.google.com/amp/s/example.eu/article/amp/";
+    let intermediate = "https://example.eu/article/amp/";
+    let final_url = "https://example.eu/article/";
 
     let mock = MockPageSource::new()
         .with(origin, &rel_canonical(intermediate))
@@ -135,10 +135,10 @@ async fn snapshot_depth_recursion_through_amp_chain() {
 
 #[tokio::test]
 async fn snapshot_multiple_canonical_signals_sorted_by_similarity() {
-    let amp = "https://www.google.com/amp/s/example.com/article-2024-tesla";
+    let amp = "https://www.google.com/amp/s/example.eu/article-2024-tesla";
     let html = r#"<!doctype html><html><head>
-        <link rel="canonical" href="https://example.com/article-2024-tesla">
-        <meta property="og:url" content="https://example.com/totally-different-path">
+        <link rel="canonical" href="https://example.eu/article-2024-tesla">
+        <meta property="og:url" content="https://example.eu/totally-different-path">
     </head><body>x</body></html>"#;
     let mock = MockPageSource::new().with(amp, html);
     let link = resolve(&mock, amp, ResolveOpts::default()).await;
@@ -147,9 +147,9 @@ async fn snapshot_multiple_canonical_signals_sorted_by_similarity() {
 
 #[tokio::test]
 async fn snapshot_meta_refresh_canonical() {
-    let amp = "https://amp.example.com/article";
+    let amp = "https://amp.example.eu/article";
     let html = r#"<!doctype html><html><head>
-        <meta http-equiv="refresh" content="0; url=https://example.com/article">
+        <meta http-equiv="refresh" content="0; url=https://example.eu/article">
     </head></html>"#;
     let mock = MockPageSource::new().with(amp, html);
     let link = resolve(&mock, amp, ResolveOpts::default()).await;
@@ -158,10 +158,10 @@ async fn snapshot_meta_refresh_canonical() {
 
 #[tokio::test]
 async fn snapshot_schema_mainentity_canonical() {
-    let amp = "https://amp.example.com/news/story";
+    let amp = "https://amp.example.eu/news/story";
     let html = r#"<!doctype html><html><head><script type="application/ld+json">
         { "@type": "NewsArticle",
-          "mainEntityOfPage": "https://example.com/news/story",
+          "mainEntityOfPage": "https://example.eu/news/story",
           "headline": "x" }
     </script></head><body>x</body></html>"#;
     let mock = MockPageSource::new().with(amp, html);
@@ -173,7 +173,7 @@ async fn snapshot_schema_mainentity_canonical() {
 async fn snapshot_fetch_failure_returns_empty_link() {
     // AMP origin but mock has no pages → first fetch fails → graceful
     // empty Link (origin populated, canonicals empty, no canonical).
-    let amp = "https://www.google.com/amp/s/example.com/article";
+    let amp = "https://www.google.com/amp/s/example.eu/article";
     let mock = MockPageSource::new();
     let link = resolve(&mock, amp, ResolveOpts::default()).await;
     assert_json_snapshot!(link);

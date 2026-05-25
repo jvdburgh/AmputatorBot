@@ -11,7 +11,7 @@ use linkify::{LinkFinder, LinkKind};
 /// Trailing characters that get stripped from extracted URLs.
 ///
 /// These appear when a URL is embedded in Reddit markdown — `[text](url)`
-/// leaves a `)` at the end, `(see https://example.com.)` leaves a `.`,
+/// leaves a `)` at the end, `(see https://example.eu.)` leaves a `.`,
 /// quote-wrapping leaves `"`, etc. The order doesn't matter; the Python
 /// version is a tuple `archive/helpers/utils.py:70-71`.
 const TRAILING_MARKDOWN_CHARS: &[char] = &[
@@ -60,14 +60,14 @@ mod tests {
 
     #[test]
     fn extracts_single_url() {
-        let urls = extract_urls("check this out: https://example.com/article");
-        assert_eq!(urls, vec!["https://example.com/article"]);
+        let urls = extract_urls("check this out: https://example.eu/article");
+        assert_eq!(urls, vec!["https://example.eu/article"]);
     }
 
     #[test]
     fn deduplicates_repeated_urls() {
-        let urls = extract_urls("https://example.com and https://example.com again");
-        assert_eq!(urls, vec!["https://example.com"]);
+        let urls = extract_urls("https://example.eu and https://example.eu again");
+        assert_eq!(urls, vec!["https://example.eu"]);
     }
 
     #[test]
@@ -86,37 +86,25 @@ mod tests {
 
     #[test]
     fn strips_trailing_markdown_punctuation() {
+        assert_eq!(remove_markdown("https://example.eu."), "https://example.eu");
+        assert_eq!(remove_markdown("https://example.eu,"), "https://example.eu");
+        assert_eq!(remove_markdown("https://example.eu)"), "https://example.eu");
         assert_eq!(
-            remove_markdown("https://example.com."),
-            "https://example.com"
+            remove_markdown("https://example.eu?)"),
+            "https://example.eu"
         );
         assert_eq!(
-            remove_markdown("https://example.com,"),
-            "https://example.com"
-        );
-        assert_eq!(
-            remove_markdown("https://example.com)"),
-            "https://example.com"
-        );
-        assert_eq!(
-            remove_markdown("https://example.com?)"),
-            "https://example.com"
-        );
-        assert_eq!(
-            remove_markdown("https://example.com\u{201D}"),
-            "https://example.com"
+            remove_markdown("https://example.eu\u{201D}"),
+            "https://example.eu"
         );
     }
 
     #[test]
     fn preserves_url_without_trailing_punctuation() {
+        assert_eq!(remove_markdown("https://example.eu"), "https://example.eu");
         assert_eq!(
-            remove_markdown("https://example.com"),
-            "https://example.com"
-        );
-        assert_eq!(
-            remove_markdown("https://example.com/article"),
-            "https://example.com/article"
+            remove_markdown("https://example.eu/article"),
+            "https://example.eu/article"
         );
     }
 
@@ -125,10 +113,10 @@ mod tests {
         // `[text](url)` syntax. linkify captures the URL inside the parens,
         // and remove_markdown strips trailing `)` + `,`.
         let body =
-            "see [the article](https://example.com/news), or directly: https://example.com/raw";
+            "see [the article](https://example.eu/news), or directly: https://example.eu/raw";
         let urls = extract_urls(body);
-        assert!(urls.contains(&"https://example.com/news".to_string()));
-        assert!(urls.contains(&"https://example.com/raw".to_string()));
+        assert!(urls.contains(&"https://example.eu/news".to_string()));
+        assert!(urls.contains(&"https://example.eu/raw".to_string()));
     }
 
     #[test]

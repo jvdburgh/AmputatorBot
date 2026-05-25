@@ -32,7 +32,7 @@ mod tests {
 
     fn page_with(html: &str) -> Page {
         Page {
-            current_url: "https://amp.example.com/article".into(),
+            current_url: "https://amp.example.eu/article".into(),
             status_code: 200,
             title: "test".into(),
             html: html.into(),
@@ -42,8 +42,8 @@ mod tests {
     fn ctx(page: &Page) -> MethodContext<'_> {
         MethodContext {
             page,
-            url: "https://amp.example.com/article",
-            original_url: "https://amp.example.com/article",
+            url: "https://amp.example.eu/article",
+            original_url: "https://amp.example.eu/article",
             flags: CanonicalFlags::default(),
         }
     }
@@ -55,21 +55,21 @@ mod tests {
             {
                 "@context": "https://schema.org",
                 "@type": "NewsArticle",
-                "mainEntityOfPage": "https://example.com/article",
+                "mainEntityOfPage": "https://example.eu/article",
                 "headline": "Title"
             }
             </script></head></html>"#,
         );
         let r = find(&ctx(&page));
-        assert_eq!(r, vec!["https://example.com/article"]);
+        assert_eq!(r, vec!["https://example.eu/article"]);
     }
 
     #[test]
     fn unescapes_forward_slashes() {
         let page =
-            page_with(r#"<script>"mainEntityOfPage":"https:\/\/example.com\/article"</script>"#);
+            page_with(r#"<script>"mainEntityOfPage":"https:\/\/example.eu\/article"</script>"#);
         let r = find(&ctx(&page));
-        assert_eq!(r, vec!["https://example.com/article"]);
+        assert_eq!(r, vec!["https://example.eu/article"]);
     }
 
     #[test]

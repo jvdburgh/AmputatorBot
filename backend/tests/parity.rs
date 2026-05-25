@@ -86,6 +86,22 @@ fn load_fixtures(dir: &Path) -> Vec<FixtureRecord> {
         .collect()
 }
 
+/// Cap the fixture set at `max` records, preferring an even spread across the
+/// full sample rather than the first N alphabetically.
+///
+/// Deterministic — sorts by `csv_id` then walks at a stride that produces
+/// roughly `max` evenly-spaced rows. Same fixtures → same selection on every
+/// run, which matters for snapshot-style stability of the parity report.
+fn sample_fixtures(mut fixtures: Vec<FixtureRecord>, max: usize) -> Vec<FixtureRecord> {
+    if fixtures.len() <= max {
+        return fixtures;
+    }
+    fixtures.sort_by_key(|f| f.csv_id);
+    let total = fixtures.len();
+    let stride = total.div_ceil(max);
+    fixtures.into_iter().step_by(stride).take(max).collect()
+}
+
 fn build_page_source(fixtures: &[FixtureRecord]) -> RecordedPageSource {
     let mut pages = HashMap::with_capacity(fixtures.len() * 2);
     for f in fixtures {
@@ -116,12 +132,17 @@ struct Stats {
 /// `cat backend/tests/parity-report.md` to see what happened.
 const REPORT_PATH: &str = "tests/parity-report.md";
 
+/// Default cap on fixtures evaluated per run. At ~2-5ms per fixture the
+/// resolver chews through 500 in a couple of seconds; the full 10k starts
+/// to feel slow during iteration. Override with `PARITY_MAX=10000`.
+const DEFAULT_MAX_FIXTURES: usize = 500;
+
 #[tokio::test]
 async fn parity_against_recorded_urlconversions() {
     let fixtures_dir = Path::new("tests/fixtures/html");
-    let fixtures = load_fixtures(fixtures_dir);
+    let all_fixtures = load_fixtures(fixtures_dir);
 
-    if fixtures.is_empty() {
+    if all_fixtures.is_empty() {
         let msg = format!(
             "[parity] No fixtures in {} — run `just record-fixtures` to \
              populate them, then re-run this test. Skipping.",
@@ -132,7 +153,18 @@ async fn parity_against_recorded_urlconversions() {
         return;
     }
 
-    eprintln!("[parity] Loaded {} fixtures", fixtures.len());
+    let max = std::env::var("PARITY_MAX")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(DEFAULT_MAX_FIXTURES);
+
+    let fixtures = sample_fixtures(all_fixtures, max);
+
+    eprintln!(
+        "[parity] Loaded {} fixtures (capped at {max}; set PARITY_MAX=10000 \
+         to run them all)",
+        fixtures.len()
+    );
     let source = build_page_source(&fixtures);
     let mut stats = Stats::default();
     let mut mismatches: Vec<(i64, String, String, String)> = Vec::new();

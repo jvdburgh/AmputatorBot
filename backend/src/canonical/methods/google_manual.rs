@@ -58,19 +58,19 @@ mod tests {
     #[test]
     fn skips_when_not_google_redirect() {
         let page = page_with(
-            r#"<a href="https://example.com">link</a>"#,
-            "https://example.com/",
+            r#"<a href="https://example.eu">link</a>"#,
+            "https://example.eu/",
         );
-        let r = find(&ctx(&page, "https://example.com/"));
+        let r = find(&ctx(&page, "https://example.eu/"));
         assert!(r.is_empty());
     }
 
     #[test]
     fn returns_anchor_hrefs_on_google_redirect() {
-        let url = "https://www.google.com/url?q=https://example.com/article";
+        let url = "https://www.google.com/url?q=https://example.eu/article";
         let page = page_with(
             r#"<html><body>
-                <a href="https://example.com/article">go</a>
+                <a href="https://example.eu/article">go</a>
                 <a href="https://other.com/back">back</a>
             </body></html>"#,
             url,
@@ -78,13 +78,13 @@ mod tests {
         let r = find(&ctx(&page, url));
         assert_eq!(
             r,
-            vec!["https://example.com/article", "https://other.com/back"]
+            vec!["https://example.eu/article", "https://other.com/back"]
         );
     }
 
     #[test]
     fn resolves_relative_anchors() {
-        let url = "https://www.google.com/url?q=https://example.com/x";
+        let url = "https://www.google.com/url?q=https://example.eu/x";
         let page = page_with(r#"<html><body><a href="/article">x</a></body></html>"#, url);
         let r = find(&ctx(&page, url));
         assert_eq!(r, vec!["https://www.google.com/article"]);

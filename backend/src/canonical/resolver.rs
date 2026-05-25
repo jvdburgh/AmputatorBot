@@ -163,40 +163,75 @@ async fn run_method<P: PageSource>(
     fetcher: &P,
     origin_url: &str,
 ) -> Option<Canonical> {
-    let candidates = match method {
+    gather_candidates(method, ctx, fetcher)
+        .await
+        .into_iter()
+        .find(|c| is_acceptable_canonical_url(c, ctx.url))
+        .map(|c| build_canonical(method, &c, origin_url))
+}
+
+/// Dispatch to the method's actual scraper and return its candidate URL list.
+///
+/// Most methods are synchronous (just-HTML-scraping, handled by
+/// [`try_method`]). `GUESS_AND_CHECK` is async because it issues additional
+/// HTTP fetches per keyword mutation. `DATABASE` is stubbed until M3 wires
+/// in sqlx.
+async fn gather_candidates<P: PageSource>(
+    method: CanonicalType,
+    ctx: &MethodContext<'_>,
+    fetcher: &P,
+) -> Vec<String> {
+    match method {
         CanonicalType::GuessAndCheck => guess_and_check::find(ctx, fetcher)
             .await
             .map(|u| vec![u])
             .unwrap_or_default(),
-        CanonicalType::Database => Vec::new(), // M3 — sqlx-backed cache
+        CanonicalType::Database => Vec::new(),
         _ => try_method(method, ctx),
-    };
-
-    for candidate in candidates {
-        if candidate == ctx.url {
-            // False positive guard — Python `canonical_methods.py:107`.
-            continue;
-        }
-        if Url::parse(&candidate).is_err() {
-            continue;
-        }
-
-        let is_amp = is_amp_url(&candidate);
-        let mut canonical = Canonical::for_method(method);
-        canonical.url = Some(candidate.clone());
-        canonical.url_similarity = Some(article_similarity(&candidate, origin_url));
-        canonical.is_amp = Some(is_amp);
-        canonical.is_cached = if is_amp {
-            Some(is_cached_amp(&candidate))
-        } else {
-            None
-        };
-        canonical.domain = extract_domain(&candidate);
-        canonical.is_valid = Some(true);
-
-        return Some(canonical);
     }
-    None
+}
+
+/// Gate every candidate URL through these checks before treating it as a
+/// real canonical:
+///
+/// 1. **Not equal to the input URL** — same URL means the scraper found a self-reference
+/// 2. **Parses as a URL** — discard syntactic garbage.
+/// 3. **Has a non-trivial path** — reject root-only URLs (e.g. `https://example.eu`), these are false positives.
+fn is_acceptable_canonical_url(candidate: &str, input_url: &str) -> bool {
+    if candidate == input_url {
+        return false;
+    }
+    let Ok(parsed) = Url::parse(candidate) else {
+        return false;
+    };
+    let path = parsed.path();
+    !path.is_empty() && path != "/"
+}
+
+/// Build a fully-populated [`Canonical`] from a vetted candidate URL.
+///
+/// Caller is expected to have already passed [`is_acceptable_canonical_url`].
+/// Fills:
+/// - `url`               — the candidate
+/// - `url_similarity`    — Ratcliff-Obershelp against `origin_url`
+/// - `is_amp`            — via [`is_amp_url`]
+/// - `is_cached`         — only set when `is_amp` is true
+/// - `domain`            — eTLD+1 via the `psl` crate
+/// - `is_valid = true`   — all candidates that make it here are valid
+fn build_canonical(method: CanonicalType, candidate_url: &str, origin_url: &str) -> Canonical {
+    let is_amp = is_amp_url(candidate_url);
+    let mut canonical = Canonical::for_method(method);
+    canonical.url = Some(candidate_url.to_string());
+    canonical.url_similarity = Some(article_similarity(candidate_url, origin_url));
+    canonical.is_amp = Some(is_amp);
+    canonical.is_cached = if is_amp {
+        Some(is_cached_amp(candidate_url))
+    } else {
+        None
+    };
+    canonical.domain = extract_domain(candidate_url);
+    canonical.is_valid = Some(true);
+    canonical
 }
 
 /// Mark `is_alt = true` on canonicals that represent an alternate cross-
@@ -319,8 +354,8 @@ mod tests {
     #[tokio::test]
     async fn happy_path_rel_canonical_first_iteration() {
         // AMP page with a clean <link rel="canonical"> to the non-AMP target.
-        let amp_url = "https://www.google.com/amp/s/example.com/article";
-        let target = "https://example.com/article";
+        let amp_url = "https://www.google.com/amp/s/example.eu/article";
+        let target = "https://example.eu/article";
         let mock = MockPageSource::new().with(amp_url, &rel_canonical_html(target));
 
         let link = resolve(&mock, amp_url, ResolveOpts::default()).await;
@@ -341,9 +376,9 @@ mod tests {
         // Depth-2 chase: origin is AMP-cache, the first <link rel="canonical">
         // points at another AMP URL (publisher's own /amp/ page), THAT page
         // points at the non-AMP article. The resolver should follow.
-        let origin = "https://www.google.com/amp/s/example.com/article/amp/";
-        let intermediate_amp = "https://example.com/article/amp/";
-        let final_canonical = "https://example.com/article/";
+        let origin = "https://www.google.com/amp/s/example.eu/article/amp/";
+        let intermediate_amp = "https://example.eu/article/amp/";
+        let final_canonical = "https://example.eu/article/";
 
         let mock = MockPageSource::new()
             .with(origin, &rel_canonical_html(intermediate_amp))
@@ -361,8 +396,8 @@ mod tests {
         // Origin is on a Google AMP cache. After exhausting depth, every
         // canonical we found is still AMP → set amp_canonical so the
         // caller still has something better than the cached URL.
-        let origin = "https://www.google.com/amp/s/example.com/article/amp/";
-        let stuck = "https://example.com/article/amp/";
+        let origin = "https://www.google.com/amp/s/example.eu/article/amp/";
+        let stuck = "https://example.eu/article/amp/";
         let mock = MockPageSource::new()
             .with(origin, &rel_canonical_html(stuck))
             .with(stuck, &rel_canonical_html(stuck)); // self-loop forces dead-end
@@ -381,7 +416,7 @@ mod tests {
         let mock = MockPageSource::new();
         let link = resolve(
             &mock,
-            "https://www.google.com/amp/s/example.com/article",
+            "https://www.google.com/amp/s/example.eu/article",
             ResolveOpts::default(),
         )
         .await;
@@ -392,13 +427,50 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn rejects_root_only_canonical_as_false_positive() {
+        // Real case from the parity report: an AMP product page whose
+        // template-baked <link rel="canonical" href="/"> would otherwise
+        // resolve to the homepage. We drop these.
+        let amp = "https://www.example.eu/product/?id=7709294194&amp";
+        let html = r#"<!doctype html><html><head>
+            <link rel="canonical" href="https://www.example.eu/">
+        </head><body>x</body></html>"#;
+        let mock = MockPageSource::new().with(amp, html);
+
+        let link = resolve(&mock, amp, ResolveOpts::default()).await;
+        assert!(
+            link.canonical.is_none(),
+            "expected no canonical (root URL filtered), got {:?}",
+            link.canonical.as_ref().and_then(|c| c.url.as_deref())
+        );
+        assert!(
+            link.canonicals.is_empty(),
+            "root URL should not appear in canonicals"
+        );
+    }
+
+    #[tokio::test]
+    async fn rejects_root_only_via_protocol_relative_path() {
+        // Edge case: candidate href is `//www.example.eu` (protocol-relative
+        // with no path). Should also be filtered.
+        let amp = "https://amp.example.eu/article-x";
+        let html = r#"<!doctype html><html><head>
+            <link rel="canonical" href="//www.example.eu">
+        </head></html>"#;
+        let mock = MockPageSource::new().with(amp, html);
+
+        let link = resolve(&mock, amp, ResolveOpts::default()).await;
+        assert!(link.canonical.is_none());
+    }
+
+    #[tokio::test]
     async fn sorts_canonicals_by_similarity_descending() {
         // Page with multiple canonical signals pointing at different URLs.
         // After the resolver runs, the most-similar URL to the AMP origin
         // should be link.canonical.
-        let amp = "https://www.google.com/amp/s/example.com/article-2024-tesla";
-        let very_similar = "https://example.com/article-2024-tesla";
-        let less_similar = "https://example.com/totally-different-path";
+        let amp = "https://www.google.com/amp/s/example.eu/article-2024-tesla";
+        let very_similar = "https://example.eu/article-2024-tesla";
+        let less_similar = "https://example.eu/totally-different-path";
         let html = format!(
             r#"<!doctype html><html><head>
                 <link rel="canonical" href="{very_similar}">

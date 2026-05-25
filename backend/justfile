@@ -33,11 +33,17 @@ deny:
 dev:
     cargo watch -x run
 
-# Run the parity test against recorded HTML fixtures, streaming output
-# in real time (default nextest hides stdout/stderr for passing tests).
-# Also writes a Markdown summary to tests/parity-report.md.
+# Parity test (default 500-fixture sample, ~couple seconds). Reads
+# recorded fixtures from tests/fixtures/html/, writes a Markdown
+# summary to tests/parity-report.md. Sample is deterministic +
+# evenly-distributed across `csv_id` so reports compare across runs.
 parity:
     cargo nextest run --test parity --no-capture
+
+# Parity test against EVERY recorded fixture. Slow (~minute for 10k).
+# Override the cap via env to any number; PARITY_MAX=99999 = "all".
+parity-full:
+    PARITY_MAX=99999 cargo nextest run --test parity --no-capture
 
 # Record HTML fixtures from a URLConversions CSV. Idempotent — re-runnable.
 # Default is the 10k-row unfiltered sample (includes failures + false

@@ -60,51 +60,51 @@ mod tests {
     #[test]
     fn skips_when_not_bing_amp() {
         let page = page_with(
-            r#"<script>{"originalUrl": "https://example.com"}</script>"#,
-            "https://example.com/",
+            r#"<script>{"originalUrl": "https://example.eu"}</script>"#,
+            "https://example.eu/",
         );
-        let r = find(&ctx(&page, "https://example.com/"));
+        let r = find(&ctx(&page, "https://example.eu/"));
         assert!(r.is_empty());
     }
 
     #[test]
     fn extracts_original_url_from_bing_amp() {
-        let url = "https://www.bing.com/amp/s/example.com/article";
+        let url = "https://www.bing.com/amp/s/example.eu/article";
         let page = page_with(
             r#"<html><body><script>
-                {"foo": 1, "originalUrl": "https://example.com/article", "bar": 2}
+                {"foo": 1, "originalUrl": "https://example.eu/article", "bar": 2}
             </script></body></html>"#,
             url,
         );
         let r = find(&ctx(&page, url));
-        assert_eq!(r, vec!["https://example.com/article"]);
+        assert_eq!(r, vec!["https://example.eu/article"]);
     }
 
     #[test]
     fn handles_single_quoted_url() {
-        let url = "https://www.bing.com/amp/s/example.com/article";
+        let url = "https://www.bing.com/amp/s/example.eu/article";
         let page = page_with(
-            r#"<script>{'originalUrl':'https://example.com/article'}</script>"#,
+            r#"<script>{'originalUrl':'https://example.eu/article'}</script>"#,
             url,
         );
         let r = find(&ctx(&page, url));
-        assert_eq!(r, vec!["https://example.com/article"]);
+        assert_eq!(r, vec!["https://example.eu/article"]);
     }
 
     #[test]
     fn unescapes_forward_slashes() {
-        let url = "https://www.bing.com/amp/s/example.com/article";
+        let url = "https://www.bing.com/amp/s/example.eu/article";
         let page = page_with(
-            r#"<script>"originalUrl":"https:\/\/example.com\/article"</script>"#,
+            r#"<script>"originalUrl":"https:\/\/example.eu\/article"</script>"#,
             url,
         );
         let r = find(&ctx(&page, url));
-        assert_eq!(r, vec!["https://example.com/article"]);
+        assert_eq!(r, vec!["https://example.eu/article"]);
     }
 
     #[test]
     fn returns_empty_when_pattern_absent() {
-        let url = "https://www.bing.com/amp/s/example.com/article";
+        let url = "https://www.bing.com/amp/s/example.eu/article";
         let page = page_with(r#"<script>{"foo": 1}</script>"#, url);
         let r = find(&ctx(&page, url));
         assert!(r.is_empty());

@@ -115,7 +115,7 @@ fn link_matches_live_api_shape() {
 /// cleanly with `canonicals: []` and the optional fields as `null`.
 #[test]
 fn link_minimal_serializes_with_nulls() {
-    let link = Link::new(UrlMeta::new("https://example.com"));
+    let link = Link::new(UrlMeta::new("https://example.eu"));
     let json = serde_json::to_value(&link).unwrap();
 
     assert!(json["amp_canonical"].is_null());
@@ -124,5 +124,5 @@ fn link_minimal_serializes_with_nulls() {
     assert!(json["origin"]["is_amp"].is_null());
     assert!(json["origin"]["is_cached"].is_null());
     assert!(json["origin"]["domain"].is_null());
-    assert_eq!(json["origin"]["url"], "https://example.com");
+    assert_eq!(json["origin"]["url"], "https://example.eu");
 }

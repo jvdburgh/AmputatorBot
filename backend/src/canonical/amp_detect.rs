@@ -45,6 +45,7 @@ const DENYLISTED_DOMAINS: &[&str] = &[
     "reddit.com",
     "spotify.com",
     "youtube.com",
+    "youtu.be",
 ];
 
 /// Returns `true` if the URL appears to be an AMP URL.
@@ -142,8 +143,8 @@ mod tests {
 
     #[test]
     fn detects_amp_query_param() {
-        assert!(is_amp_url("https://example.com/article?amp=1"));
-        assert!(is_amp_url("https://example.com/article?output=amp"));
+        assert!(is_amp_url("https://example.eu/article?amp=1"));
+        assert!(is_amp_url("https://example.eu/article?output=amp"));
     }
 
     #[test]
@@ -199,20 +200,20 @@ mod tests {
             "https://www.google.com/amp/s/electrek.co/2018/06/19/tesla-model-3/amp/"
         ));
         assert!(is_cached_amp(
-            "https://www.google.co.uk/amp/s/example.com/article"
+            "https://www.google.co.uk/amp/s/example.eu/article"
         ));
     }
 
     #[test]
     fn cached_detects_bing_amp() {
         assert!(is_cached_amp(
-            "https://www.bing.com/amp/s/example.com/article"
+            "https://www.bing.com/amp/s/example.eu/article"
         ));
     }
 
     #[test]
     fn cached_detects_ampproject() {
-        assert!(is_cached_amp("https://cdn.ampproject.org/c/s/example.com"));
+        assert!(is_cached_amp("https://cdn.ampproject.org/c/s/example.eu"));
         assert!(is_cached_amp(
             "https://www-cnn-com.cdn.ampproject.org/c/s/foo"
         ));

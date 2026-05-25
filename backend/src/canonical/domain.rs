@@ -55,7 +55,7 @@ mod tests {
     #[test]
     fn extracts_simple_com() {
         assert_eq!(
-            extract_domain("https://www.example.com/page").as_deref(),
+            extract_domain("https://www.example.eu/page").as_deref(),
             Some("example")
         );
     }

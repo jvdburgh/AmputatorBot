@@ -204,12 +204,12 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 The API supports two callers: well-behaved clients that percent-encode their URLs, and humans who paste raw URLs into a browser address bar. Both need to work, and the heuristic in `get_query_url` (`AmputatorBotCom/main.py:116-127` + `:196-199`) is how the existing API distinguishes them.
 
 **Encoded path** — standard behavior:
-- Caller: `?q=https%3A%2F%2Fwww.google.com%2Famp%2Fs%2Fexample.com%2Famp%2F&gac=true&md=3`
+- Caller: `?q=https%3A%2F%2Fwww.google.com%2Famp%2Fs%2Fexample.eu%2Famp%2F&gac=true&md=3`
 - Detected by: `q` value contains `%20` (the spec-encoding for a space, which any encoder uses when the URL contains spaces). In the existing heuristic this stands in for "the client encoded the string properly."
 - Handled by: `request.args[q]` — standard Flask/Axum query parsing. Order of params doesn't matter.
 
 **Unencoded path** — pragmatic fallback:
-- Caller: `?gac=true&md=3&q=https://www.google.com/amp/s/example.com/amp/`
+- Caller: `?gac=true&md=3&q=https://www.google.com/amp/s/example.eu/amp/`
 - Detected by: `q` doesn't contain `%20`.
 - Handled by: take the entire raw query string, strip known params (`md=...`, `gac=true|false`, `q=`), treat what's left as the URL. This is why raw URLs with their own `?` and `&` survive — they're never parsed as query params.
 - **Hard requirement: `q` must be the last query param** in unencoded mode. Otherwise the strip pass leaves residual params glued to the URL. Document this in the API docs and in the inline error message when the heuristic produces something that doesn't parse as a URL.

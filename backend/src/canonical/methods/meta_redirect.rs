@@ -2,7 +2,7 @@
 //!
 //! Older sites and some AMP cache pages use HTML meta-refresh to bounce
 //! visitors to the canonical URL. The `content` attribute looks like
-//! `"0; url=https://example.com/article"` (timeout + URL).
+//! `"0; url=https://example.eu/article"` (timeout + URL).
 //!
 //! Gated by `ctx.flags.use_mr` (mirrors the Python `use_mr` flag — meta-
 //! redirect is one of the resource-heavy methods that gets disabled by the
@@ -57,7 +57,7 @@ mod tests {
 
     fn page_with(html: &str) -> Page {
         Page {
-            current_url: "https://amp.example.com/article".into(),
+            current_url: "https://amp.example.eu/article".into(),
             status_code: 200,
             title: "test".into(),
             html: html.into(),
@@ -67,8 +67,8 @@ mod tests {
     fn ctx_default(page: &Page) -> MethodContext<'_> {
         MethodContext {
             page,
-            url: "https://amp.example.com/article",
-            original_url: "https://amp.example.com/article",
+            url: "https://amp.example.eu/article",
+            original_url: "https://amp.example.eu/article",
             flags: CanonicalFlags::default(),
         }
     }
@@ -76,8 +76,8 @@ mod tests {
     fn ctx_no_mr(page: &Page) -> MethodContext<'_> {
         MethodContext {
             page,
-            url: "https://amp.example.com/article",
-            original_url: "https://amp.example.com/article",
+            url: "https://amp.example.eu/article",
+            original_url: "https://amp.example.eu/article",
             flags: CanonicalFlags {
                 use_mr: false,
                 ..CanonicalFlags::default()
@@ -88,10 +88,10 @@ mod tests {
     #[test]
     fn finds_meta_refresh_url() {
         let page = page_with(
-            r#"<html><head><meta http-equiv="refresh" content="0; url=https://example.com/article"></head></html>"#,
+            r#"<html><head><meta http-equiv="refresh" content="0; url=https://example.eu/article"></head></html>"#,
         );
         let r = find(&ctx_default(&page));
-        assert_eq!(r, vec!["https://example.com/article"]);
+        assert_eq!(r, vec!["https://example.eu/article"]);
     }
 
     #[test]
@@ -100,17 +100,17 @@ mod tests {
             r#"<html><head>
                 <meta charset="utf-8">
                 <meta name="description" content="url=https://wrong.com">
-                <meta http-equiv="refresh" content="5; url=https://example.com/article">
+                <meta http-equiv="refresh" content="5; url=https://example.eu/article">
             </head></html>"#,
         );
         let r = find(&ctx_default(&page));
-        assert_eq!(r, vec!["https://example.com/article"]);
+        assert_eq!(r, vec!["https://example.eu/article"]);
     }
 
     #[test]
     fn returns_empty_when_use_mr_disabled() {
         let page =
-            page_with(r#"<meta http-equiv="refresh" content="0; url=https://example.com/x">"#);
+            page_with(r#"<meta http-equiv="refresh" content="0; url=https://example.eu/x">"#);
         assert!(find(&ctx_no_mr(&page)).is_empty());
     }
 
@@ -130,6 +130,6 @@ mod tests {
     fn resolves_relative_redirect_url() {
         let page = page_with(r#"<meta http-equiv="refresh" content="0; url=/article">"#);
         let r = find(&ctx_default(&page));
-        assert_eq!(r, vec!["https://amp.example.com/article"]);
+        assert_eq!(r, vec!["https://amp.example.eu/article"]);
     }
 }

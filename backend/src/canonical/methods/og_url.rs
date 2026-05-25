@@ -28,7 +28,7 @@ mod tests {
 
     fn page_with(html: &str) -> Page {
         Page {
-            current_url: "https://amp.example.com/article".into(),
+            current_url: "https://amp.example.eu/article".into(),
             status_code: 200,
             title: "test".into(),
             html: html.into(),
@@ -38,8 +38,8 @@ mod tests {
     fn ctx<'a>(page: &'a Page) -> MethodContext<'a> {
         MethodContext {
             page,
-            url: "https://amp.example.com/article",
-            original_url: "https://amp.example.com/article",
+            url: "https://amp.example.eu/article",
+            original_url: "https://amp.example.eu/article",
             flags: CanonicalFlags::default(),
         }
     }
@@ -47,10 +47,10 @@ mod tests {
     #[test]
     fn finds_og_url() {
         let page = page_with(
-            r#"<html><head><meta property="og:url" content="https://example.com/article"></head></html>"#,
+            r#"<html><head><meta property="og:url" content="https://example.eu/article"></head></html>"#,
         );
         let result = find(&ctx(&page));
-        assert_eq!(result, vec!["https://example.com/article"]);
+        assert_eq!(result, vec!["https://example.eu/article"]);
     }
 
     #[test]
@@ -58,12 +58,12 @@ mod tests {
         let page = page_with(
             r#"<html><head>
                 <meta property="og:title" content="Article Title">
-                <meta property="og:image" content="https://example.com/img.png">
-                <meta property="og:url" content="https://example.com/article">
+                <meta property="og:image" content="https://example.eu/img.png">
+                <meta property="og:url" content="https://example.eu/article">
             </head></html>"#,
         );
         let result = find(&ctx(&page));
-        assert_eq!(result, vec!["https://example.com/article"]);
+        assert_eq!(result, vec!["https://example.eu/article"]);
     }
 
     #[test]

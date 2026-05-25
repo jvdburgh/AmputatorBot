@@ -128,12 +128,12 @@ mod tests {
         let origin = article_html(&many_paragraphs());
         let guessed = article_html(&many_paragraphs());
         let result = evaluate_guess(
-            "https://amp.example.com/article",
+            "https://amp.example.eu/article",
             &origin,
-            "https://example.com/article",
+            "https://example.eu/article",
             &guessed,
         );
-        assert_eq!(result.as_deref(), Some("https://example.com/article"));
+        assert_eq!(result.as_deref(), Some("https://example.eu/article"));
     }
 
     #[test]
@@ -145,9 +145,9 @@ mod tests {
             "<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.</p>",
         );
         let result = evaluate_guess(
-            "https://amp.example.com/x",
+            "https://amp.example.eu/x",
             &origin,
-            "https://example.com/x",
+            "https://example.eu/x",
             &guessed,
         );
         assert!(result.is_none());
@@ -163,7 +163,7 @@ mod tests {
             "<p>{shared}</p><p>This AMP version has additional ad-network paragraphs and tracking widgets injected by the AMP cache that won't appear in the canonical desktop article view.</p><p>More junk text specific to the AMP path that the canonical doesn't contain.</p>"
         ));
         let guessed = format!(
-            r#"<!doctype html><html><head><title>x</title><link rel="amphtml" href="https://amp.example.com/article"></head><body><article><p>{shared}</p><p>Desktop version with totally different supporting content compared to the AMP page, including charts and an editorial sidebar that aren't replicated on AMP.</p><p>Another desktop-only paragraph to keep similarity in the mid-band.</p></article></body></html>"#
+            r#"<!doctype html><html><head><title>x</title><link rel="amphtml" href="https://amp.example.eu/article"></head><body><article><p>{shared}</p><p>Desktop version with totally different supporting content compared to the AMP page, including charts and an editorial sidebar that aren't replicated on AMP.</p><p>Another desktop-only paragraph to keep similarity in the mid-band.</p></article></body></html>"#
         );
 
         // First sanity-check we're in the mid-band; if we're not the test is
@@ -177,21 +177,21 @@ mod tests {
         );
 
         let result = evaluate_guess(
-            "https://amp.example.com/article",
+            "https://amp.example.eu/article",
             &origin,
-            "https://example.com/article",
+            "https://example.eu/article",
             &guessed,
         );
-        assert_eq!(result.as_deref(), Some("https://example.com/article"));
+        assert_eq!(result.as_deref(), Some("https://example.eu/article"));
     }
 
     #[test]
     fn detects_amphtml_back_reference() {
         let html =
-            r#"<html><head><link rel="amphtml" href="https://amp.example.com/x"></head></html>"#;
+            r#"<html><head><link rel="amphtml" href="https://amp.example.eu/x"></head></html>"#;
         assert!(guessed_page_links_back_to_amp(
             html,
-            "https://amp.example.com/x"
+            "https://amp.example.eu/x"
         ));
         assert!(!guessed_page_links_back_to_amp(html, "https://other.com/x"));
     }
@@ -199,10 +199,10 @@ mod tests {
     #[test]
     fn detects_amphtml_back_reference_returns_false_when_absent() {
         let html =
-            r#"<html><head><link rel="canonical" href="https://example.com/x"></head></html>"#;
+            r#"<html><head><link rel="canonical" href="https://example.eu/x"></head></html>"#;
         assert!(!guessed_page_links_back_to_amp(
             html,
-            "https://amp.example.com/x"
+            "https://amp.example.eu/x"
         ));
     }
 }

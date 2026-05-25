@@ -6,7 +6,7 @@ from wtforms.validators import DataRequired
 class InputForm(FlaskForm):
     query = TextAreaField('Paste the URL of the AMP page, or the text that contains it, below:',
                           validators=[DataRequired()],
-                          render_kw={"placeholder": "https://example.com/amp/.."})
+                          render_kw={"placeholder": "https://example.eu/amp/.."})
     generate_comment = SelectField("Generate a comment to post on Reddit",
                                    choices=[("true", "Enabled"), ("false", "Disabled")], default="false")
     use_gac = SelectField("Guess-and-check if necessary",

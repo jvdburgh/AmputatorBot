@@ -11,8 +11,8 @@ expression: link
     "is_cached": null,
     "is_valid": true,
     "type": "REL",
-    "url": "https://example.com/article",
-    "url_similarity": 0.72
+    "url": "https://example.eu/article",
+    "url_similarity": 0.7123287671232876
   },
   "canonicals": [
     {
@@ -22,8 +22,8 @@ expression: link
       "is_cached": null,
       "is_valid": true,
       "type": "REL",
-      "url": "https://example.com/article",
-      "url_similarity": 0.72
+      "url": "https://example.eu/article",
+      "url_similarity": 0.7123287671232876
     }
   ],
   "origin": {
@@ -31,6 +31,6 @@ expression: link
     "is_amp": true,
     "is_cached": true,
     "is_valid": true,
-    "url": "https://www.google.com/amp/s/example.com/article"
+    "url": "https://www.google.com/amp/s/example.eu/article"
   }
 }
