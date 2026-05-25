@@ -1,2 +1,7 @@
 /target
 *.snap.new
+
+# Recorded HTML fixtures from `cargo run --bin record_fixtures`.
+# Generated; can be re-run on demand. CSVs that drive the recorder
+# are committed under tests/fixtures/urlconversions/.
+/tests/fixtures/html/
