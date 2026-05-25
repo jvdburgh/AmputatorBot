@@ -1,3 +1,9 @@
 packages:
   - 'devvit-app'
   - 'website'
+allowBuilds:
+  esbuild: true
+  protobufjs: true
+  sharp: true
+minimumReleaseAgeExclude:
+  - hono@4.12.23

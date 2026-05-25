@@ -19,9 +19,11 @@ fmt-check:
 lint:
     cargo clippy --all-targets --all-features -- -D warnings
 
-# Run tests (nextest if available, falls back to cargo test)
+# Run tests (nextest if available, falls back to cargo test).
+# `--no-tests=pass` keeps the run green during M1 scaffolding when no tests exist yet;
+# real tests arrive in M2.
 test:
-    cargo nextest run --all-features || cargo test --all-features
+    cargo nextest run --all-features --no-tests=pass || cargo test --all-features
 
 # Security + license audit
 deny:

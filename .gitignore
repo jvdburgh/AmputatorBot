@@ -108,5 +108,19 @@ venv.bak/
 /archive/data/
 /archive/logs/
 
+# Node / pnpm workspaces
+node_modules/
+.pnpm-store/
+*.tsbuildinfo
+
+# Astro / Devvit build outputs (in case sub-.gitignore is missed)
+.astro/
+.devvit/
+
+# macOS
+.DS_Store
+
 # IDEs
 /.idea/
+.vscode/
+*.swp

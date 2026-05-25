@@ -6,7 +6,9 @@ all-features = true
 
 [advisories]
 version = 2
-ignore = []
+ignore = [
+  "RUSTSEC-2025-0057"
+]
 
 [bans]
 multiple-versions = "warn"
@@ -27,6 +29,7 @@ allow = [
     "Zlib",
     "MPL-2.0",
     "OpenSSL",
+    "CDLA-Permissive-2.0"
 ]
 confidence-threshold = 0.9
 

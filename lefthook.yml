@@ -27,11 +27,11 @@ pre-commit:
 
 commit-msg:
   commands:
-    # Soft check — warns if a commit message looks completely unstructured,
-    # but doesn't enforce strict Conventional Commits.
+    # Soft check — warn on empty commit messages. {1} is lefthook's placeholder
+    # for the commit-msg file path (not $1).
     not-empty:
       run: |
-        if ! grep -qE "[A-Za-z]" "$1"; then
+        if ! grep -qE "[A-Za-z]" "{1}"; then
           echo "Empty commit message"
           exit 1
         fi

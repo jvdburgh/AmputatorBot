@@ -3,6 +3,6 @@
   "name": "amputatorbot",
   "server": {
     "dir": "dist/server",
-    "entry": "index.js"
+    "entry": "index.cjs"
   }
 }
