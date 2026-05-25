@@ -12,19 +12,30 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use scraper::{Html, Selector};
 
-/// The 10 user-agent strings the legacy Python bot rotated through.
-/// Ported verbatim from `archive/static/static.py:28-38`.
+/// User-agent strings rotated through per-request.
+///
+/// Modernized for 2026 — the legacy Python list (`archive/static/static.py:28-38`)
+/// was 10 mobile Chrome UAs from Android 7/8/9 with Chrome 61-80, all from
+/// 2018-2019. Publishers' anti-bot heuristics flag these as suspicious now.
+///
+/// Replaced with current Firefox UAs across platforms:
+/// - Firefox 151 (latest stable per Mozilla product-details API as of 2026-05)
+/// - Firefox 140 ESR (current Extended Support Release)
+///
+/// All Firefox — Mozilla-only, matching the project's anti-AMP ideological
+/// alignment (AMP is a Google initiative; we're not pretending to be Chrome).
 const USER_AGENTS: &[&str] = &[
-    "Mozilla/5.0 (Linux; Android 8.0.0; SM-G960F Build/R16NW) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3202.84 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 8.1.0; TA-1020) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.99 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 7.0; SM-T813) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.99 Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 7.0; SM-G920F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.99 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 8.0.0; RNE-L21) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.99 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 8.1.0; SAMSUNG-SM-J727A) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.99 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 8.0.0; SM-G9350) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.99 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 8.0.0; SM-A520F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.99 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 8.0.0; G3212) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.87 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 9; CLT-L29) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3945.116 Mobile Safari/537.36",
+    // Firefox 151 — Linux desktop
+    "Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0",
+    // Firefox 151 — macOS desktop
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.7; rv:151.0) Gecko/20100101 Firefox/151.0",
+    // Firefox 151 — Windows desktop
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0",
+    // Firefox 151 — Android mobile
+    "Mozilla/5.0 (Android 14; Mobile; rv:151.0) Gecko/151.0 Firefox/151.0",
+    // Firefox 140 ESR — Windows desktop (ESR is commonly used in enterprise
+    // and conservative environments; including it adds realistic variance)
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
 ];
 
 const ACCEPT_HEADER: &str =
