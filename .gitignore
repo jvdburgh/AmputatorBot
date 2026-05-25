@@ -103,10 +103,10 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-# local project stuff
-/static/static.py
-/logs/
-/data/
+# local project stuff (legacy paths — moved under archive/ during M1)
+/archive/static/static.py
+/archive/data/
+/archive/logs/
 
 # IDEs
 /.idea/
