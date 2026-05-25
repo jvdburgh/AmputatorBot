@@ -1,0 +1,6 @@
+target/
+.git/
+.idea/
+.vscode/
+*.log
+tests/fixtures/urlconversions/*.csv

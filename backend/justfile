@@ -1,0 +1,40 @@
+# amputatorbot-backend tasks
+
+# Default: list recipes
+default:
+    @just --list
+
+# Run all checks (CI equivalent)
+check: fmt-check lint test deny
+
+# Apply formatting
+fmt:
+    cargo fmt --all
+
+# Verify formatting
+fmt-check:
+    cargo fmt --all -- --check
+
+# Lint, deny warnings
+lint:
+    cargo clippy --all-targets --all-features -- -D warnings
+
+# Run tests (nextest if available, falls back to cargo test)
+test:
+    cargo nextest run --all-features || cargo test --all-features
+
+# Security + license audit
+deny:
+    cargo deny check
+
+# Watch + auto-rebuild for local dev
+dev:
+    cargo watch -x run
+
+# Build release binary
+build:
+    cargo build --release
+
+# Build the container image locally
+docker-build:
+    docker build -t amputatorbot-backend:dev .

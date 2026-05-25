@@ -1,0 +1,24 @@
+{
+  "name": "amputatorbot-devvit-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "devvit playtest",
+    "build": "devvit upload",
+    "check": "tsgo --noEmit",
+    "lint": "biome check",
+    "format": "biome format --write",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@devvit/web": "latest"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "@types/node": "^22.0.0",
+    "@typescript/native-preview": "latest",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}

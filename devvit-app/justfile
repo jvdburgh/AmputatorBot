@@ -1,0 +1,27 @@
+# amputatorbot-devvit-app tasks
+
+default:
+    @just --list
+
+check: fmt-check lint type-check test
+
+fmt:
+    pnpm exec biome format --write .
+
+fmt-check:
+    pnpm exec biome format --check .
+
+lint:
+    pnpm exec biome check .
+
+type-check:
+    pnpm exec tsgo --noEmit
+
+test:
+    pnpm exec vitest run
+
+dev:
+    pnpm exec devvit playtest r/test
+
+upload:
+    pnpm exec devvit upload

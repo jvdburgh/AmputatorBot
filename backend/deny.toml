@@ -1,0 +1,35 @@
+# cargo-deny config — runs in CI to check vulns, licenses, dup deps
+# https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+ignore = []
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[licenses]
+version = 2
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "CC0-1.0",
+    "Zlib",
+    "MPL-2.0",
+    "OpenSSL",
+]
+confidence-threshold = 0.9
+
+[sources]
+unknown-git = "deny"
+unknown-registry = "deny"

@@ -1,0 +1,58 @@
+name: backend
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+        with:
+          version: 2026.5.15
+          install: true
+          cache: true
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend
+
+      - name: Install cargo tools
+        run: |
+          cargo install --locked cargo-nextest cargo-deny || true
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Test
+        run: cargo nextest run --all-features
+
+      - name: Build (release)
+        run: cargo build --release --bin amputatorbot-backend
+
+      - name: Cargo deny
+        run: cargo deny check

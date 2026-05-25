@@ -1,0 +1,30 @@
+# amputatorbot-website tasks
+
+default:
+    @just --list
+
+check: fmt-check lint type-check test
+
+fmt:
+    pnpm exec biome format --write .
+
+fmt-check:
+    pnpm exec biome format --check .
+
+lint:
+    pnpm exec biome check .
+
+type-check:
+    pnpm exec astro check
+
+test:
+    pnpm exec vitest run
+
+dev:
+    pnpm exec astro dev
+
+build:
+    pnpm exec astro build
+
+preview:
+    pnpm exec astro preview
