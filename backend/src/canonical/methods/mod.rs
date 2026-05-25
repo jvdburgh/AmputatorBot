@@ -18,8 +18,11 @@ pub mod bing_original;
 pub mod canurl;
 pub mod google_js;
 pub mod google_manual;
+pub mod meta_redirect;
 pub mod og_url;
 pub mod rel;
+pub mod schema_mainentity;
+pub mod tco_pagetitle;
 
 /// Per-request canonical-finding configuration. Ports the `use_db`/`use_gac`/
 /// `use_mr` flags from `archive/helpers/utils.py:get_canonicals`.
@@ -83,14 +86,12 @@ pub fn try_method(method: CanonicalType, ctx: &MethodContext<'_>) -> Vec<String>
         CanonicalType::GoogleManualRedirect => google_manual::find(ctx),
         CanonicalType::GoogleJsRedirect => google_js::find(ctx),
         CanonicalType::BingOriginalUrl => bing_original::find(ctx),
-        // The remaining 5 methods land in subsequent commits — schema/tco/
-        // meta-refresh (M2.5c), guess-and-check (M2.6 — needs readability),
-        // database (M3 — needs sqlx).
-        CanonicalType::SchemaMainentity
-        | CanonicalType::TcoPagetitle
-        | CanonicalType::MetaRedirect
-        | CanonicalType::GuessAndCheck
-        | CanonicalType::Database => Vec::new(),
+        CanonicalType::SchemaMainentity => schema_mainentity::find(ctx),
+        CanonicalType::TcoPagetitle => tco_pagetitle::find(ctx),
+        CanonicalType::MetaRedirect => meta_redirect::find(ctx),
+        // GUESS_AND_CHECK lands in M2.6 (needs the readability adapter for
+        // article-similarity scoring). DATABASE lands in M3 (needs sqlx).
+        CanonicalType::GuessAndCheck | CanonicalType::Database => Vec::new(),
     }
 }
 
