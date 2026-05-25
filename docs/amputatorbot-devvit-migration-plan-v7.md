@@ -336,7 +336,10 @@ AmputatorBot/
 │   │   ├── canonical_methods.rs
 │   │   └── amp_detect.rs
 │   └── tools/
-│       └── mysql_to_postgres/        # one-shot migration binary
+│       └── record_fixtures/         # CSV → recorded HTML for parity tests
+│                                     # (MySQL → Postgres migration uses
+│                                     # `psql \copy` of a CSV export, not
+│                                     # a Rust binary — see M3 §migration)
 ├── devvit-app/                       # TypeScript
 │   ├── devvit.json
 │   ├── package.json
@@ -508,7 +511,7 @@ GitHub's free tier covers all of this for a public repo.
 
 No calendar. Each milestone has a clear "done" criterion.
 
-### M1 — Sledgehammer + scaffold + tooling (local only)
+### M1 — Sledgehammer + scaffold + tooling (local only) ✓ DONE
 
 **Done when:** old code in `archive/`, three empty project skeletons in place, root tooling configured, every project's local check pipeline (`just check`) is green, lefthook pre-commit hooks fire.
 
@@ -533,7 +536,7 @@ Tasks (tooling, in order):
 
 **Scaleway is intentionally NOT in M1.** Local-first: prove the toolchain works end-to-end before engaging with any cloud provider. Cloud provisioning + deployment is M6.
 
-### M2 — Canonical engine in Rust + parity tests
+### M2 — Canonical engine in Rust + parity tests ✓ DONE
 
 **Done when:** all 10 canonical methods ported; AMP detection ported with false-positive fixes; fixture-based parity test suite green on user-supplied URLConversations.
 
@@ -548,20 +551,85 @@ Tasks:
 
 **Ask points:** Edge cases in canonical methods that don't translate cleanly (duck typing, ad-hoc normalization) — surface, don't paper over. If `dom_smoothie`'s standard mode produces similarity scores that misalign with the existing `>0.6` / `>0.35` thresholds on the fixture set, retune the thresholds rather than swapping the extractor.
 
-### M3 — `/api/v1/convert` parity + DB migration tool (local)
+### M3 — `/api/v1/convert` endpoint + `links` cache (local)
 
-**Done when:** endpoint matches live response shape byte-for-byte on the snapshot set running against a local Docker Postgres; the MySQL→Postgres migration tool is written and tested on a small sample; `?r=true` redirect mode works; `gc=true` generates the new reply markdown.
+**Status:** ready to start. M2 is complete (112 backend tests, parity-validated against 10k recorded URLConversions fixtures). The canonical-finding engine (`canonical::resolve`) is built; M3 wraps it in HTTP + adds the Postgres cache.
 
-Tasks:
-- Wire `convert` route — same params, same `%20` heuristic, same status codes, same response shape (incl. `is_alt`, `is_cached`, `url_similarity` fields)
-- Write `migrations/001_initial.sql` — Postgres schema, **modernized**: `TEXT` not `VARCHAR(4000)` for URLs, indices on `(original_url)`, `(canonical_url)`, `(created_at)`, drop any dead columns from MySQL schema after auditing `models/table.py`
-- Spin up local Postgres for development (`docker compose up postgres` or similar) so the Rust backend has a real DB to talk to without Scaleway
-- Write `tools/mysql_to_postgres/` — one-shot binary, SSH tunnel to PythonAnywhere MySQL, paged read, `ON CONFLICT DO NOTHING` write to Postgres. Test it locally against a fixture-sized MySQL dump or a `LIMIT 100` sample.
-- New bot reply markdown — designed, reviewed, applied to `gc=true` output
+**Done when:** the Axum handler emits byte-identical responses to the legacy `/api/v1/convert` on the snapshot set, running against a local Docker Postgres seeded with the historical `URLConversions` data; `?r=true` redirect mode works; `?gc=true` returns the refreshed reply markdown.
 
-**Ask points:** MySQL schema details (which columns are actually used). Final Postgres schema (modernization scope). New reply markdown — needs visual review.
+#### Schema (locked)
 
-**Production data migration to Scaleway PG happens in M6**, not here. M3 only verifies the tool works.
+Two enums + one table — table name `links` (snake_case, matches `legacy URLConversions` content but with a cleaner name). Migration lives at `backend/migrations/001_initial.sql`, managed by sqlx-migrate.
+
+```sql
+CREATE TYPE canonical_type AS ENUM (
+    'REL', 'CANURL', 'OG_URL',
+    'GOOGLE_MANUAL_REDIRECT', 'GOOGLE_JS_REDIRECT',
+    'BING_ORIGINAL_URL',
+    'SCHEMA_MAINENTITY', 'TCO_PAGETITLE',
+    'META_REDIRECT', 'GUESS_AND_CHECK', 'DATABASE'
+);
+CREATE TYPE entry_type AS ENUM (
+    'ONLINE', 'COMMENT', 'SUBMISSION', 'MENTION',
+    'TEST', 'TWEET',    -- historical only; new code never inserts these
+    'API'
+);
+CREATE TABLE links (
+    entry_id       BIGSERIAL     PRIMARY KEY,
+    entry_type     entry_type,                            -- nullable (some legacy rows)
+    handled_utc    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    original_url   TEXT          NOT NULL,
+    canonical_url  TEXT,                                  -- null = failure / false positive
+    canonical_type canonical_type,                        -- null when canonical_url is null
+    note           TEXT
+);
+CREATE INDEX idx_links_original_url  ON links (original_url);
+CREATE INDEX idx_links_canonical_url ON links (canonical_url);
+CREATE INDEX idx_links_handled_utc   ON links (handled_utc);
+```
+
+Schema decisions (these supersede earlier "drop dead columns" / "modernize" wording in v7):
+
+- **Mirror the legacy columns** — `entry_id`, `entry_type`, `note` all stay. Cleanup in *behavior* (new Rust code only ever inserts `COMMENT` / `SUBMISSION` / `ONLINE` / `MENTION` / `API`), not in *historical preservation*.
+- **`canonical_type` is a Postgres ENUM** with SCREAMING_SNAKE_CASE values matching the Rust `CanonicalType` enum's JSON serialization byte-for-byte. sqlx maps both sides cleanly.
+- **`entry_type` includes `TEST` and `TWEET`** for the legacy rows that have them; new code never inserts these values but they import cleanly.
+- **`entry_id` is `BIGSERIAL`** — autoincrement, explicit inserts during import keep their original IDs, new rows get fresh ones.
+
+#### Migration approach (locked)
+
+**CSV ingest via `psql \copy`** — no Rust binary. M2 already exports the table to CSV (`backend/tests/fixtures/urlconversions/*.csv`); for M3 Joris exports the full ~1.7M rows the same way. Production cutover (M6) reuses the same command against the Scaleway endpoint.
+
+```bash
+psql "$DATABASE_URL" -c "\
+    \copy links(entry_id, entry_type, handled_utc, original_url, canonical_url, canonical_type, note) \
+    FROM 'tests/fixtures/urlconversions/URLConversions_full.csv' \
+    WITH (FORMAT csv, HEADER true, NULL '')"
+```
+
+~1.7M rows in under a minute. No SSH tunnel, no sqlx wiring just for the import, no Rust binary to maintain.
+
+**No opt-out migration.** Per-user opt-outs in the new world are handled via Devvit modmail (M4) → privileged `POST /api/v1/optout` against Scaleway PG. Legacy opt-outs would re-engage on cutover, accepted tradeoff.
+
+#### Tasks
+
+1. `docker-compose.yml` at repo root for local Postgres 16 + `DATABASE_URL` plumbing in the backend.
+2. `backend/migrations/001_initial.sql` with the schema above; sqlx-migrate setup.
+3. **DATABASE canonical method** — port the 11th method (stubbed in M2.5):
+   ```sql
+   SELECT canonical_url, canonical_type FROM links
+   WHERE original_url = $1 AND canonical_url IS NOT NULL LIMIT 1
+   ```
+4. `PgPool` plumbed into `MethodContext` (parallels how `PageSource` got added in M2.8).
+5. Axum handler for `GET /api/v1/convert` wrapping `canonical::resolve()`.
+6. The `%20` query-parsing heuristic from `archive/AmputatorBotCom/main.py:116-127` so unencoded URLs with `q` last still work (the load-bearing public-API contract per §"API contract").
+7. Status code mapping: 200, 303 (`r=true`), 400 (no `q`), 406 (no AMP), 500 (unknown), 560 (no canonicals), 561 (problematic domain), with the `result_code` field on error responses.
+8. `r=true` — 303 redirect to `link.canonical.url`.
+9. `gc=true` reply markdown — port the legacy template, refresh per the v7 decision. Surface the draft for visual review before locking.
+10. Integration tests against the handler with real query strings.
+
+**Ask points:** the refreshed `gc=true` reply markdown — needs visual review before lock-in. Whether to also write the legacy `URLConversions_full.csv` export workflow into `backend/README.md` so it's reproducible later.
+
+**Production data migration to Scaleway PG happens in M6**, not here. M3 just verifies the schema + `\copy` flow against a local Docker Postgres.
 
 ### M4 — Devvit bot E2E
 
@@ -615,7 +683,12 @@ Cloud setup (Joris does the signups; Claude prepares exact commands):
 - Note connection strings + registry URL; Joris sets the env vars on the Serverless Container
 
 Production data migration:
-- Run the M3 `tools/mysql_to_postgres/` binary against the live PythonAnywhere MySQL → Scaleway PG. Small batch first (`LIMIT 100`), verify, then full.
+- Export the full `URLConversions` table to CSV from PythonAnywhere MySQL (same export workflow as the M2 fixture CSVs).
+- `\copy` it into Scaleway PG using the M3-validated command:
+  ```bash
+  psql "$SCALEWAY_DATABASE_URL" -c "\copy links(entry_id, entry_type, handled_utc, original_url, canonical_url, canonical_type, note) FROM 'URLConversions_full.csv' WITH (FORMAT csv, HEADER true, NULL '')"
+  ```
+- Run a small-batch smoke test first (e.g. head -1000 of the CSV) before the full load; verify row counts match the source.
 
 Deploy:
 - Build the two-stage Astro+Rust Docker image, push to Scaleway Container Registry
