@@ -18,24 +18,42 @@ use scraper::{Html, Selector};
 /// was 10 mobile Chrome UAs from Android 7/8/9 with Chrome 61-80, all from
 /// 2018-2019. Publishers' anti-bot heuristics flag these as suspicious now.
 ///
-/// Replaced with current Firefox UAs across platforms:
-/// - Firefox 151 (latest stable per Mozilla product-details API as of 2026-05)
-/// - Firefox 140 ESR (current Extended Support Release)
+/// Current list: 15 Firefox UAs across platforms + 3 Firefox versions.
+/// Verified against Mozilla's product-details API on 2026-05-25:
+/// - Firefox 151    — current stable
+/// - Firefox 150.0  — one version back, still plausible to encounter
+/// - Firefox 140    — current ESR
 ///
 /// All Firefox — Mozilla-only, matching the project's anti-AMP ideological
 /// alignment (AMP is a Google initiative; we're not pretending to be Chrome).
+///
+/// Platform coverage:
+/// - Linux x86_64 / aarch64 / Ubuntu
+/// - macOS 14.6 / 14.7 / 15.0 (Sonoma & Sequoia)
+/// - Windows NT 10.0 (10/11) — Win64 + WOW64 variants
+/// - Android 14 + 15, Mobile + Tablet form factors
 const USER_AGENTS: &[&str] = &[
-    // Firefox 151 — Linux desktop
+    // Firefox 151 — Linux
     "Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0",
-    // Firefox 151 — macOS desktop
+    "Mozilla/5.0 (X11; Linux aarch64; rv:151.0) Gecko/20100101 Firefox/151.0",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0",
+    // Firefox 151 — macOS
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.7; rv:151.0) Gecko/20100101 Firefox/151.0",
-    // Firefox 151 — Windows desktop
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 15.0; rv:151.0) Gecko/20100101 Firefox/151.0",
+    // Firefox 151 — Windows
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0",
-    // Firefox 151 — Android mobile
+    "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:151.0) Gecko/20100101 Firefox/151.0",
+    // Firefox 151 — Android
     "Mozilla/5.0 (Android 14; Mobile; rv:151.0) Gecko/151.0 Firefox/151.0",
-    // Firefox 140 ESR — Windows desktop (ESR is commonly used in enterprise
-    // and conservative environments; including it adds realistic variance)
+    "Mozilla/5.0 (Android 15; Mobile; rv:151.0) Gecko/151.0 Firefox/151.0",
+    "Mozilla/5.0 (Android 14; Tablet; rv:151.0) Gecko/151.0 Firefox/151.0",
+    // Firefox 150 — one version back, mix of OSes
+    "Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0",
+    // Firefox 140 ESR — conservative/enterprise installs
+    "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.6; rv:140.0) Gecko/20100101 Firefox/140.0",
 ];
 
 const ACCEPT_HEADER: &str =
@@ -166,15 +184,18 @@ mod tests {
     #[test]
     fn random_user_agent_distributes_across_options() {
         // Sanity check that the random source isn't pinned to a single index.
-        // 1000 draws across 10 UAs — each should appear at least once.
+        // With N UAs and 1000 draws, statistically every UA should appear; we
+        // assert the weaker invariant that we see *most* of them — leaves
+        // headroom for fastrand's PRNG without making the test flaky.
         let mut seen = std::collections::HashSet::new();
         for _ in 0..1000 {
             seen.insert(random_user_agent());
         }
         assert!(
-            seen.len() > 1,
-            "expected variety, got {} distinct UA(s)",
-            seen.len()
+            seen.len() >= USER_AGENTS.len() * 3 / 4,
+            "expected variety; got {} of {} UAs",
+            seen.len(),
+            USER_AGENTS.len()
         );
     }
 
