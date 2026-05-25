@@ -7,13 +7,17 @@
 //! the Python version dispatched on `meta.type` via `if/elif`; here each
 //! method is its own function and [`try_method`] dispatches.
 
-use scraper::Html;
+use regex::Regex;
+use scraper::{Html, Selector};
 use url::Url;
 
 use crate::canonical::Page;
 use crate::models::CanonicalType;
 
+pub mod bing_original;
 pub mod canurl;
+pub mod google_js;
+pub mod google_manual;
 pub mod og_url;
 pub mod rel;
 
@@ -76,19 +80,40 @@ pub fn try_method(method: CanonicalType, ctx: &MethodContext<'_>) -> Vec<String>
         CanonicalType::Rel => rel::find(ctx),
         CanonicalType::Canurl => canurl::find(ctx),
         CanonicalType::OgUrl => og_url::find(ctx),
-        // The remaining 8 methods land in follow-up commits — Google/Bing
-        // host-conditional scrapers (M2.5b), schema/tco/meta-redirect
-        // (M2.5c), guess-and-check (M2.6 — needs readability), database
-        // (M3 — needs sqlx).
-        CanonicalType::GoogleManualRedirect
-        | CanonicalType::GoogleJsRedirect
-        | CanonicalType::BingOriginalUrl
-        | CanonicalType::SchemaMainentity
+        CanonicalType::GoogleManualRedirect => google_manual::find(ctx),
+        CanonicalType::GoogleJsRedirect => google_js::find(ctx),
+        CanonicalType::BingOriginalUrl => bing_original::find(ctx),
+        // The remaining 5 methods land in subsequent commits — schema/tco/
+        // meta-refresh (M2.5c), guess-and-check (M2.6 — needs readability),
+        // database (M3 — needs sqlx).
+        CanonicalType::SchemaMainentity
         | CanonicalType::TcoPagetitle
         | CanonicalType::MetaRedirect
         | CanonicalType::GuessAndCheck
         | CanonicalType::Database => Vec::new(),
     }
+}
+
+/// Search every inline `<script>` (i.e. `<script>` without a `src` attribute,
+/// matching the Python `find_all("script", {"src": False})`) for `pattern`
+/// and return capture group 1.
+///
+/// Ports `archive/helpers/canonical_methods.py:get_can_url_with_regex`.
+/// `\/` is unescaped to `/` — some scripts emit JSON-encoded URLs like
+/// `https:\/\/example.com\/`.
+pub(crate) fn find_in_inline_scripts(html: &Html, pattern: &Regex) -> Option<String> {
+    static SCRIPT: std::sync::LazyLock<Selector> =
+        std::sync::LazyLock::new(|| Selector::parse("script:not([src])").expect("script selector"));
+
+    for script in html.select(&SCRIPT) {
+        let text = script.text().collect::<String>();
+        if let Some(caps) = pattern.captures(&text)
+            && let Some(m) = caps.get(1)
+        {
+            return Some(m.as_str().replace("\\/", "/"));
+        }
+    }
+    None
 }
 
 /// Resolve a candidate URL from an HTML attribute against the base URL.
