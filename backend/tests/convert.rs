@@ -181,10 +181,10 @@ async fn happy_path_encoded_url_returns_200_with_canonical() {
     let fetcher = MockPageSource::new().with(amp, &rel_canonical_html(target));
     let db = RecordingDatabase::default();
 
-    // The trailing `%20` flips the parser onto the args-decoded path; the
-    // decoded space at the end is a URL boundary for linkify, so the AMP
-    // URL extracts cleanly.
-    let raw = "q=https%3A%2F%2Fwww.google.com%2Famp%2Fs%2Fexample.eu%2Farticle%20";
+    // Encoded URL with no spaces. Used to break under the legacy `%20`
+    // heuristic — now resolves cleanly because the strip output has no
+    // literal `://` and the parser falls back to args-decoded.
+    let raw = "q=https%3A%2F%2Fwww.google.com%2Famp%2Fs%2Fexample.eu%2Farticle";
     let resp = convert_inner(&fetcher, &db, raw, &HeaderMap::new()).await;
 
     assert_eq!(resp.status(), StatusCode::OK);

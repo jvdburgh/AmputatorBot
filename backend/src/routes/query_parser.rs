@@ -1,20 +1,24 @@
 //! Query-string parsing for `/api/v1/convert`.
 //!
-//! Ports `archive/AmputatorBotCom/main.py:109-141` (the
-//! `get_query_string_value` / `get_query_url` / `get_query_bool_value` /
-//! `get_query_int_value` helpers) plus the `%20` heuristic at
-//! `main.py:196-199` that switches between the two `q` parsing strategies.
+//! Refines `archive/AmputatorBotCom/main.py:109-141` — same two strategies
+//! the legacy bot used, but dispatched on whether the URL is actually
+//! encoded rather than the legacy's `%20`-presence guess (which broke for
+//! every encoded URL that didn't happen to contain a space).
 //!
-//! Why two strategies?
+//! The contract:
 //!
-//! 1. **Encoded path.** Standard `?q=https%3A%2F%2F...&gac=true&md=3`.
-//!    Detected by `q` containing `%20` — the percent-encoding for a space.
-//!    Parsed normally as a query param.
-//! 2. **Unencoded path.** Pragmatic fallback for human callers pasting raw
-//!    URLs into a browser address bar: `?gac=true&md=3&q=https://...`.
-//!    The raw query string has the known params (`md=X`, `gac=true|false`,
-//!    `q=`) stripped out via regex; whatever remains is the URL. Requires
-//!    `q` to be the last param — anything after gets glued to the URL.
+//! 1. **Encoded URL**: always works, regardless of where `q` sits in the
+//!    param list. `?q=https%3A%2F%2F...&gac=true` and
+//!    `?gac=true&q=https%3A%2F%2F...` both resolve cleanly.
+//! 2. **Unencoded URL**: only required to work when `q` is the last param.
+//!    `?gac=true&q=https://example.eu/article?id=1` works; `q` between
+//!    other params is best-effort and may glue stray params onto the URL.
+//!
+//! How: try the raw-strip path first (removes known params from the raw
+//! query string, leaves whatever's left as the URL). If the result contains
+//! a literal `://`, the caller sent an unencoded URL — use that, with any
+//! URL-internal `?id=...&ref=...` tail preserved. Otherwise the URL was
+//! percent-encoded; the args-decoded `q` is correct.
 //!
 //! ### Known limitation faithfully preserved
 //!
@@ -63,19 +67,16 @@ pub fn parse(raw: &str) -> Result<ConvertParams, ParseError> {
         return Err(ParseError::MissingQ);
     }
 
-    // The legacy `%20` heuristic: try the raw-strip path first; if the
-    // result contains `%20`, the caller properly encoded their URL and we
-    // should use the standard arg-parsed value instead.
+    // Pick whichever of the two parsing strategies actually saw a URL:
+    // the strip path keeps URL-internal `?` and `&` intact, but produces
+    // garbage when the URL was percent-encoded (the scheme delimiter
+    // becomes `%3A%2F%2F`). The presence of a literal `://` in the strip
+    // output is exactly the signal we need.
     let stripped = strip_known_params(raw);
-    let q = if stripped.contains("%20") {
-        q_arg.to_string()
-    } else if stripped.is_empty() {
-        // Edge case: no unencoded URL surfaced from the strip. Fall back
-        // to the arg-parsed value so we don't lose well-encoded URLs that
-        // happened not to contain `%20` (i.e. URLs with no spaces).
-        q_arg.to_string()
-    } else {
+    let q = if stripped.contains("://") {
         stripped
+    } else {
+        q_arg.to_string()
     };
 
     Ok(ConvertParams {
@@ -199,22 +200,32 @@ mod tests {
 
     #[test]
     fn parses_encoded_url_with_q_last() {
-        let q =
-            "gac=true&md=3&q=https%3A%2F%2Fwww.google.com%2Famp%2Fs%2Fexample.eu%2Famp%2F%20here";
+        let q = "gac=true&md=3&q=https%3A%2F%2Fwww.google.com%2Famp%2Fs%2Fexample.eu%2Famp%2F";
         let p = parse(q).expect("should parse");
-        // Contains %20 → arg-parsed (decoded) wins.
-        assert_eq!(p.q, "https://www.google.com/amp/s/example.eu/amp/ here");
+        assert_eq!(p.q, "https://www.google.com/amp/s/example.eu/amp/");
         assert!(p.use_gac);
         assert_eq!(p.max_depth, 3);
     }
 
     #[test]
     fn parses_encoded_url_with_q_first() {
-        let q = "q=https%3A%2F%2Fexample.eu%2Famp%2Farticle%20x&gac=false&md=5";
+        let q = "q=https%3A%2F%2Fexample.eu%2Famp%2Farticle&gac=false&md=5";
         let p = parse(q).expect("should parse");
-        assert_eq!(p.q, "https://example.eu/amp/article x");
+        assert_eq!(p.q, "https://example.eu/amp/article");
         assert!(!p.use_gac);
         assert_eq!(p.max_depth, 5);
+    }
+
+    #[test]
+    fn parses_encoded_url_no_spaces_no_special_chars() {
+        // Regression: the legacy `%20` heuristic broke this case. A well-
+        // encoded URL with no literal `%20` in it (because the URL has no
+        // spaces) used to fall through to the raw-strip path, which left
+        // the URL still percent-encoded and unparseable by linkify. The
+        // `://` check fixes it.
+        let q = "q=https%3A%2F%2Fabcnews.com%2Famp%2FPolitics%2Fstory%3Fid%3D1";
+        let p = parse(q).expect("should parse");
+        assert_eq!(p.q, "https://abcnews.com/amp/Politics/story?id=1");
     }
 
     // ──────────────────────────────────────────────────────────────

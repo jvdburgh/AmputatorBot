@@ -201,25 +201,19 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 
 ### URL encoding behavior — both must work
 
-The API supports two callers: well-behaved clients that percent-encode their URLs, and humans who paste raw URLs into a browser address bar. Both need to work, and the heuristic in `get_query_url` (`AmputatorBotCom/main.py:116-127` + `:196-199`) is how the existing API distinguishes them.
+The API supports two callers: well-behaved clients that percent-encode their URLs, and humans who paste raw URLs into a browser address bar. The v7 contract:
 
-**Encoded path** — standard behavior:
-- Caller: `?q=https%3A%2F%2Fwww.google.com%2Famp%2Fs%2Fexample.eu%2Famp%2F&gac=true&md=3`
-- Detected by: `q` value contains `%20` (the spec-encoding for a space, which any encoder uses when the URL contains spaces). In the existing heuristic this stands in for "the client encoded the string properly."
-- Handled by: `request.args[q]` — standard Flask/Axum query parsing. Order of params doesn't matter.
+1. **Encoded URLs always work**, regardless of `q`'s position in the param list. `?q=https%3A%2F%2F...&gac=true` and `?gac=true&q=https%3A%2F%2F...` are both valid.
+2. **Unencoded URLs work when `q` is the last param.** `?gac=true&q=https://example.eu/article?id=1` is fine — the URL's tail params (`?id=1`) are preserved. `q` between other known params is best-effort.
 
-**Unencoded path** — pragmatic fallback:
-- Caller: `?gac=true&md=3&q=https://www.google.com/amp/s/example.eu/amp/`
-- Detected by: `q` doesn't contain `%20`.
-- Handled by: take the entire raw query string, strip known params (`md=...`, `gac=true|false`, `q=`), treat what's left as the URL. This is why raw URLs with their own `?` and `&` survive — they're never parsed as query params.
-- **Hard requirement: `q` must be the last query param** in unencoded mode. Otherwise the strip pass leaves residual params glued to the URL. Document this in the API docs and in the inline error message when the heuristic produces something that doesn't parse as a URL.
+The legacy code used a `%20`-presence heuristic to distinguish the two cases, which silently broke for any encoded URL that didn't happen to contain a literal space (the common case once you actually look at production traffic). The v7 port replaces that with the cleaner `://`-in-strip-output check: try the raw-strip path (handles unencoded URLs with tail params); if its output has a literal `://`, use it; otherwise fall back to args-decoded `q` (handles encoded URLs).
 
-The Rust impl must replicate both modes exactly. Test fixtures must cover:
-- Encoded URL with `q` last
-- Encoded URL with `q` not last
-- Unencoded URL with `q` last (the common human-pastes-into-browser case)
-- Unencoded URL containing `?` and `&` in the path/query
-- Unencoded URL containing what looks like `gac=` or `md=` literally in the path (edge case — current impl would strip these incorrectly; document as known limitation)
+The Rust impl is in `backend/src/routes/query_parser.rs`. Test fixtures must cover:
+- Encoded URL, `q` first
+- Encoded URL, `q` last
+- Encoded URL containing no spaces or special chars (the case the legacy heuristic silently broke)
+- Unencoded URL, `q` last, with URL-internal `?` and `&`
+- Unencoded URL with what looks like `gac=` or `md=` literally in the path (documented limitation — the strip pass would mangle these; rare in real traffic)
 
 **Response (200):** array of `Link` objects matching `models/link.py`. Each contains:
 ```jsonc
@@ -551,11 +545,11 @@ Tasks:
 
 **Ask points:** Edge cases in canonical methods that don't translate cleanly (duck typing, ad-hoc normalization) — surface, don't paper over. If `dom_smoothie`'s standard mode produces similarity scores that misalign with the existing `>0.6` / `>0.35` thresholds on the fixture set, retune the thresholds rather than swapping the extractor.
 
-### M3 — `/api/v1/convert` endpoint + `links` cache (local)
+### M3 — `/api/v1/convert` endpoint + `links` cache (local) ✓ DONE
 
-**Status:** ready to start. M2 is complete (112 backend tests, parity-validated against 10k recorded URLConversions fixtures). The canonical-finding engine (`canonical::resolve`) is built; M3 wraps it in HTTP + adds the Postgres cache.
+**Done when:** the Axum handler returns shape-compatible responses to the legacy `/api/v1/convert` against a local Docker Postgres seeded with the historical `URLConversions` data; `?r=true` redirect mode works end-to-end via live HTTP; the `X-AmputatorBot-Entry-Type` header is honored on writes. Two locked deviations from the legacy contract: `?gc=true` is silently ignored (deferred to M5 alongside the Devvit-side reply template refresh — legacy `run_api` never read it either), and the custom 5xx codes 560 + 561 are collapsed to 200 + null canonical (web-standard shape; clients differentiate via the response body).
 
-**Done when:** the Axum handler emits byte-identical responses to the legacy `/api/v1/convert` on the snapshot set, running against a local Docker Postgres seeded with the historical `URLConversions` data; `?r=true` redirect mode works; `?gc=true` returns the refreshed reply markdown.
+**Result:** 159 tests (up from 112 at M2). End-to-end smoke verified against the local DB seeded with 9998 historical rows: encoded URLs via `curl --data-urlencode` work, `X-AmputatorBot-Entry-Type: COMMENT` persists on writes, `?r=true` returns 303 with correct `Location:` header.
 
 #### Schema (locked)
 
