@@ -188,9 +188,16 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 
 ---
 
-## API contract (from `AmputatorBotCom/main.py:161+`)
+## API contract
 
-**Endpoint:** `GET|POST /api/v1/convert`
+Two endpoints ship side by side:
+
+- **`GET|POST /api/v1/convert`** — legacy contract preserved (snake_case query string, snake_case JSON response). Deprecated for new callers but supported indefinitely so external services don't break.
+- **`POST /api/v2/convert`** — modern contract: JSON body in camelCase, JSON response in camelCase. `entryType` is a body field instead of a header. Strict validation (unknown fields → 422). Recommended for Devvit (M5) + website (M4) + new external callers.
+
+Every write to the `links` cache records `api_version` (1 or 2 — NULL for the pre-v7 legacy bot's CSV-imported rows) so adoption is queryable: `SELECT api_version, COUNT(*) FROM links GROUP BY 1`.
+
+### v1 — `GET|POST /api/v1/convert` (from `AmputatorBotCom/main.py:161+`)
 
 **Query params:**
 - `q` (required) — URL or text containing URLs
@@ -233,10 +240,59 @@ Confirmed against live API probe — same shape, same `type` enum values (`DATAB
 - `400` — missing `q`
 - `406` — no AMP detected (`result_code=error_no_amp`)
 - `500` — unknown error
-- `560` — no canonicals found
-- `561` — problematic domain (from `data/problematic_domains.txt`)
+
+The legacy 560 ("no canonicals") and 561 ("problematic domain") codes are collapsed to 200 + null canonical (per v7 web-standards decision). The 561 problematic-domain list is dropped entirely.
 
 **Bearer auth:** present in code, currently `authorization_required=False`. **Drop in v7 entirely.**
+
+### v2 — `POST /api/v2/convert`
+
+Modern JSON-in / JSON-out contract for new callers.
+
+**Request body** (`Content-Type: application/json`):
+```jsonc
+{
+  "query": "https://www.google.com/amp/s/example.eu/article",  // required
+  "guessAndCheck": true,        // optional, default true
+  "maxDepth": 3,                // optional, default 3
+  "redirect": false,            // optional, default false
+  "entryType": "COMMENT"        // optional, default "API". One of:
+                                //   "API", "COMMENT", "SUBMISSION",
+                                //   "MENTION", "ONLINE".
+}
+```
+
+Strict validation (`#[serde(deny_unknown_fields)]` on the deserializer):
+- Unknown field names → 422 Unprocessable Entity with a "expected one of …" message
+- Invalid `entryType` values → 422
+- Wrong casing on enum values (`"comment"` vs `"COMMENT"`) → 422
+
+**Response (200)**: array of `Link` objects, identical structure to v1 but every key recursively camelCased.
+
+```jsonc
+[
+  {
+    "origin": { "domain": "google", "url": "...", "isAmp": true, "isCached": true, "isValid": true },
+    "canonicals": [ /* {domain, url, type, isAmp, isCached, isValid, isAlt, urlSimilarity} */ ],
+    "canonical": { /* best pick, same shape as canonicals[i] */ },
+    "ampCanonical": null
+  }
+]
+```
+
+**Error response shape**: same `errorMessage` + `resultCode` body, camelCased.
+
+**Status codes**: same as v1 — 200, 303, 400, 406, 500 — plus 422 for body-deserialize failures (Axum's default `JsonRejection`).
+
+### Cache schema annotation
+
+The `links` table grows a nullable `api_version SMALLINT` column (migration `002_api_version.sql`):
+
+- `NULL` — pre-v7 legacy bot's rows (CSV-imported from PythonAnywhere)
+- `1` — `/api/v1/convert` writes
+- `2` — `/api/v2/convert` writes
+
+Adding the column on the production 1.7M-row table is metadata-only in Postgres (nullable, no default → no rewrite), millisecond-scale even on Scaleway's smallest tier.
 
 ---
 
@@ -549,7 +605,11 @@ Tasks:
 
 **Done when:** the Axum handler returns shape-compatible responses to the legacy `/api/v1/convert` against a local Docker Postgres seeded with the historical `URLConversions` data; `?r=true` redirect mode works end-to-end via live HTTP; the `X-AmputatorBot-Entry-Type` header is honored on writes. Two locked deviations from the legacy contract: `?gc=true` is silently ignored (deferred to M5 alongside the Devvit-side reply template refresh — legacy `run_api` never read it either), and the custom 5xx codes 560 + 561 are collapsed to 200 + null canonical (web-standard shape; clients differentiate via the response body).
 
-**Result:** 159 tests (up from 112 at M2). End-to-end smoke verified against the local DB seeded with 9998 historical rows: encoded URLs via `curl --data-urlencode` work, `X-AmputatorBot-Entry-Type: COMMENT` persists on writes, `?r=true` returns 303 with correct `Location:` header.
+**Result:** 167 tests (up from 112 at M2). End-to-end smoke verified against the local DB seeded with 9998 historical rows. Both endpoints ship:
+
+- **v1** (`GET|POST /api/v1/convert`) — legacy contract preserved; encoded URLs via `curl --data-urlencode` work, `?r=true` returns 303. `entry_type` always logs `API`.
+- **v2** (`POST /api/v2/convert`) — JSON-in/JSON-out, camelCase both ways, `entryType` body field, `api_version=2` written. Strict body deserialization (typos → 422).
+- **Schema**: `links.api_version SMALLINT` added (NULL = legacy CSV-imported rows, 1 = v1 writes, 2 = v2 writes).
 
 #### Schema (locked)
 

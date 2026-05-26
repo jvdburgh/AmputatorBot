@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO links (entry_type, original_url, canonical_url, canonical_type) VALUES ($1, $2, $3, $4)",
+  "query": "INSERT INTO links (entry_type, original_url, canonical_url, canonical_type, api_version) VALUES ($1, $2, $3, $4, $5)",
   "describe": {
     "columns": [],
     "parameters": {
@@ -42,10 +42,11 @@
               ]
             }
           }
-        }
+        },
+        "Int2"
       ]
     },
     "nullable": []
   },
-  "hash": "c51f460059cc2381e7b77928a1ab33008741ae7cff95b7ed385a6ba867fde702"
+  "hash": "4b48601868d42ad33656fe7ef6036ccd32a97cc7246f38e48f0dc799421ae18b"
 }

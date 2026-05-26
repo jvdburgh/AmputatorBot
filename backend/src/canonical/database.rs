@@ -23,10 +23,13 @@ use crate::models::{CanonicalType, EntryType};
 /// overrides.
 #[derive(Debug, Clone)]
 pub struct Resolution<'a> {
-    /// Where the resolution originated. The HTTP handler reads this from
-    /// the `X-AmputatorBot-Entry-Type` header — defaulting to
-    /// [`EntryType::Api`] when missing or unrecognized.
+    /// Where the resolution originated. v1 always sets [`EntryType::Api`];
+    /// v2 reads it from the JSON body's `entryType` field.
     pub entry_type: EntryType,
+    /// Which API surface produced this row: `1` for `/api/v1/convert`,
+    /// `2` for `/api/v2/convert`. Stored in `links.api_version`. Legacy
+    /// CSV imports stay NULL so the new-vs-old boundary is queryable.
+    pub api_version: i16,
     pub original_url: &'a str,
     pub canonical_url: Option<&'a str>,
     pub canonical_type: Option<CanonicalType>,

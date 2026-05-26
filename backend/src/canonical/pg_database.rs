@@ -52,12 +52,13 @@ impl Database for PgDatabase {
         // `handled_utc` is intentionally omitted — the column's `DEFAULT NOW()`
         // owns the timestamp, keeping it in lockstep with the DB clock.
         sqlx::query!(
-            "INSERT INTO links (entry_type, original_url, canonical_url, canonical_type) \
-             VALUES ($1, $2, $3, $4)",
+            "INSERT INTO links (entry_type, original_url, canonical_url, canonical_type, api_version) \
+             VALUES ($1, $2, $3, $4, $5)",
             entry.entry_type as EntryType,
             entry.original_url,
             entry.canonical_url,
             entry.canonical_type as Option<CanonicalType>,
+            entry.api_version,
         )
         .execute(&self.pool)
         .await?;

@@ -9,6 +9,7 @@ use serde_json::json;
 use crate::state::AppState;
 
 pub mod convert;
+pub mod convert_v2;
 pub mod query_parser;
 
 /// Build the application router. Takes ownership of [`AppState`] and produces
@@ -20,6 +21,7 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/convert",
             get(convert::handler).post(convert::handler),
         )
+        .route("/api/v2/convert", axum::routing::post(convert_v2::handler))
         .with_state(state)
 }
 
