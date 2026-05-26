@@ -1,8 +1,9 @@
 use std::net::SocketAddr;
 
+use amputatorbot_backend::canonical::{HttpFetcher, PgDatabase};
+use amputatorbot_backend::routes;
+use amputatorbot_backend::state::AppState;
 use anyhow::Context;
-use axum::{Json, Router, routing::get};
-use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::EnvFilter;
 
@@ -35,10 +36,11 @@ async fn main() -> anyhow::Result<()> {
         .context("sqlx migrations failed")?;
     tracing::info!("database migrations applied");
 
-    // `pool` is unused until the next task wires it into router state via `Database`.
-    let _pool = pool;
+    let fetcher = HttpFetcher::new().context("building HTTP fetcher")?;
+    let db = PgDatabase::new(pool);
+    let state = AppState::new(fetcher, db);
 
-    let app = Router::new().route("/api/v1/health", get(health));
+    let app = routes::router(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     tracing::info!(%addr, "starting amputatorbot-backend");
@@ -47,11 +49,4 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app).await?;
 
     Ok(())
-}
-
-async fn health() -> Json<serde_json::Value> {
-    Json(json!({
-        "ok": true,
-        "version": env!("CARGO_PKG_VERSION"),
-    }))
 }

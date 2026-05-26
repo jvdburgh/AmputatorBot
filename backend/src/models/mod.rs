@@ -5,10 +5,12 @@
 
 pub mod canonical;
 pub mod canonical_type;
+pub mod entry_type;
 pub mod link;
 pub mod url_meta;
 
 pub use canonical::Canonical;
 pub use canonical_type::CanonicalType;
+pub use entry_type::EntryType;
 pub use link::Link;
 pub use url_meta::UrlMeta;

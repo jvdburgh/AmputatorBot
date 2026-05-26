@@ -37,6 +37,7 @@ futures = "0.3"
 [dev-dependencies]
 insta = { version = "1", features = ["json"] }
 tokio-test = "0.4"
+http-body-util = "0.1"
 
 [[bin]]
 name = "amputatorbot-backend"

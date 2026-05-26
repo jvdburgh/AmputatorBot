@@ -1,0 +1,51 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO links (entry_type, original_url, canonical_url, canonical_type) VALUES ($1, $2, $3, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        {
+          "Custom": {
+            "name": "entry_type",
+            "kind": {
+              "Enum": [
+                "ONLINE",
+                "COMMENT",
+                "SUBMISSION",
+                "MENTION",
+                "TEST",
+                "TWEET",
+                "API"
+              ]
+            }
+          }
+        },
+        "Text",
+        "Text",
+        {
+          "Custom": {
+            "name": "canonical_type",
+            "kind": {
+              "Enum": [
+                "REL",
+                "CANURL",
+                "OG_URL",
+                "GOOGLE_MANUAL_REDIRECT",
+                "GOOGLE_JS_REDIRECT",
+                "BING_ORIGINAL_URL",
+                "SCHEMA_MAINENTITY",
+                "TCO_PAGETITLE",
+                "META_REDIRECT",
+                "GUESS_AND_CHECK",
+                "DATABASE"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c51f460059cc2381e7b77928a1ab33008741ae7cff95b7ed385a6ba867fde702"
+}

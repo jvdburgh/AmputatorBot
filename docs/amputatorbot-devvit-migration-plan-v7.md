@@ -686,6 +686,21 @@ Tasks:
 
 **Done when:** the Astro+Rust container is live at `www.amputatorbot.com` on Scaleway, prod Postgres holds the migrated dataset, the Devvit app is in the App Directory, r/AmputatorBot has the announcement sticky, and the old PythonAnywhere bot is still running in parallel as a safety net.
 
+Pre-deploy audit (do BEFORE any Scaleway provisioning — finding stale deps or leaked secrets after deploy is much more expensive):
+
+- **Dependency freshness.** Bump everything to the latest compatible version we can — Postgres stays on 17 (the schema is sized for it; we don't gain anything by chasing a `pg_*` bump now), everything else fair game:
+  - Rust: `cargo update` then `cargo outdated -R` to spot anything held back by semver caret pins. Patch `Cargo.toml` for the ones worth pulling forward (Axum, sqlx, reqwest, scraper, dom_smoothie). Re-run `cargo nextest run` + `cargo deny check` after each.
+  - TS: `pnpm -r outdated` across `devvit-app/` and `website/`. Update `@devvit/web`, Astro 5/6 LTS, Tailwind, Vitest, Biome, tsgo's preview tag.
+  - GitHub Actions: dependabot already handles weekly bumps, but verify the `actions/checkout@v4` / `Swatinem/rust-cache@v2` / `jdx/mise-action@v2` pins in `.github/workflows/` are still current.
+  - Docker base image: bump the Rust + Debian base tags in `backend/Dockerfile` to current LTS.
+- **Secret scan.** `gitleaks detect --no-banner --redact` against the full history (not just current tree — the `archive/static/static.py` credentials are still in older commits). Confirm every leaked credential has either (a) been rotated upstream (Reddit OAuth, MySQL, Twitter, SSH) or (b) is a now-defunct service we no longer use. Also `git grep -nE "Bearer |password|secret|client_secret|api_key" -- ':!archive'` for stray modern leaks.
+- **Vulnerability sweep.** `cargo deny check advisories` (force-refresh the RustSec DB), `pnpm -r audit --prod`, GitHub Dependabot alerts dashboard. Triage each finding; fix or accept-with-rationale.
+- **Performance sanity.** Build release: `cargo build --release` — confirm the binary stays under ~20 MB stripped (M2 baseline was around there). Run the full parity test (`just parity-full`) and check the report's success rate hasn't regressed since M3 lock. Boot the container locally and `curl` a cold request — record the latency so we have a baseline for Scaleway's cold-start measurement.
+- **Code-quality sweep.** `cargo clippy --all-targets -- -D warnings` (already CI-gated, force-run anyway), `pnpm biome ci`, `astro check`. `git grep -nE "TODO|FIXME|XXX|HACK" -- backend/src devvit-app/src website/src` — every hit should either get resolved or be promoted to an issue with a milestone.
+- **Docs sanity.** Re-read `README.md`, `backend/README.md`, `CLAUDE.md`, and this plan. Anything that drifted during M3–M5 gets fixed in-place. The Postman API docs link in §References should still describe the live shape (or have a TODO to update post-cutover).
+
+Done criteria for the audit: zero open advisories, zero unrotated secrets in current `HEAD`, all CI checks green on a fresh push, parity report at or above the last locked rate.
+
 Cloud setup (Joris does the signups; Claude prepares exact commands):
 - Provision Scaleway Managed Database for PostgreSQL (DB DEV-S tier; the live MySQL is 42.56 MB so smallest tier is plenty)
 - Provision Scaleway Container Registry namespace

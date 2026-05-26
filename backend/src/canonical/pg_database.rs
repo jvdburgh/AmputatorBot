@@ -18,7 +18,8 @@
 use anyhow::Result;
 use sqlx::PgPool;
 
-use super::database::Database;
+use super::database::{Database, Resolution};
+use crate::models::{CanonicalType, EntryType};
 
 #[derive(Clone)]
 pub struct PgDatabase {
@@ -45,5 +46,21 @@ impl Database for PgDatabase {
         .await?;
 
         Ok(row.and_then(|r| r.canonical_url))
+    }
+
+    async fn record_resolution(&self, entry: Resolution<'_>) -> Result<()> {
+        // `handled_utc` is intentionally omitted — the column's `DEFAULT NOW()`
+        // owns the timestamp, keeping it in lockstep with the DB clock.
+        sqlx::query!(
+            "INSERT INTO links (entry_type, original_url, canonical_url, canonical_type) \
+             VALUES ($1, $2, $3, $4)",
+            entry.entry_type as EntryType,
+            entry.original_url,
+            entry.canonical_url,
+            entry.canonical_type as Option<CanonicalType>,
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 }

@@ -11,7 +11,11 @@ use serde::{Deserialize, Serialize};
 /// `jsons.dump` serializes enum members via `.name` (uppercase identifier),
 /// not `.value`. The live API response shows e.g. `"type": "DATABASE"`,
 /// `"type": "GOOGLE_MANUAL_REDIRECT"`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+///
+/// SQL binding goes through `sqlx::Type` against the Postgres `canonical_type`
+/// enum — same `SCREAMING_SNAKE_CASE` literals on both sides.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "canonical_type", rename_all = "SCREAMING_SNAKE_CASE")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CanonicalType {
     Rel,

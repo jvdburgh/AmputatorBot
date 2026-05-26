@@ -63,6 +63,7 @@ dependencies = [
  "dom_smoothie",
  "fastrand",
  "futures",
+ "http-body-util",
  "insta",
  "linkify",
  "psl",

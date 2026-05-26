@@ -68,6 +68,25 @@ or when no `DATABASE_URL` is set.
 running) and commit the updated `.sqlx/` JSON. CI will fail if `.sqlx/`
 drifts from the actual queries.
 
+### Producing CSVs for `just db-seed`
+
+`just db-seed` (and the M6 production migration to Scaleway) consume a CSV
+with this header — comma-delimited, RFC-4180 quoting where needed, empty
+fields for `NULL`:
+
+```
+entry_id,entry_type,handled_utc,original_url,canonical_url,canonical_type,note
+```
+
+Any export tool that produces that shape works — JetBrains' "Export Data → CSV"
+on the legacy `URLConversions` table is what produced the committed 10k
+samples in `tests/fixtures/urlconversions/`. For the M6 cutover, exporting
+the full ~1.7M-row table the same way (no `LIMIT`) gives a file that drops
+into `just db-seed path=<file>` directly.
+
+The seed recipe filters rows where either URL exceeds the 2048-char cap;
+expect a small `skipped_too_long` count in the output, that's not an error.
+
 ### URL-length cap
 
 Both `original_url` and `canonical_url` are constrained to ≤ 2048 chars
