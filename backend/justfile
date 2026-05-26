@@ -29,9 +29,17 @@ test:
 deny:
     cargo deny check
 
-# Watch + auto-rebuild for local dev
+# Local dev server with auto-rebuild on file change. Needs `just db-up` first.
 dev:
+    DATABASE_URL="${DATABASE_URL:-postgres://amputatorbot:amputatorbot@localhost:5432/amputatorbot}" \
+    RUST_LOG="${RUST_LOG:-info}" \
     cargo watch -x run
+
+# Release binary, single run. Same env defaults as `dev`.
+run:
+    DATABASE_URL="${DATABASE_URL:-postgres://amputatorbot:amputatorbot@localhost:5432/amputatorbot}" \
+    RUST_LOG="${RUST_LOG:-info}" \
+    cargo run --release
 
 # Parity test (default 500-fixture sample, ~couple seconds). Reads
 # recorded fixtures from tests/fixtures/html/, writes a Markdown

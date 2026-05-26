@@ -5,6 +5,9 @@ edition = "2024"
 license = "MIT"
 publish = false
 description = "Rust backend for AmputatorBot — Devvit-era. Replaces the legacy Flask /api/v1/convert."
+# `cargo run` without `--bin` picks this. Two binaries (the server +
+# record_fixtures) would otherwise force every invocation to disambiguate.
+default-run = "amputatorbot-backend"
 
 [dependencies]
 axum = "0.8"

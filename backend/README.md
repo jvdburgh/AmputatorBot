@@ -102,11 +102,41 @@ All run from `backend/`:
 | Command | What it does |
 |---|---|
 | `just check` | Full local check: format-check, clippy `-D warnings`, nextest, cargo-deny. Same as CI. |
-| `just test` | Just the test suite (nextest). ~100 tests, ~0.1s. |
+| `just test` | Just the test suite (nextest). ~150 tests, ~0.1s (parity excluded). |
 | `just fmt` | Apply rustfmt to everything. |
 | `just lint` | Clippy with warnings denied. |
-| `just dev` | Run the Axum server with cargo-watch (rebuilds on file change). |
+| `just dev` | Run the Axum server with cargo-watch (rebuilds on file change). Defaults `DATABASE_URL` to the local Docker instance. |
+| `just run` | Run the release binary once. Same env defaults as `just dev`. |
 | `just build` | Release build. |
+
+## Hitting the running server
+
+`just db-up` (from repo root) → `just dev` → `localhost:8080`. Two endpoints:
+
+| Endpoint | Surface |
+|---|---|
+| `GET\|POST /api/v1/convert` | Legacy query-string contract, snake_case JSON response. Deprecated for new callers, kept alive for existing external consumers. |
+| `POST /api/v2/convert` | Modern JSON in / JSON out, camelCase both ways, `entryType` first-class body field. Strict validation (typo'd field → 422). |
+
+Quick smoke tests — assumes `just dev` is running:
+
+```bash
+URL='https://abcnews.com/amp/Politics/hhs-warns-states-removing-kids-homes-parents-approval/story?id=130696092'
+
+# v1 — use `--data-urlencode` so curl handles percent-encoding.
+curl -s --get --data-urlencode "q=$URL" http://localhost:8080/api/v1/convert | jq
+
+# v2 — `jq -nc --arg q "$URL" '{query: $q}'` safely injects the URL as JSON.
+curl -s -X POST -H 'Content-Type: application/json' \
+    -d "$(jq -nc --arg q "$URL" '{query: $q, entryType: "COMMENT"}')" \
+    http://localhost:8080/api/v2/convert | jq
+
+# Verify entry_type + api_version land in the DB:
+docker exec amputatorbot-postgres psql -U amputatorbot -d amputatorbot -c \
+    "SELECT entry_type, api_version, COUNT(*)
+     FROM links WHERE handled_utc > NOW() - INTERVAL '5 minutes'
+     GROUP BY 1, 2;"
+```
 
 ## Testing the canonical-finding engine
 
