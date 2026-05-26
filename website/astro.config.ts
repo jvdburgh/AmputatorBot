@@ -1,17 +1,27 @@
+import mdx from '@astrojs/mdx';
 import react from '@astrojs/react';
-import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'astro/config';
 
-// Note: `@tailwindcss/vite`'s Plugin type doesn't perfectly match Astro's
-// bundled Vite version yet (Astro 5.18 + Tailwind 4.3 + Vite 7). The build
-// works fine; the type cast silences `astro check` until those align.
+// Tailwind 4 is wired in via PostCSS (`postcss.config.mjs`) rather than
+// `@tailwindcss/vite`, because the Vite plugin (4.3.0) is incompatible with
+// the Rolldown-based Vite 8 that Astro 6 ships. See postcss.config.mjs.
 export default defineConfig({
+  // MDX has to come before React so it can register its own renderer.
   output: 'static',
-  integrations: [react()],
+  integrations: [mdx(), react()],
   vite: {
-    plugins: [
-      // biome-ignore lint/suspicious/noExplicitAny: vite plugin type mismatch, see note above
-      tailwindcss() as any,
-    ],
+    // Dev-only proxy: astro dev serves on :4321, the Rust backend on :8080.
+    // The ConverterForm posts to /api/v2/convert on same-origin in production
+    // (Rust serves both Astro static + the API), so we forward /api/* during
+    // local dev to match that contract. The backend's port is overridable via
+    // BACKEND_URL for non-default setups.
+    server: {
+      proxy: {
+        '/api': {
+          target: process.env.BACKEND_URL ?? 'http://localhost:8080',
+          changeOrigin: true,
+        },
+      },
+    },
   },
 });

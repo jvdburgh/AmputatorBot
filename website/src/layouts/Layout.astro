@@ -1,29 +1,51 @@
 ---
+import SiteFooter from '@/components/SiteFooter.astro';
+import SiteHeader from '@/components/SiteHeader.astro';
+import '@/styles/global.css';
+
 interface Props {
   title?: string;
   description?: string;
 }
 
 const {
-  title = 'AmputatorBot',
-  description = 'AmputatorBot strips AMP from URLs and returns the canonical link.',
+  title = 'AmputatorBot: Remove AMP from your URLs',
+  description = 'AMP threatens your privacy and the Open Web. AmputatorBot strips AMP from URLs and returns the canonical link — as a website, a Reddit bot, and a free public API.',
 } = Astro.props;
+
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? 'https://www.amputatorbot.com').toString();
 ---
 
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content={description} />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+    <meta name="author" content="Killed_Mufasa" />
+    <meta name="robots" content="index,follow" />
+
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-icon-180x180.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#005af0" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content="https://www.amputatorbot.com/amputatorbot_logo_banner_transparent.png" />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
-  <body class="min-h-screen bg-zinc-50 text-zinc-900 antialiased">
-    <slot />
+  <body class="min-h-screen bg-background text-foreground antialiased flex flex-col">
+    <SiteHeader />
+    <main class="flex-1">
+      <slot />
+    </main>
+    <SiteFooter />
   </body>
 </html>
-
-<style is:global>
-  @import '../styles/global.css';
-</style>

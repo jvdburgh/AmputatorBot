@@ -700,8 +700,8 @@ psql "$DATABASE_URL" -c "\
 Tasks:
 - Audit live site: every page, every piece of content
 - Port content to Astro: landing, FAQ (MDX), About / Why (MDX), changelog link
-- Build ConverterForm React island in `src/components/react/ConverterForm.tsx` (shadcn `<Input>`, `<Button>`, `<Card>`). POSTs to `/api/v1/convert` on same origin.
-- **Tailwind prefix: `ab:`** — all utility classes are namespaced (e.g. `ab:flex ab:gap-4 ab:bg-zinc-50`). Configured in `tailwind.config.ts` via `prefix: 'ab:'`. Keeps styles isolated; avoids any collision with shadcn or future host pages.
+- Build ConverterForm React island in `src/components/react/ConverterForm.tsx` (shadcn `<Input>`, `<Button>`, `<Card>`). POSTs to `/api/v2/convert` on same origin with `entryType: "ONLINE"`. v2 is the modern contract M4 was explicitly named as a consumer of — see §"API contract".
+- **No Tailwind prefix.** Earlier drafts of v7 specified an `ab:` prefix to isolate the bot's classes from a hypothetical host page. There's no host-page scenario — the site is its own origin. Dropping the prefix simplifies shadcn copy-in (every utility shadcn ships works as-is). If isolation is ever needed later, Tailwind 4 supports it via `@import "tailwindcss" prefix(ab);` in CSS, not the config file.
 - Copy icons/logos from `archive/AmputatorBotCom/static/` to `website/public/`
 - Update root `Dockerfile` (or backend's) to be two-stage: Astro build → Rust build → final image with `dist/` copied into the Rust container's static dir served by `tower-http::ServeDir`
 - Verify locally: `docker run` the combined image, hit `http://localhost:8080/` (Astro static), `http://localhost:8080/api/v1/convert?q=...` (Rust API)

@@ -1,0 +1,62 @@
+---
+// Sticky top nav. Mirrors the legacy site's external-link bar (Reddit user,
+// Reddit "Why I built it" thread, GitHub, API docs, PayPal). The internal
+// /about + /faq routes are new; the legacy site folded everything into the
+// single off-site Reddit post.
+const navLinks = [
+  { href: '/about', label: 'About' },
+  { href: '/faq', label: 'FAQ' },
+  {
+    href: 'https://www.reddit.com/user/AmputatorBot',
+    label: 'u/AmputatorBot',
+    external: true,
+  },
+  {
+    href: 'https://github.com/KilledMufasa/AmputatorBot',
+    label: 'GitHub',
+    external: true,
+  },
+  {
+    href: 'https://documenter.getpostman.com/view/12422626/UVC3n93T',
+    label: 'API',
+    external: true,
+  },
+];
+---
+
+<header
+  class="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-sm"
+>
+  <div
+    class="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6"
+  >
+    <a href="/" class="flex items-center gap-2" aria-label="AmputatorBot home">
+      <img
+        src="/amputatorbot_logo_banner_tnmo.svg"
+        alt="AmputatorBot"
+        class="h-7 w-auto"
+        width="160"
+        height="28"
+      />
+    </a>
+    <nav aria-label="Primary">
+      <ul class="flex items-center gap-1 text-sm sm:gap-2">
+        {
+          navLinks.map(({ href, label, external }) => (
+            <li>
+              <a
+                href={href}
+                class="rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:px-3"
+                {...(external
+                  ? { rel: 'noopener noreferrer', target: '_blank' }
+                  : {})}
+              >
+                {label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+  </div>
+</header>

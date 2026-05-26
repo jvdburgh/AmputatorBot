@@ -1,0 +1,62 @@
+---
+layout: '@/layouts/MdxLayout.astro'
+title: 'FAQ'
+description: 'How to use AmputatorBot on the web, on Reddit, and via the API — including opt-out, summoning, and where to file feedback.'
+---
+
+## Using the web converter
+
+[AmputatorBot.com](/) is the simplest way to remove AMP from a URL: paste the AMP link, click **Submit URL**, and copy the canonical version. Free, no ads, no accounts.
+
+You can also use the URL directly, which is handy for bookmarklets and scripts:
+
+```
+https://amputatorbot.com/?q=<amp-link>
+```
+
+For example: <code>https://amputatorbot.com/?q=https://www.google.com/amp/s/electrek.co/2018/06/19/tesla-model-3-assembly-line-inside-tent-elon-musk/amp/</code>
+
+## Where does the Reddit bot work?
+
+[u/AmputatorBot](https://www.reddit.com/user/AmputatorBot) is active on every subreddit by default. If you're a moderator and don't want it on your sub, you can ban it like any other account. You can also unban later — no hard feelings.
+
+## How do I summon the bot?
+
+If you've spotted an AMP URL on Reddit and the bot didn't catch it, you can summon it by mentioning **u/AmputatorBot** in a reply to the comment or submission containing the AMP URL. The bot will try to respond, and confirm or report any error by private message.
+
+## How do I opt out?
+
+If you prefer not to receive replies from u/AmputatorBot on your comments and submissions:
+
+- **Opt out:** [send the bot a private message](https://www.reddit.com/message/compose/?to=AmputatorBot&subject=Opt%20me%20out&message=opt%20me%20out) with the body "opt me out", or just block u/AmputatorBot.
+- **Undo opt-out:** changed your mind? [Send the bot another message](https://www.reddit.com/message/compose/?to=AmputatorBot&subject=Opt%20me%20back%20in&message=opt%20me%20back%20in) with the body "opt me back in".
+
+## Is there a public API?
+
+Yes — free and no auth required.
+
+- **Documentation:** [Postman docs](https://documenter.getpostman.com/view/12422626/UVC3n93T)
+- **Postman workspace:** [postman.com/amputatorbot](https://www.postman.com/amputatorbot)
+
+If you build something on top of it, drop a line — I'd love to hear about it.
+
+## Is there a browser extension?
+
+Yes, but it's not mine. Daniel Aleksandersen built **[Redirect AMP to HTML](https://addons.mozilla.org/en-US/firefox/addon/amp2html/)**, which automatically redirects AMP pages to their canonical versions when you click on them. Highly recommended.
+
+## How is the bot open-sourced?
+
+The full source code is on GitHub: **[KilledMufasa/AmputatorBot](https://github.com/KilledMufasa/AmputatorBot)**. Issues and pull requests welcome.
+
+## How do I give feedback or report a bug?
+
+Most new features were prompted by user feedback. A few channels, all watched:
+
+- [Contact u/Killed_Mufasa on Reddit](https://www.reddit.com/message/compose/?to=Killed_Mufasa)
+- [Post in r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/)
+- [File an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues)
+- [Open a pull request](https://github.com/KilledMufasa/AmputatorBot/pulls)
+
+## Where's the changelog?
+
+[r/AmputatorBot — Changelog of AmputatorBot](https://www.reddit.com/r/AmputatorBot/comments/ch9fxp/changelog_of_amputatorbot/) on Reddit.

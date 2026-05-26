@@ -1,0 +1,28 @@
+---
+import Layout from '@/layouts/Layout.astro';
+---
+
+<Layout title="Page not found — AmputatorBot" description="That page doesn't exist.">
+  <section class="mx-auto max-w-2xl px-4 py-24 text-center sm:px-6">
+    <p class="text-sm font-medium uppercase tracking-wide text-brand">404</p>
+    <h1 class="mt-2 text-4xl font-semibold tracking-tight">Page not found</h1>
+    <p class="mt-4 text-muted-foreground">
+      We couldn't find what you're looking for. Try the homepage to convert a
+      URL, or the FAQ for everything else.
+    </p>
+    <div class="mt-8 flex justify-center gap-3">
+      <a
+        href="/"
+        class="rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-foreground shadow-xs transition-colors hover:bg-brand/90"
+      >
+        Go home
+      </a>
+      <a
+        href="/faq"
+        class="rounded-md border border-border bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
+      >
+        Visit the FAQ
+      </a>
+    </div>
+  </section>
+</Layout>
