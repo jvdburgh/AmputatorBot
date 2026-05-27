@@ -691,23 +691,36 @@ psql "$DATABASE_URL" -c "\
 
 **Production data migration to Scaleway PG happens in M6**, not here. M3 just verifies the schema + `\copy` flow against a local Docker Postgres.
 
-### M4 — Astro website (local)
+### M4 — Astro website (local) ✓ DONE
 
 **Done when:** the full Astro site builds locally, all content is in place, the ConverterForm works against the local Rust backend, and the two-stage Dockerfile produces a single image containing both the Rust binary and the Astro static bundle.
 
 **Why M4 (before Devvit):** the website turns the abstract Rust backend into something visible — buttons to click, a form to paste URLs into, immediate "it works" feedback. Easier to keep momentum and easier to validate the API contract by hand.
 
-Tasks:
-- Audit live site: every page, every piece of content
-- Port content to Astro: landing, FAQ (MDX), About / Why (MDX), changelog link
-- Build ConverterForm React island in `src/components/react/ConverterForm.tsx` (shadcn `<Input>`, `<Button>`, `<Card>`). POSTs to `/api/v2/convert` on same origin with `entryType: "ONLINE"`. v2 is the modern contract M4 was explicitly named as a consumer of — see §"API contract".
-- **No Tailwind prefix.** Earlier drafts of v7 specified an `ab:` prefix to isolate the bot's classes from a hypothetical host page. There's no host-page scenario — the site is its own origin. Dropping the prefix simplifies shadcn copy-in (every utility shadcn ships works as-is). If isolation is ever needed later, Tailwind 4 supports it via `@import "tailwindcss" prefix(ab);` in CSS, not the config file.
-- Copy icons/logos from `archive/AmputatorBotCom/static/` to `website/public/`
-- Update root `Dockerfile` (or backend's) to be two-stage: Astro build → Rust build → final image with `dist/` copied into the Rust container's static dir served by `tower-http::ServeDir`
-- Verify locally: `docker run` the combined image, hit `http://localhost:8080/` (Astro static), `http://localhost:8080/api/v1/convert?q=...` (Rust API)
-- Vitest tests for the ConverterForm component
+#### Result
 
-**Ask points:** Live-site content audit (anything surprising). Whether to keep `/about` route names matching the legacy site or rename freely.
+Combined Astro + Rust image (`Dockerfile` at repo root, multi-stage `node:22 → rust:1.95 → debian-slim`, **~165 MB stripped**). `tower-http::ServeDir` mounted as Axum's fallback when `STATIC_DIR` points at an existing directory; the binary stays API-only when unset. Container runs Astro static on `/` and the API on `/api/*`. All 134 backend lib tests + Vitest smoke test green; `astro check` + `biome check` clean.
+
+Homepage is composed of six section components (`HeroSection`, `WhyAmpSection`, `TechSection`, `UkraineSection`, `CanonicalMethodsSection`, plus the layout shell). Order: Hero → WhyAmp → Tech → Ukraine → Methods. No footer.
+
+Locked deviations from the original M4 task list:
+
+- **`/about` page dropped.** Long-form AMP write-up lives on the Reddit "why I built it" thread (`r/AmputatorBot/comments/ehrq3z/...`), linked from the header nav and from the WhyAmpSection card.
+- **`/faq` page dropped.** Content folded back to the same Reddit thread; `@astrojs/mdx` and `MdxLayout.astro` removed since nothing else used MDX.
+- **`SiteFooter` dropped.** All navigation lives in the header. Mobile nav uses a native `<details>`/`<summary>` collapsing menu — keyboard- and screen-reader-accessible by default, zero JS, near-full-width on mobile.
+- **`/amputatorbot` legacy route NOT preserved** (Joris confirmed it was never used in practice). The `?q=<url>` pre-fill on `/` is preserved (legacy bot DM templates deep-link with that pattern).
+- **`GET /api/v1/stats` added** (not in original plan). Returns `{"convertedTotal": N}` from `SELECT COUNT(*) FROM links`, cached 1h via `Arc<RwLock<...>>` in `src/stats.rs`. Powers the homepage's live count via the `ConvertedCount` React island.
+- **Tiny zero-dep token-based highlighter** at `website/src/lib/highlight.ts` covers html/json/js/url. Both Astro `CodeSnippet.astro` and the React `Snippet` in `ConverterForm.tsx` render the same tokens (no `dangerouslySetInnerHTML`). Token CSS in `global.css`.
+- **`gc=true` and the bot reply markdown stay deferred to M5** (already noted in M3 lock). The "Generate comment" option was deliberately *not* added to the converter form to avoid building UI against a template that's about to change.
+
+Tasks (as-built):
+- ConverterForm: ?q= prefill, "forward to canonical" via JS navigation, prominent copy-canonical button, "how we found it" card per result with syntax-highlighted snippet, optional-settings panel with breathing room when expanded.
+- `canonical-methods.ts` maps every `CanonicalType` to `{label, summary, explanation, snippet, snippetLanguage}`. Consumed by both the result card and the homepage methods explainer.
+- WhyAmpSection content sourced from the Reddit "why" thread — antitrust receipts (40% revenue drop, "how to publicly justify making something slower"), AMP committee resignations, empowerment pull-quote.
+- UkraineSection: U24 as primary CTA, PayPal sponsorship as alternative. Copy makes the not-affiliated stance explicit.
+- TechSection: "rewritten in Rust for perf + because it's fun, now also a Devvit app", EU-hosted (Scaleway Paris/AMS), live count.
+- `postcss.config.mjs` wires `@tailwindcss/postcss` — was missing initially, so the first M4 build emitted theme + preflight but no utility classes.
+- Image build context now ~10 MB after `.dockerignore` excludes `target/`, `backend/tests/` (~3 GB of recorded HTML fixtures), `node_modules/`, `dist/`, `archive/`.
 
 **No cloud, no DNS, no Devvit publish here** — that's M6.
 
