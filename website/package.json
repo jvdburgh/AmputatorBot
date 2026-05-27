@@ -34,7 +34,9 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.15",
     "@tailwindcss/postcss": "^4.3.0",
+    "@testing-library/react": "^16.3.2",
     "@typescript/native-preview": "latest",
+    "jsdom": "^29.1.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"
   }

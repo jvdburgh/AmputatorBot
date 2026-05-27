@@ -1,5 +1,5 @@
 import { ArrowRight, Check, Copy, Loader2 } from 'lucide-react';
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,11 +33,24 @@ export default function ConverterForm() {
   const queryInputRef = useRef<HTMLInputElement>(null);
 
   const [showOptional, setShowOptional] = useState(false);
-  const [guessAndCheck, setGuessAndCheck] = useState(DEFAULTS.guessAndCheck);
+  const [guessAndCheck, setGuessAndCheck] = useState<boolean>(DEFAULTS.guessAndCheck);
   const [maxDepth, setMaxDepth] = useState<number>(DEFAULTS.maxDepth);
   const [resolve, setResolve] = useState<ResolveState>({ status: 'idle' });
 
-  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+  // Backwards compatibility: the legacy site rendered the same converter at
+  // `/` and accepted a `?q=` query param to pre-fill the input. Thousands of
+  // historical AmputatorBot Reddit comments and DMs deep-link with that
+  // pattern (`https://www.amputatorbot.com/?q=<url>`). Pre-fill but don't
+  // auto-submit — the user might be there to inspect, not convert.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const initial = new URLSearchParams(window.location.search).get('q');
+    if (initial && queryInputRef.current && !queryInputRef.current.value) {
+      queryInputRef.current.value = initial;
+    }
+  }, []);
+
+  async function onSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const query = String(data.get('q') ?? '').trim();
@@ -115,7 +128,7 @@ export default function ConverterForm() {
             required
             inputMode="url"
             autoComplete="off"
-            placeholder="https://www.google.com/amp/s/example.com/article/amp/"
+            placeholder="https://www.google.com/amp/s/example.eu/article/amp/"
             disabled={resolve.status === 'pending'}
           />
           <div className="flex flex-wrap items-center gap-3">

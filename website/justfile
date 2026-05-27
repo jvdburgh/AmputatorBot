@@ -9,7 +9,7 @@ fmt:
     pnpm exec biome format --write .
 
 fmt-check:
-    pnpm exec biome format --check .
+    pnpm exec biome format .
 
 lint:
     pnpm exec biome check .

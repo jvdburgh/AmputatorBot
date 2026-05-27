@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use amputatorbot_backend::canonical::{HttpFetcher, PgDatabase};
 use amputatorbot_backend::routes;
@@ -40,7 +41,11 @@ async fn main() -> anyhow::Result<()> {
     let db = PgDatabase::new(pool);
     let state = AppState::new(fetcher, db);
 
-    let app = routes::router(state);
+    // Optional. When unset, the binary runs API-only (handy for `cargo run`
+    // without a website build). The Dockerfile sets this to /app/static where
+    // the Astro `dist/` lands.
+    let static_dir = std::env::var_os("STATIC_DIR").map(PathBuf::from);
+    let app = routes::router(state, static_dir.as_deref());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     tracing::info!(%addr, "starting amputatorbot-backend");

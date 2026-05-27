@@ -130,6 +130,24 @@ db-seed path="backend/tests/fixtures/urlconversions/10000_conversions_unfiltered
     COMMIT;
     SQL
 
+# --- combined Astro + Rust container image ---
+
+# Build the production image: Astro static bundle + Rust binary in one image.
+# `STATIC_DIR=/app/static` is baked in by the Dockerfile.
+image:
+    docker build -t amputatorbot:dev .
+
+# Run the combined image locally. Requires `just db-up` first (the container
+# talks to the Postgres on the host docker-compose). On macOS,
+# host.docker.internal resolves to the host; on Linux, --add-host wires it up.
+image-run:
+    docker run --rm -it \
+        -p 8080:8080 \
+        --add-host=host.docker.internal:host-gateway \
+        -e DATABASE_URL="postgres://amputatorbot:amputatorbot@host.docker.internal:5432/amputatorbot" \
+        -e RUST_LOG=info \
+        amputatorbot:dev
+
 # --- one-time setup after clone ---
 setup:
     mise install

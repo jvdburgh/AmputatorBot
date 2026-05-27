@@ -63,6 +63,7 @@ record-fixtures CSV="tests/fixtures/urlconversions/10000_conversions_unfiltered.
 build:
     cargo build --release
 
-# Build the container image locally
+# Build the container image locally. The combined image (Astro static + Rust
+# binary) builds from the repo root — see the root justfile's `image` recipe.
 docker-build:
-    docker build -t amputatorbot-backend:dev .
+    cd .. && docker build -t amputatorbot:dev .
