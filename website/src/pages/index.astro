@@ -1,112 +1,16 @@
 ---
-import ConverterForm from '@/components/react/ConverterForm';
+import CanonicalMethodsSection from '@/components/CanonicalMethodsSection.astro';
+import HeroSection from '@/components/HeroSection.astro';
 import Layout from '@/layouts/Layout.astro';
-
-const howItWorks = [
-  { n: 1, text: 'Paste an AMP link' },
-  { n: 2, text: 'Click Submit URL' },
-  { n: 3, text: 'Copy the canonical link' },
-  { n: 4, text: 'Spread the word' },
-];
+import TechSection from '@/components/TechSection.astro';
+import UkraineSection from '@/components/UkraineSection.astro';
+import WhyAmpSection from '@/components/WhyAmpSection.astro';
 ---
 
 <Layout>
-  <section class="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-16">
-    <div class="mx-auto max-w-3xl text-center">
-      <h1
-        class="text-4xl font-semibold tracking-tight sm:text-5xl text-foreground"
-      >
-        Remove AMP from your URLs
-      </h1>
-      <p class="mt-4 text-lg text-muted-foreground sm:text-xl">
-        AmputatorBot strips AMP from links and returns the canonical version —
-        as a website, a Reddit bot, and a free public API.
-      </p>
-    </div>
-
-    <div class="mt-10">
-      <ConverterForm client:load />
-    </div>
-
-    <ol
-      class="mx-auto mt-12 grid max-w-3xl grid-cols-2 gap-3 text-sm sm:grid-cols-4"
-    >
-      {
-        howItWorks.map(({ n, text }) => (
-          <li class="rounded-md border border-border bg-card px-4 py-3">
-            <span class="font-mono text-brand">{n}.</span>{' '}
-            <span class="text-foreground">{text}</span>
-          </li>
-        ))
-      }
-    </ol>
-  </section>
-
-  <section class="border-t border-border bg-muted/30">
-    <div class="mx-auto grid max-w-5xl gap-10 px-4 py-12 sm:grid-cols-2 sm:px-6">
-      <div>
-        <h2 class="text-2xl font-semibold tracking-tight">About AMP</h2>
-        <p class="mt-3 text-muted-foreground">
-          AMP — originally Accelerated Mobile Pages — was announced by Google
-          in 2015. It promised faster mobile pages, but ended up reinforcing
-          Google's dominance of the web: for years, Google's Top Stories
-          carousel only featured AMP results, pressuring publishers to adopt
-          it. The cached AMP pages obscure the publisher's domain, keep users
-          inside Google's ecosystem, and ship with their own privacy
-          tradeoffs.
-        </p>
-        <p class="mt-3 text-muted-foreground">
-          Google dropped the AMP-exclusive requirement in 2021, but the
-          ecosystem damage was done. As long as AMP threatens the Open Web,
-          AmputatorBot keeps working to remove it from your URLs.
-        </p>
-        <p class="mt-4 text-sm">
-          <a
-            href="/about"
-            class="font-medium text-brand underline-offset-4 hover:underline"
-          >
-            Read the full write-up →
-          </a>
-        </p>
-      </div>
-      <div>
-        <h2 class="text-2xl font-semibold tracking-tight">
-          Use it everywhere
-        </h2>
-        <ul class="mt-3 space-y-3 text-sm">
-          <li>
-            <p class="font-medium text-foreground">Web converter</p>
-            <p class="text-muted-foreground">
-              The form above. Paste, click, copy.
-            </p>
-          </li>
-          <li>
-            <p class="font-medium text-foreground">Reddit bot</p>
-            <p class="text-muted-foreground">
-              Mods can install <a
-                href="https://www.reddit.com/user/AmputatorBot"
-                rel="noopener noreferrer"
-                target="_blank"
-                class="underline-offset-4 hover:underline">u/AmputatorBot</a
-              > per subreddit, and any user can summon it by mentioning
-              <code>u/AmputatorBot</code> in a reply.
-            </p>
-          </li>
-          <li>
-            <p class="font-medium text-foreground">Public REST API</p>
-            <p class="text-muted-foreground">
-              Free, no auth required.
-              <a
-                href="https://documenter.getpostman.com/view/12422626/UVC3n93T"
-                rel="noopener noreferrer"
-                target="_blank"
-                class="font-medium text-brand underline-offset-4 hover:underline"
-                >Read the docs</a
-              >.
-            </p>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </section>
+  <HeroSection />
+  <WhyAmpSection />
+  <TechSection />
+  <UkraineSection />
+  <CanonicalMethodsSection />
 </Layout>

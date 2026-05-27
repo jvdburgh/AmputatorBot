@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use amputatorbot_backend::canonical::{HttpFetcher, PgDatabase};
 use amputatorbot_backend::routes;
 use amputatorbot_backend::state::AppState;
+use amputatorbot_backend::stats::Stats;
 use anyhow::Context;
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::EnvFilter;
@@ -38,8 +39,9 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("database migrations applied");
 
     let fetcher = HttpFetcher::new().context("building HTTP fetcher")?;
+    let stats = Stats::new(pool.clone());
     let db = PgDatabase::new(pool);
-    let state = AppState::new(fetcher, db);
+    let state = AppState::new(fetcher, db, stats);
 
     // Optional. When unset, the binary runs API-only (handy for `cargo run`
     // without a website build). The Dockerfile sets this to /app/static where

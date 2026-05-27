@@ -1,5 +1,4 @@
 ---
-import SiteFooter from '@/components/SiteFooter.astro';
 import SiteHeader from '@/components/SiteHeader.astro';
 import '@/styles/global.css';
 
@@ -46,6 +45,5 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? 'https://www.ampu
     <main class="flex-1">
       <slot />
     </main>
-    <SiteFooter />
   </body>
 </html>

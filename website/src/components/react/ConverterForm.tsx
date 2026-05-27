@@ -2,10 +2,12 @@ import { ArrowRight, Check, Copy, Loader2 } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { type SnippetLang, tokenize } from '@/lib/highlight';
 import { cn } from '@/lib/utils';
 
+import { describeMethod } from './canonical-methods';
 import type { ConvertErrorBody, ConvertRequestBody, Link } from './converter-types';
 
 // One example URL Joris shipped on the legacy site's "Try with an example"
@@ -20,7 +22,15 @@ const EXAMPLE_URL =
 const DEFAULTS = {
   guessAndCheck: true,
   maxDepth: 3,
+  redirect: false,
 } as const;
+
+const SNIPPET_LANG_LABELS: Record<string, string> = {
+  html: 'HTML',
+  url: 'URL',
+  json: 'JSON',
+  js: 'JavaScript',
+};
 
 interface ResolveState {
   status: 'idle' | 'pending' | 'success' | 'no-amp' | 'error';
@@ -31,10 +41,12 @@ interface ResolveState {
 export default function ConverterForm() {
   const formId = useId();
   const queryInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const [showOptional, setShowOptional] = useState(false);
   const [guessAndCheck, setGuessAndCheck] = useState<boolean>(DEFAULTS.guessAndCheck);
   const [maxDepth, setMaxDepth] = useState<number>(DEFAULTS.maxDepth);
+  const [redirect, setRedirect] = useState<boolean>(DEFAULTS.redirect);
   const [resolve, setResolve] = useState<ResolveState>({ status: 'idle' });
 
   // Backwards compatibility: the legacy site rendered the same converter at
@@ -58,6 +70,10 @@ export default function ConverterForm() {
 
     setResolve({ status: 'pending' });
 
+    // We always POST `redirect: false` to the backend even when the user
+    // toggled "Forward me to the canonical" — the SPA does the navigation
+    // itself once the response comes back. Sending `redirect: true` would
+    // return a 303 the browser can't follow out of an XHR.
     const body: ConvertRequestBody = {
       query,
       guessAndCheck,
@@ -76,6 +92,15 @@ export default function ConverterForm() {
       if (response.status === 200) {
         const links = (await response.json()) as Link[];
         setResolve({ status: 'success', links });
+
+        // Honor "Forward me to the canonical" by JS-navigating to whichever
+        // link the result-pane logic would have shown. Mirrors the legacy
+        // `?r=true` 303 behavior.
+        if (redirect) {
+          const first = links[0];
+          const target = first?.canonical?.url ?? first?.ampCanonical?.url;
+          if (target) window.location.href = target;
+        }
         return;
       }
 
@@ -101,22 +126,18 @@ export default function ConverterForm() {
   }
 
   function fillExample() {
-    if (queryInputRef.current) {
-      queryInputRef.current.value = EXAMPLE_URL;
-      queryInputRef.current.focus();
-    }
+    if (!queryInputRef.current || !formRef.current) return;
+    queryInputRef.current.value = EXAMPLE_URL;
+    // requestSubmit fires the form's submit event (running validation + our
+    // onSubmit handler) — matches the legacy site, where clicking "Try with
+    // an example" both filled the field AND ran the conversion.
+    formRef.current.requestSubmit();
   }
 
   return (
     <Card className="mx-auto w-full max-w-2xl">
-      <CardHeader>
-        <CardTitle className="text-xl">Remove AMP from your URLs</CardTitle>
-        <CardDescription>
-          Paste an AMP link and AmputatorBot will return the canonical version.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <form id={formId} onSubmit={onSubmit} className="space-y-3">
+      <CardContent className="space-y-4 py-6">
+        <form id={formId} ref={formRef} onSubmit={onSubmit} className="space-y-3">
           <label htmlFor={`${formId}-q`} className="sr-only">
             AMP URL
           </label>
@@ -130,9 +151,16 @@ export default function ConverterForm() {
             autoComplete="off"
             placeholder="https://www.google.com/amp/s/example.eu/article/amp/"
             disabled={resolve.status === 'pending'}
+            className="h-12 text-base md:text-base"
           />
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" variant="brand" size="lg" disabled={resolve.status === 'pending'}>
+            <Button
+              type="submit"
+              variant="brand"
+              size="lg"
+              disabled={resolve.status === 'pending'}
+              className="w-full sm:w-auto"
+            >
               {resolve.status === 'pending' ? (
                 <>
                   <Loader2 className="animate-spin" />
@@ -163,25 +191,38 @@ export default function ConverterForm() {
           </div>
 
           {showOptional ? (
-            <fieldset className="space-y-3 rounded-md border border-border bg-muted/30 px-4 py-3 text-sm">
+            <fieldset className="mt-5 space-y-3 rounded-md border border-border bg-muted/30 px-4 py-3 text-sm">
               <legend className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Optional settings
               </legend>
-              <label className="flex items-center gap-2">
+              <label className="flex items-start gap-2">
                 <input
                   type="checkbox"
                   checked={guessAndCheck}
                   onChange={(e) => setGuessAndCheck(e.target.checked)}
-                  className="size-4 rounded border-border accent-brand"
+                  className="mt-0.5 size-4 rounded border-border accent-brand"
                 />
                 <span>
-                  <span className="font-medium">Guess-and-check fallback.</span> When no canonical
-                  signal is present in the HTML, guess from URL patterns and verify by article
-                  similarity.
+                  <span className="font-medium">Guess-and-check if necessary.</span> When no
+                  canonical signal is present in the page, guess the canonical from the URL pattern
+                  and verify it by article-similarity scoring.
+                </span>
+              </label>
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={redirect}
+                  onChange={(e) => setRedirect(e.target.checked)}
+                  className="mt-0.5 size-4 rounded border-border accent-brand"
+                />
+                <span>
+                  <span className="font-medium">Forward me to the canonical.</span> After resolving,
+                  navigate this tab to the canonical URL automatically — like the legacy
+                  <code className="mx-1">?r=true</code>flag.
                 </span>
               </label>
               <label className="flex items-center gap-2">
-                <span className="font-medium">Max redirect depth:</span>
+                <span className="font-medium">Maximum redirects to follow:</span>
                 <select
                   value={maxDepth}
                   onChange={(e) => setMaxDepth(Number(e.target.value))}
@@ -269,9 +310,12 @@ function LinkResult({ link }: { link: Link }) {
     );
   }
 
+  const method = describeMethod(chosen.type);
+  const isAmpFallback = link.canonical === null && link.ampCanonical !== null;
+
   return (
     <div className="rounded-md border border-border bg-card p-4 text-sm">
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">Canonical</p>
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">Canonical URL</p>
       <p className="mt-1 break-all">
         <a
           href={chosen.url}
@@ -282,43 +326,113 @@ function LinkResult({ link }: { link: Link }) {
           {chosen.url}
         </a>
       </p>
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <div className="mt-3">
         <CopyButton value={chosen.url} />
-        {chosen.type ? (
-          <span className="rounded-sm bg-muted px-1.5 py-0.5">via {chosen.type}</span>
-        ) : null}
-        {typeof chosen.urlSimilarity === 'number' ? (
-          <span className="rounded-sm bg-muted px-1.5 py-0.5">
-            similarity {(chosen.urlSimilarity * 100).toFixed(0)}%
-          </span>
-        ) : null}
-        {chosen.isValid === false ? (
-          <span className="rounded-sm bg-amber-100 px-1.5 py-0.5 text-amber-900">
-            low confidence
-          </span>
-        ) : null}
-        {link.canonical === null && link.ampCanonical !== null ? (
-          <span className="rounded-sm bg-amber-100 px-1.5 py-0.5 text-amber-900">
-            AMP fallback — no non-AMP version reachable
-          </span>
-        ) : null}
       </div>
-      <details className="mt-3 text-xs text-muted-foreground">
-        <summary className="cursor-pointer select-none">Origin & all candidates</summary>
+
+      <HowWeFoundIt
+        method={method}
+        urlSimilarity={chosen.urlSimilarity}
+        isLowConfidence={chosen.isValid === false}
+        isAmpFallback={isAmpFallback}
+      />
+
+      <details className="mt-4 text-xs text-muted-foreground">
+        <summary className="cursor-pointer select-none">Input URL & all candidates</summary>
         <p className="mt-2 break-all">
-          <span className="font-medium">Origin:</span> {link.origin.url}
+          <span className="font-medium">Input URL:</span> {link.origin.url}
         </p>
         {link.canonicals.length > 1 ? (
           <ul className="mt-2 space-y-1">
-            {link.canonicals.map((c) => (
-              <li key={`${c.type ?? 'unknown'}-${c.url ?? ''}`} className="break-all">
-                <code>{c.type}</code> → {c.url}
-              </li>
-            ))}
+            {link.canonicals.map((c) => {
+              const m = describeMethod(c.type);
+              return (
+                <li key={`${c.type ?? 'unknown'}-${c.url ?? ''}`} className="break-all">
+                  <span className="font-medium" title={m.explanation}>
+                    {m.label}
+                  </span>{' '}
+                  → {c.url}
+                </li>
+              );
+            })}
           </ul>
         ) : null}
       </details>
     </div>
+  );
+}
+
+interface HowWeFoundItProps {
+  method: ReturnType<typeof describeMethod>;
+  urlSimilarity: number | null | undefined;
+  isLowConfidence: boolean;
+  isAmpFallback: boolean;
+}
+
+function HowWeFoundIt({
+  method,
+  urlSimilarity,
+  isLowConfidence,
+  isAmpFallback,
+}: HowWeFoundItProps) {
+  return (
+    <div className="mt-4 rounded-md border border-border bg-muted/30 p-3 text-xs">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">How we found it</p>
+      <p className="mt-1 text-sm font-medium text-foreground">{method.label}</p>
+      <p className="mt-1 text-muted-foreground">{method.explanation}</p>
+      {method.snippet ? <Snippet code={method.snippet} language={method.snippetLanguage} /> : null}
+      {typeof urlSimilarity === 'number' ? (
+        <p className="mt-2 text-muted-foreground">
+          Article-text similarity to the original page:{' '}
+          <span className="font-mono text-foreground">{(urlSimilarity * 100).toFixed(0)}%</span>{' '}
+          <span className="text-muted-foreground">
+            (1.0 = identical text; we accept above 35% with a "low confidence" flag, above 60% as
+            high confidence)
+          </span>
+          .
+        </p>
+      ) : null}
+      {isLowConfidence ? (
+        <p className="mt-2 rounded-sm bg-amber-100 px-2 py-1 text-amber-900">
+          Low confidence — the canonical was guessed and verified, but the similarity score is in
+          the 35–60% band rather than the high-confidence zone.
+        </p>
+      ) : null}
+      {isAmpFallback ? (
+        <p className="mt-2 rounded-sm bg-amber-100 px-2 py-1 text-amber-900">
+          AMP fallback — the non-AMP version of the canonical wasn't reachable, so this is the AMP
+          version we found.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function Snippet({ code, language }: { code: string; language: SnippetLang | undefined }) {
+  const tokens = tokenize(code, language);
+  return (
+    <figure className="mt-3 rounded-md border border-border bg-background">
+      {language ? (
+        <figcaption className="border-b border-border px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          {SNIPPET_LANG_LABELS[language] ?? language}
+        </figcaption>
+      ) : null}
+      <pre className="overflow-x-auto px-3 py-2 text-[12px] leading-relaxed text-foreground">
+        <code>
+          {tokens.map((t, idx) =>
+            t.cls ? (
+              // biome-ignore lint/suspicious/noArrayIndexKey: tokens are a derived stable list per snippet, never reordered
+              <span key={idx} className={`tok-${t.cls}`}>
+                {t.text}
+              </span>
+            ) : (
+              // biome-ignore lint/suspicious/noArrayIndexKey: see above
+              <span key={idx}>{t.text}</span>
+            ),
+          )}
+        </code>
+      </pre>
+    </figure>
   );
 }
 
@@ -335,17 +449,16 @@ function CopyButton({ value }: { value: string }) {
     }
   }
   return (
-    <button
+    <Button
       type="button"
       onClick={copy}
-      className={cn(
-        'inline-flex items-center gap-1 rounded-sm bg-muted px-1.5 py-0.5 transition-colors hover:bg-accent',
-        copied && 'bg-emerald-100 text-emerald-900',
-      )}
+      variant={copied ? 'secondary' : 'default'}
+      size="default"
+      className={cn('w-full sm:w-auto', copied && 'bg-emerald-100 text-emerald-900')}
       aria-label="Copy canonical URL"
     >
-      {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
-      {copied ? 'Copied' : 'Copy'}
-    </button>
+      {copied ? <Check /> : <Copy />}
+      {copied ? 'Copied to clipboard' : 'Copy canonical URL'}
+    </Button>
   );
 }

@@ -1,0 +1,62 @@
+---
+import CodeSnippet from '@/components/CodeSnippet.astro';
+import {
+  CANONICAL_METHODS,
+  METHODS_IN_ORDER,
+} from '@/components/react/canonical-methods';
+---
+
+<section class="border-t border-border py-12 sm:py-16">
+  <div class="mx-auto max-w-3xl px-4 sm:px-6">
+    <p class="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+      How it actually works
+    </p>
+    <h2 class="mt-2 text-3xl font-semibold tracking-tight">
+      Eleven ways to find the canonical
+    </h2>
+    <p class="mt-4 text-muted-foreground">
+      Stripping <code>/amp</code> from a URL gets you the right answer
+      roughly half the time. The other half it produces broken links,
+      wrong articles, or 404s — different sites bury the canonical in
+      different places, and there's no single tag we can rely on. So
+      AmputatorBot tries each of these in priority order, and falls
+      through to the next when one doesn't match. The result you get back
+      tells you exactly which one succeeded.
+    </p>
+    <p class="mt-3 text-muted-foreground">
+      The last one,{' '}
+      <strong class="text-foreground">guess-and-check</strong>, is the
+      interesting one: when nothing on the page tells us what the
+      canonical is, we strip the AMP markers, fetch the resulting page,
+      and compare its article text to the AMP page's article text. If
+      they're similar enough, we trust the guess. If not, we return
+      nothing — better no answer than a wrong one.
+    </p>
+  </div>
+
+  <ol class="mx-auto mt-8 grid max-w-5xl gap-4 px-4 sm:grid-cols-2 sm:px-6">
+    {
+      METHODS_IN_ORDER.map((key, idx) => {
+        const m = CANONICAL_METHODS[key];
+        return (
+          <li class="flex flex-col rounded-md border border-border bg-card p-5">
+            <p class="flex items-baseline gap-2">
+              <span class="font-mono text-xs text-muted-foreground">
+                {String(idx + 1).padStart(2, '0')}
+              </span>
+              <span class="font-medium text-foreground">{m.label}</span>
+            </p>
+            <p class="mt-2 text-sm text-muted-foreground">{m.summary}</p>
+            {m.snippet ? (
+              <CodeSnippet
+                class="mt-3"
+                code={m.snippet}
+                language={m.snippetLanguage}
+              />
+            ) : null}
+          </li>
+        );
+      })
+    }
+  </ol>
+</section>

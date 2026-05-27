@@ -9,3 +9,4 @@ pub mod readability;
 pub mod reply;
 pub mod routes;
 pub mod state;
+pub mod stats;

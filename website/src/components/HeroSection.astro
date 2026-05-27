@@ -1,0 +1,43 @@
+---
+import ConverterForm from '@/components/react/ConverterForm';
+
+const howItWorks = [
+  { n: 1, text: 'Paste an AMP link' },
+  { n: 2, text: 'Click Submit URL' },
+  { n: 3, text: 'Copy the canonical link!' },
+  { n: 4, text: 'Spread the word' },
+];
+---
+
+<section class="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-16">
+  <div class="mx-auto max-w-3xl text-center">
+    <h1
+      class="text-4xl font-semibold tracking-tight sm:text-5xl text-foreground"
+    >
+      Remove AMP from your URLs
+    </h1>
+    <p class="mt-4 text-lg text-muted-foreground sm:text-xl">
+      AmputatorBot strips AMP from links and returns the canonical version —
+      as a website, a Reddit bot, and a free public API.
+    </p>
+  </div>
+
+  <div class="mt-10">
+    <ConverterForm client:load />
+  </div>
+
+  <ol
+    class="mx-auto mt-12 grid max-w-4xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+  >
+    {
+      howItWorks.map(({ n, text }) => (
+        <li class="group flex items-start gap-4 rounded-lg border border-border bg-card p-5 transition-colors hover:border-brand/40">
+          <span class="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand/10 font-mono text-sm font-semibold text-brand">
+            {n}
+          </span>
+          <p class="pt-1.5 text-sm font-medium text-foreground">{text}</p>
+        </li>
+      ))
+    }
+  </ol>
+</section>

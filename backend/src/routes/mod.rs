@@ -14,6 +14,7 @@ use crate::state::AppState;
 pub mod convert;
 pub mod convert_v2;
 pub mod query_parser;
+pub mod stats;
 
 /// Build the application router. Takes ownership of [`AppState`] and produces
 /// a fully-configured `Router` ready for [`axum::serve`].
@@ -25,6 +26,7 @@ pub mod query_parser;
 pub fn router(state: AppState, static_dir: Option<&Path>) -> Router {
     let api = Router::new()
         .route("/api/v1/health", get(health))
+        .route("/api/v1/stats", get(stats::handler))
         .route(
             "/api/v1/convert",
             get(convert::handler).post(convert::handler),

@@ -1,4 +1,3 @@
-import mdx from '@astrojs/mdx';
 import react from '@astrojs/react';
 import { defineConfig } from 'astro/config';
 
@@ -6,9 +5,8 @@ import { defineConfig } from 'astro/config';
 // `@tailwindcss/vite`, because the Vite plugin (4.3.0) is incompatible with
 // the Rolldown-based Vite 8 that Astro 6 ships. See postcss.config.mjs.
 export default defineConfig({
-  // MDX has to come before React so it can register its own renderer.
   output: 'static',
-  integrations: [mdx(), react()],
+  integrations: [react()],
   vite: {
     // Dev-only proxy: astro dev serves on :4321, the Rust backend on :8080.
     // The ConverterForm posts to /api/v2/convert on same-origin in production

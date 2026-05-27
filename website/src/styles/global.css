@@ -88,4 +88,34 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* SiteHeader's mobile menu uses a native `<details>` for accessibility
+     (keyboard, screen reader, no JS). These rules suppress the default
+     disclosure markers so our custom hamburger SVG can stand alone. */
+  .site-nav-mobile > summary {
+    list-style: none;
+  }
+  .site-nav-mobile > summary::-webkit-details-marker {
+    display: none;
+  }
+}
+
+/* Syntax-highlighter token colors — used by lib/highlight.ts output. Colors
+   tuned to be readable on the muted/60 background that wraps snippets. */
+.tok-tag {
+  color: oklch(0.5 0.22 264);
+  font-weight: 500;
+}
+.tok-attr {
+  color: oklch(0.55 0.18 60);
+}
+.tok-string {
+  color: oklch(0.5 0.18 145);
+}
+.tok-key {
+  color: oklch(0.5 0.22 264);
+}
+.tok-keyword {
+  color: oklch(0.5 0.22 320);
+  font-weight: 500;
 }
