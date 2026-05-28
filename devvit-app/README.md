@@ -92,9 +92,13 @@ attached to the legacy PRAW bot for now.
 ### First-time setup
 
 ```bash
-just whoami      # confirm logged in as u/Killed_Mufasa
+just login       # browser-based OAuth — log in as u/Killed_Mufasa
+just whoami      # confirm the right account is active
 just init        # registers the app slug on Reddit's side (one-time)
 ```
+
+`devvit login` stores a token at `~/.devvit/token`. If you ever need to
+switch accounts (or your token expires), `just logout` then `just login`.
 
 ### Troubleshooting
 

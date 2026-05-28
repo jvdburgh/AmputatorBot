@@ -40,13 +40,23 @@ dev:
 playtest:
     pnpm exec devvit playtest r/{{SUB}}
 
-# One-time app registration on Reddit's side. Reads the slug from devvit.json.
-init:
-    pnpm exec devvit init
+# Log in to Devvit as a Reddit account (browser-based OAuth). Required before
+# `init`, `playtest`, `upload`. Use u/Killed_Mufasa for this project.
+login:
+    pnpm exec devvit login
+
+# Log out of the current Devvit session.
+logout:
+    pnpm exec devvit logout
 
 # Show the currently logged-in Reddit account.
 whoami:
     pnpm exec devvit whoami
+
+# One-time app registration on Reddit's side. Reads the slug from devvit.json.
+# Requires `login` first.
+init:
+    pnpm exec devvit init
 
 # Upload a private version to the App Directory (installable on small
 # test subreddits only). NOT `--publish`; that's M6.
