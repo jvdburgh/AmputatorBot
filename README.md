@@ -9,7 +9,7 @@ TL;DR: Remove AMP from your URLs. [AmputatorBot](https://github.com/KilledMufasa
 This is a **monorepo**. Each part of AmputatorBot lives in its own subdirectory and can be developed independently:
 
 - **[`backend/`](backend/)** — Rust + Axum service. Hosts the `/api/v1/convert` endpoint, the canonical-finding engine (11 methods, +97% accuracy), and serves the website's static files from the same binary.
-- **[`devvit-app/`](devvit-app/)** — TypeScript [Devvit](https://developers.reddit.com/) app. Listens to Reddit's comment / post / modmail triggers and posts the AMP-free reply per subreddit.
+- **[`devvit-app/`](devvit-app/)** — TypeScript [Devvit](https://developers.reddit.com/) app. Listens to Reddit's comment and post triggers and posts the AMP-free reply per subreddit.
 - **[`website/`](website/)** — Astro 5 + Tailwind 4 + shadcn/ui frontend at [www.amputatorbot.com](https://www.amputatorbot.com/), including the URL converter form.
 - **[`archive/`](archive/)** — the original Python bot (PRAW + Flask) kept for reference as we are testing out the Devvit/Rust rewrite. See [`archive/README-legacy.md`](archive/README-legacy.md) for the original project README.
 - **[`docs/`](docs/)** — design + migration docs.
@@ -70,8 +70,8 @@ That gives you the site at `http://localhost:8080` and the API responding at `/a
 For project-specific workflows — running the Devvit app against r/test, the Astro dev server in isolation, the full parity test suite against legacy fixtures — see each project's README:
 
 - [`backend/README.md`](backend/README.md)
-- `devvit-app/` (README arrives with M5)
-- `website/` (README arrives with M5)
+- [`devvit-app/README.md`](devvit-app/README.md)
+- `website/` (README arrives with M6)
 
 ## Support the project
 
