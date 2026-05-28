@@ -61,23 +61,28 @@ The bot does not sell, share, or transfer data to third parties. The
 project is non-commercial.
 
 ## Public API
-
 The `/api/v1/convert` and `/api/v2/convert` endpoints on
 [www.amputatorbot.com](https://www.amputatorbot.com/) are also available
 for direct use, without authentication, by anyone. When you call them
 directly the same data-handling rules above apply — the URL you send is
 processed for AMP detection and stored in the cache.
 
-## Your choices
+## Public-data stance
+
+The URLs the bot processes are already public — either posted on Reddit
+in a comment/post that anyone with the link can read, or sent to the
+unauthenticated `/api/v2/convert` endpoint by direct callers. The URL
+cache contains no user-identifying information beyond the URL itself, so
+the bot does not provide a separate cache-retraction mechanism.
+
+To stop the bot from interacting with new content:
 
 - **As a subreddit moderator:** uninstall the app from the subreddit's
   settings page, or set the per-install **Reply to AMP links** toggle to
   off to silence it without uninstalling.
-- **As a Reddit user:** block the bot's Reddit account (`u/amputatorbot-app`)
-  to suppress its replies on your comments/posts going forward.
-- **Cache deletion:** if you want a specific URL removed from the URL
-  cache, message [u/Killed_Mufasa](https://www.reddit.com/message/compose/?to=Killed_Mufasa)
-  or open an issue at the project's GitHub repository (see Contact).
+- **As a Reddit user:** block the bot's Reddit account
+  (`u/amputatorbot-app`) to suppress its replies on your future
+  comments/posts.
 
 ## Reddit's own policies
 
