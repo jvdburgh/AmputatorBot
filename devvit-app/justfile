@@ -59,6 +59,20 @@ init:
     pnpm exec devvit init
 
 # Upload a private version to the App Directory (installable on small
-# test subreddits only). NOT `--publish`; that's M6.
+# test subreddits only). Doesn't kick off Reddit's review — for that
+# use `just publish`.
 upload: build
     pnpm exec devvit upload
+
+# Submit the app for Reddit review as an unlisted listing (only you can
+# see it in the directory, but installable on subs you mod and any
+# allow-listed fetch domains start working once approved). Review
+# typically takes ~1 week. Bumps patch version by default.
+publish: build
+    pnpm exec devvit publish
+
+# Submit for review as a public listing (visible in the App Directory
+# to all mods + admins). Only run this after the unlisted version is
+# approved and you've verified the bot works in production.
+publish-public: build
+    pnpm exec devvit publish --public
