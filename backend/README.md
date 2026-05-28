@@ -1,45 +1,69 @@
 # backend
 
-The Rust + Axum service behind `www.amputatorbot.com`. Hosts the
-`/api/v1/convert` endpoint and (in M5+) serves the Astro static site from
-the same binary via `tower-http::ServeDir`.
+Rust + Axum service behind [www.amputatorbot.com](https://www.amputatorbot.com/). Hosts the `/api/v1/convert` and `/api/v2/convert` endpoints, the 11-method canonical-finding engine, and serves the Astro static site from the same binary via `tower-http::ServeDir`.
 
-The full architectural plan lives in
-[`docs/amputatorbot-devvit-migration-plan-v7.md`](../docs/amputatorbot-devvit-migration-plan-v7.md).
-This README covers the **day-to-day workflow** — how to build, test, and
-validate against real production data.
+## Getting started
 
----
-
-## One-time setup
-
-Everything's pinned through [mise](https://mise.jdx.dev). From the repo
-root:
+The toolchain is pinned via [mise](https://mise.jdx.dev). From the repo root, `just setup` installs Rust stable, Node 22, pnpm, just, and lefthook. After that, install the Rust-side tools used by the test + build flows:
 
 ```bash
-mise install              # Rust stable + Node 22 + pnpm + just + lefthook
 cargo install \
     cargo-nextest \
     cargo-deny \
     cargo-watch \
     sqlx-cli --version "^0.8" --no-default-features --features rustls,postgres
-lefthook install          # registers pre-commit hooks
 ```
 
-If you only ever do `just` commands you'll never need to type `cargo`
-directly.
+You'll also need Docker (or OrbStack / colima) for the local Postgres. The first `just db-up` pulls `postgres:17-alpine` (~110 MB).
 
-Docker Desktop (or OrbStack / colima) is required for the local Postgres
-container that backs the `/api/v1/convert` cache. The first `just db-up`
-will pull `postgres:17-alpine` (~110 MB).
+### Run the server
+
+From the repo root:
+
+```bash
+just db-up           # boot local Postgres 17
+just db-seed         # load the committed 10k sample into the `links` cache
+just backend-dev     # cargo-watch, rebuilds on save
+```
+
+The server listens on `localhost:8080`. Two endpoints:
+
+| Endpoint | Surface |
+|---|---|
+| `GET\|POST /api/v1/convert` | Legacy query-string contract, snake_case JSON response. Kept stable for existing external consumers. |
+| `POST /api/v2/convert` | Modern JSON in / JSON out, camelCase both ways, `entryType` as a body field. Strict validation (typo'd field → 422). |
+
+Quick smoke test (assumes `just backend-dev` is running):
+
+```bash
+URL='https://abcnews.com/amp/Politics/hhs-warns-states-removing-kids-homes-parents-approval/story?id=130696092'
+
+# v1 — `--data-urlencode` lets curl handle percent-encoding.
+curl -s --get --data-urlencode "q=$URL" http://localhost:8080/api/v1/convert | jq
+
+# v2 — `jq -nc` safely injects the URL as JSON.
+curl -s -X POST -H 'Content-Type: application/json' \
+    -d "$(jq -nc --arg q "$URL" '{query: $q, entryType: "COMMENT"}')" \
+    http://localhost:8080/api/v2/convert | jq
+```
+
+### Common commands
+
+All run from `backend/`:
+
+| Command | What it does |
+|---|---|
+| `just check` | Format-check, clippy `-D warnings`, nextest, cargo-deny. Same as CI. |
+| `just test` | Test suite only (~150 tests, ~0.1s; parity excluded). |
+| `just fmt` | Apply rustfmt. |
+| `just lint` | Clippy with warnings denied. |
+| `just dev` | Run with cargo-watch (auto-rebuild on save). |
+| `just run` | Run the release binary once. |
+| `just build` | Release build. |
 
 ## Database
 
-Local Postgres 17 runs in Docker, defined in the root `docker-compose.yml`.
-The backend connects via `DATABASE_URL`; defaults to
-`postgres://amputatorbot:amputatorbot@localhost:5432/amputatorbot`.
-
-Day-to-day (all from repo root):
+Local Postgres 17 runs in Docker, defined in the root `docker-compose.yml`. The backend connects via `DATABASE_URL`, which defaults to `postgres://amputatorbot:amputatorbot@localhost:5432/amputatorbot`. All DB commands run from the repo root:
 
 | Command | What it does |
 |---|---|
@@ -48,114 +72,41 @@ Day-to-day (all from repo root):
 | `just db-nuke` | Stop + delete the data volume — full reset. |
 | `just db-migrate` | Apply pending sqlx migrations explicitly. |
 | `just db-seed` | Load the committed 10k URLConversions sample into `links`. |
-| `just db-seed path=<csv>` | Load any CSV with the same column order (e.g. your full ~1.7M-row legacy export). |
+| `just db-seed path=<csv>` | Load any CSV with the same column order (e.g. a full legacy export). |
 
-Migrations are also auto-applied on backend startup via `sqlx::migrate!()`,
-so `just db-migrate` is mainly for "fresh schema without booting the
-server".
+Migrations are auto-applied on backend startup via `sqlx::migrate!()`, so `just db-migrate` is mainly for "fresh schema without booting the server".
 
 ### sqlx offline mode
 
-The DATABASE-method query in `src/canonical/pg_database.rs` uses the
-compile-time-checked `sqlx::query!` macro. To avoid requiring a live DB
-during `cargo build` (which would also break CI and Docker builds),
-metadata for each macro invocation is cached in `backend/.sqlx/` and
-committed to git. `cargo build` reads from there when `SQLX_OFFLINE=true`
-or when no `DATABASE_URL` is set.
+The DATABASE-method query in `src/canonical/pg_database.rs` uses the compile-time-checked `sqlx::query!` macro. To avoid requiring a live DB during `cargo build` (which would break CI + Docker builds), each macro's metadata is cached in `backend/.sqlx/` and committed to git. `cargo build` reads from there when `SQLX_OFFLINE=true` or when no `DATABASE_URL` is set.
 
-**When you change any `sqlx::query!` SQL or the schema:** re-run
-`cargo sqlx prepare` (from `backend/`, with `DATABASE_URL` set and PG
-running) and commit the updated `.sqlx/` JSON. CI will fail if `.sqlx/`
-drifts from the actual queries.
+**When you change any `sqlx::query!` SQL or the schema:** re-run `cargo sqlx prepare` from `backend/` (with `DATABASE_URL` set and PG running) and commit the updated `.sqlx/` JSON. CI fails if `.sqlx/` drifts from the actual queries.
 
-### Producing CSVs for `just db-seed`
+### CSV format for `just db-seed`
 
-`just db-seed` (and the M6 production migration to Scaleway) consume a CSV
-with this header — comma-delimited, RFC-4180 quoting where needed, empty
-fields for `NULL`:
+Comma-delimited, RFC-4180 quoting where needed, empty fields for `NULL`:
 
 ```
 entry_id,entry_type,handled_utc,original_url,canonical_url,canonical_type,note
 ```
 
-Any export tool that produces that shape works — JetBrains' "Export Data → CSV"
-on the legacy `URLConversions` table is what produced the committed 10k
-samples in `tests/fixtures/urlconversions/`. For the M6 cutover, exporting
-the full ~1.7M-row table the same way (no `LIMIT`) gives a file that drops
-into `just db-seed path=<file>` directly.
+JetBrains' "Export Data → CSV" on the legacy `URLConversions` table produced the committed 10k samples in `tests/fixtures/urlconversions/`. The full ~1.7M-row export uses the same shape and drops into `just db-seed path=<file>` directly.
 
-The seed recipe filters rows where either URL exceeds the 2048-char cap;
-expect a small `skipped_too_long` count in the output, that's not an error.
+Both `original_url` and `canonical_url` are capped at 2048 chars (enforced by `001_initial.sql`, mirrored in Rust as `canonical::MAX_URL_LEN`). The seed recipe filters out longer rows via a constraint-free staging table and reports `skipped_too_long` at the end — that's not an error.
 
-### URL-length cap
+## Tests
 
-Both `original_url` and `canonical_url` are constrained to ≤ 2048 chars
-in `001_initial.sql`. Mirrored in Rust as `canonical::MAX_URL_LEN` and
-enforced by the resolver's validity gate. Legacy rows longer than this
-are filtered during `just db-seed` via a staging-table pass; the recipe
-reports the imported/skipped counts.
+Three layers.
 
-## Daily commands
+### 1. Unit tests (`just test`)
 
-All run from `backend/`:
-
-| Command | What it does |
-|---|---|
-| `just check` | Full local check: format-check, clippy `-D warnings`, nextest, cargo-deny. Same as CI. |
-| `just test` | Just the test suite (nextest). ~150 tests, ~0.1s (parity excluded). |
-| `just fmt` | Apply rustfmt to everything. |
-| `just lint` | Clippy with warnings denied. |
-| `just dev` | Run the Axum server with cargo-watch (rebuilds on file change). Defaults `DATABASE_URL` to the local Docker instance. |
-| `just run` | Run the release binary once. Same env defaults as `just dev`. |
-| `just build` | Release build. |
-
-## Hitting the running server
-
-`just db-up` (from repo root) → `just dev` → `localhost:8080`. Two endpoints:
-
-| Endpoint | Surface |
-|---|---|
-| `GET\|POST /api/v1/convert` | Legacy query-string contract, snake_case JSON response. Deprecated for new callers, kept alive for existing external consumers. |
-| `POST /api/v2/convert` | Modern JSON in / JSON out, camelCase both ways, `entryType` first-class body field. Strict validation (typo'd field → 422). |
-
-Quick smoke tests — assumes `just dev` is running:
-
-```bash
-URL='https://abcnews.com/amp/Politics/hhs-warns-states-removing-kids-homes-parents-approval/story?id=130696092'
-
-# v1 — use `--data-urlencode` so curl handles percent-encoding.
-curl -s --get --data-urlencode "q=$URL" http://localhost:8080/api/v1/convert | jq
-
-# v2 — `jq -nc --arg q "$URL" '{query: $q}'` safely injects the URL as JSON.
-curl -s -X POST -H 'Content-Type: application/json' \
-    -d "$(jq -nc --arg q "$URL" '{query: $q, entryType: "COMMENT"}')" \
-    http://localhost:8080/api/v2/convert | jq
-
-# Verify entry_type + api_version land in the DB:
-docker exec amputatorbot-postgres psql -U amputatorbot -d amputatorbot -c \
-    "SELECT entry_type, api_version, COUNT(*)
-     FROM links WHERE handled_utc > NOW() - INTERVAL '5 minutes'
-     GROUP BY 1, 2;"
-```
-
-## Testing the canonical-finding engine
-
-The resolver is the heart of the backend — given an AMP URL, find its
-canonical non-AMP version. Three layers of tests:
-
-### 1. Unit tests (`just test`, always green)
-
-Per-module tests for each piece: AMP detection, URL extraction, the 11
-canonical methods, the orchestration loop. Use `MockPageSource` to inject
-hand-crafted HTML. Fast (< 0.1s for the lot), no network.
+Per-module tests for AMP detection, URL extraction, the 11 canonical methods, and the orchestration loop. `MockPageSource` injects hand-crafted HTML. Fast (< 0.1s), no network.
 
 ### 2. Snapshot tests (`cargo nextest run --test snapshots`)
 
-Pin the JSON output shape of `resolve()` for ~10 representative scenarios.
-Catches accidental response-shape drift (renamed fields, key reordering,
-SCREAMING_SNAKE_CASE regressions).
+Pin the JSON shape of `resolve()` for ~10 representative scenarios. Catches accidental response-shape drift (renamed fields, key reordering, SCREAMING_SNAKE_CASE regressions).
 
-To regenerate snapshots after an **intentional** shape change:
+Regenerate after an *intentional* shape change:
 
 ```bash
 INSTA_UPDATE=always cargo nextest run --test snapshots
@@ -163,73 +114,54 @@ cargo install cargo-insta  # one-time
 cargo insta review         # interactive accept/reject
 ```
 
-### 3. Parity tests — against real URLConversions fixtures
+### 3. Parity tests — against real legacy data
 
-This is the most informative test: takes the legacy Python bot's
-`URLConversions` table, fetches each URL's HTML once, then runs our new
-Rust resolver against that HTML and compares the result to what the legacy
-bot recorded.
+The most informative test: takes a CSV export of the legacy Python bot's `URLConversions` table, fetches each URL's HTML once, then runs the new Rust resolver against that HTML and compares results to what the legacy bot recorded.
 
-#### Step 1 — Record fixtures
-
-Fetch every URL in a CSV export and save the response to
-`tests/fixtures/html/<entry_id>.json`:
+**Step 1 — Record fixtures** (one-time, ~1 hour for 10k URLs):
 
 ```bash
 just record-fixtures
 ```
 
-That uses the default CSV (`10000_conversions_unfiltered.csv` — a random
-10k-row slice including failures and false positives). For the
-successes-only set:
+That uses the default CSV (`10000_conversions_unfiltered.csv` — a random 10k slice that includes failures and false positives). For the successes-only set:
 
 ```bash
 just record-fixtures tests/fixtures/urlconversions/10000_conversions_with_canonical.csv
 ```
 
 Properties:
+- **Idempotent.** Already-recorded fixtures are skipped, so Ctrl+C and re-run is safe.
+- **Respectful.** Default 4 concurrent fetches, 15s timeout, rotating Firefox user agent.
+- **Slow.** Roughly an hour for the full 10k; much faster on repeat runs.
 
-- **Idempotent.** Already-recorded fixtures are skipped, so Ctrl+C and
-  re-run is safe.
-- **Respectful.** Default 4 concurrent fetches, 15s timeout, rotating
-  Firefox user agent.
-- **Slow.** Roughly an hour for the full 10k set; faster for repeat runs
-  since existing fixtures are skipped.
+The HTML directory (`tests/fixtures/html/`) is gitignored — regenerable on demand.
 
-The HTML directory (`tests/fixtures/html/`) is gitignored — generated
-content, can be re-built on demand.
-
-#### Step 2 — Run parity
+**Step 2 — Run parity:**
 
 ```bash
 just parity
 ```
 
-Streams progress in real time and writes a Markdown summary to
-`tests/parity-report.md` with per-bucket counts and the URLs of the
-first 25 mismatches.
-
-Categories:
+Streams progress live and writes a Markdown summary to `tests/parity-report.md` with per-bucket counts and the first 25 mismatches.
 
 | Bucket | Meaning |
 |---|---|
 | **matched** | Same canonical (or both found `None`). |
 | **mismatch_url** | Both found a canonical but they disagree on the URL. |
-| **legacy_only** | Legacy found a canonical, we didn't. |
-| **new_only** | We found a canonical, legacy didn't. Could be a legit false-positive fix (e.g. the `amputeestore.com` shape) or a new bug. |
-| **skipped** | Fixture has no HTML (recorder failed for that URL). |
+| **legacy_only** | Legacy found one, we didn't. |
+| **new_only** | We found one, legacy didn't — could be a legit false-positive fix (e.g. `amputeestore.com`) or a new bug. |
+| **skipped** | Recorder failed for that URL — no HTML. |
 
-The test only **fails** if zero matches across all fixtures (resolver is
-broken). Tighter parity-rate floors land in follow-up commits as drift
-gets investigated and fixed.
+The test only **fails** if zero matches across all fixtures (the resolver is broken). Tighter parity-rate floors land in follow-up commits as drift gets investigated.
 
-#### Step 3 — Look at the report
+**Step 3 — Read the report:**
 
 ```bash
 cat tests/parity-report.md
 ```
 
-Or open it in your editor. The Markdown is human-readable.
+To trace a specific mismatch, open `tests/fixtures/html/<csv_id>.json` — raw HTML and the legacy expected canonical are both in there.
 
 ## Project layout
 
@@ -244,7 +176,7 @@ backend/
 │   ├── main.rs                # Axum binary
 │   ├── lib.rs                 # library — used by bins + tests
 │   ├── bin/
-│   │   └── record_fixtures.rs # the CSV→HTML recorder
+│   │   └── record_fixtures.rs # the CSV → HTML recorder
 │   ├── canonical/             # the engine
 │   │   ├── amp_detect.rs      # is_amp_url, is_cached_amp
 │   │   ├── database.rs        # Database trait (PG abstraction for tests)
@@ -267,7 +199,7 @@ backend/
 │   │       ├── tco_pagetitle.rs
 │   │       ├── meta_redirect.rs
 │   │       ├── guess_and_check.rs
-│   │       └── database.rs    # DATABASE cache lookup (M3)
+│   │       └── database.rs    # DATABASE cache lookup
 │   ├── models/                # API JSON shapes
 │   │   ├── url_meta.rs        # UrlMeta (base shape)
 │   │   ├── canonical.rs       # Canonical struct
@@ -288,24 +220,10 @@ backend/
     └── snapshots.rs           # insta snapshot tests
 ```
 
-## Common debugging
+## Debugging notes
 
-**A specific URL fails in `record_fixtures`.** Look at the error chain in
-the warning log (we use `?e` which prints the full anyhow cause chain).
-DNS / TLS / HTTP-403 / timeout each look different.
+**A specific URL fails in `record_fixtures`.** Look at the error chain in the warning log (`?e` prints the full anyhow cause chain). DNS / TLS / HTTP-403 / timeout each look different.
 
-**A parity mismatch you want to understand.** Open
-`tests/parity-report.md`, find the `csv_id`, then look at the recorded
-fixture: `tests/fixtures/html/<csv_id>.json`. The raw HTML is in there
-under `html`; the legacy expected canonical is `expected_canonical`.
+**A parity mismatch you want to understand.** Open `tests/parity-report.md`, find the `csv_id`, then look at `tests/fixtures/html/<csv_id>.json` — raw HTML under `html`, legacy expected canonical under `expected_canonical`.
 
-**Snapshot test failed.** The diff is in the test output. Either fix the
-code (response shape regressed) or run with `INSTA_UPDATE=always` to
-accept the new shape if it's intentional.
-
-## See also
-
-- [v7 migration plan](../docs/amputatorbot-devvit-migration-plan-v7.md)
-- [archive/README-archive.md](../archive/README-archive.md) — the legacy
-  Python bot that lives in `archive/` for reference
-- [CLAUDE.md](../CLAUDE.md) — conventions for AI-assisted work in this repo
+**Snapshot test failed.** The diff is in the test output. Either fix the code (response shape regressed) or run with `INSTA_UPDATE=always` to accept the new shape if the change was intentional.
