@@ -6,10 +6,12 @@ non-AMP link.
 
 Replaces the legacy PRAW bot at [u/AmputatorBot](https://www.reddit.com/u/AmputatorBot/),
 which has been running on PythonAnywhere since 2019 and stays alive as a
-parallel fallback during the migration. See the top-level
-[README](../README.md) for the monorepo overview and the
+parallel fallback during the migration. Source code (Devvit app + Rust
+backend + Astro website) lives in the monorepo at
+[github.com/KilledMufasa/AmputatorBot](https://github.com/KilledMufasa/AmputatorBot);
+see the top-level [README](../README.md) for the overview and the
 [migration plan](../docs/amputatorbot-devvit-migration-plan-v7.md) for the
-broader context.
+broader context. Community + support at [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot).
 
 ## How it works
 
@@ -138,3 +140,33 @@ devvit-app/
     └── triggers/
         └── handler.ts                # shared orchestration with self-reply guard
 ```
+
+## Changelog
+
+### v0.1.0 — initial Devvit release
+
+- Replies to AMP URLs in comments (`onCommentSubmit`) and posts
+  (`onPostSubmit`) with the canonical non-AMP link.
+- Per-install settings: `autoReply` (single on/off toggle, default on)
+  and `customFooter` (optional markdown snippet appended to the bot's
+  reply footer).
+- Devvit Redis dedup keeps the bot from double-replying when a trigger
+  fires twice (1 h TTL per comment/post id).
+- Bot-self-reply guard via `reddit.getAppUser()` — the bot never replies
+  to its own comments.
+- Reply template ported from the legacy PRAW bot at `u/AmputatorBot`,
+  with a refreshed disclaimer line ("AMP is supposed to be faster, but
+  it's controversial…") and the "I'm a bot" preamble + "Summon" link
+  dropped; Reddit's App badge handles bot disclosure.
+- Canonical resolution delegated to the open public
+  [AmputatorBot API](https://documenter.getpostman.com/view/12422626/UVC3n93T)
+  at `https://www.amputatorbot.com/api/v2/convert`. See "Fetch Domains"
+  above.
+
+## Links
+
+- [Source code (GitHub)](https://github.com/KilledMufasa/AmputatorBot)
+- [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot) — community + bug reports
+- [Public API docs (Postman)](https://documenter.getpostman.com/view/12422626/UVC3n93T)
+- [Legacy bot account u/AmputatorBot](https://www.reddit.com/u/AmputatorBot/) — runs in parallel during migration
+- [Why I built AmputatorBot](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/) — background + the AMP-is-controversial argument

@@ -32,5 +32,8 @@
   "triggers": {
     "onCommentSubmit": "/internal/triggers/comment-submit",
     "onPostSubmit": "/internal/triggers/post-submit"
+  },
+  "marketingAssets": {
+    "icon": "assets/icon.png"
   }
 }
