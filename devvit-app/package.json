@@ -2,6 +2,7 @@
   "name": "amputatorbot-app",
   "version": "0.0.0",
   "private": true,
+  "description": "Detects AMP URLs in comments and posts, replies with the canonical non-AMP link.",
   "type": "module",
   "scripts": {
     "dev": "vite build --watch",

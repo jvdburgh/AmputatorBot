@@ -1,5 +1,8 @@
 # amputatorbot-devvit-app tasks
 
+# Default test subreddit for playtest. Override with `just playtest SUB=foo`.
+SUB := "AmputatorBotTest"
+
 default:
     @just --list
 
@@ -20,8 +23,32 @@ type-check:
 test:
     pnpm exec vitest run
 
-dev:
-    pnpm exec devvit playtest r/test
+# Build the server bundle into dist/server/index.cjs. Required before
+# `playtest` if you haven't been running `dev` (which rebuilds on save).
+build:
+    pnpm exec vite build
 
-upload:
+# Rebuild on every save while playtesting. Run this in one terminal and
+# `just playtest` in another.
+dev:
+    pnpm exec vite build --watch
+
+# Install the playtest version of the app to r/{{SUB}} and stream logs.
+# Defaults to r/AmputatorBotTest; override per-call: `just playtest SUB=test`.
+# Requires the app to be initialized (`pnpm exec devvit init`) and you to
+# be logged in (`pnpm exec devvit login`).
+playtest:
+    pnpm exec devvit playtest r/{{SUB}}
+
+# One-time app registration on Reddit's side. Reads the slug from devvit.json.
+init:
+    pnpm exec devvit init
+
+# Show the currently logged-in Reddit account.
+whoami:
+    pnpm exec devvit whoami
+
+# Upload a private version to the App Directory (installable on small
+# test subreddits only). NOT `--publish`; that's M6.
+upload: build
     pnpm exec devvit upload

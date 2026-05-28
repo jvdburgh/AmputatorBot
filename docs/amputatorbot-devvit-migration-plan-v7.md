@@ -726,7 +726,13 @@ Tasks:
   - Mark dedup with 1h TTL
 - Implement `/internal/triggers/post-submit` — same flow, URLs sourced from `title + url + selftext`, dedup key is `postId`.
 - Vitest unit tests for `ampDetect`, `urlExtract`, `reply` (snapshot), and the trigger handlers (mocked backend client, mocked Reddit context).
-- `devvit upload && devvit playtest r/test` — post 5+ AMP comments from `backend/tests/fixtures/urlconversions/`, verify replies, dedup, and the `killSwitch` toggle.
+- Playtest end-to-end via `just dev` (rebuild loop in one terminal) + `just playtest` (defaults to r/AmputatorBotTest) in another. App slug landed on `amputatorbot-app` — Reddit account-namespace collision with the legacy `u/AmputatorBot` blocked the simpler slug.
+
+#### Playtest setup gotchas
+
+- **First-time only:** `just init` registers the app on Reddit's side. The slug in `devvit.json` (`amputatorbot-app`) must not collide with an existing Reddit account.
+- **`vite: command not found` in `pnpm exec vite build`:** the workspace's per-project `node_modules/.bin/` got out of sync (commonly after `npx devvit init` or hand-editing `package.json`). Fix by running `pnpm install` from the **repo root**, not from `devvit-app/`. If that still leaves `.bin/` empty, `rm -rf devvit-app/node_modules && pnpm install` from the repo root.
+- **CLI version mismatch:** the `devvit` binary must match `@devvit/web` major.minor. Both are pinned at `0.13.0` via `devvit-app/package.json`; if you ever see `@devvit/cli/0.12.x` from `pnpm exec devvit --version`, re-run `pnpm install` from the root.
 
 #### Reply markdown (locked)
 

@@ -9,6 +9,7 @@
     "reddit": true,
     "redis": true,
     "http": {
+      "enable": true,
       "domains": ["www.amputatorbot.com"]
     }
   },
