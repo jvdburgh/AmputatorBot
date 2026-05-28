@@ -74,14 +74,14 @@ Claude prepares the exact commands and tells Joris when to run them. Reading cod
 | **Observability** | Scaleway Cockpit (built-in logs + metrics) only initially |
 | **Code hosting** | GitHub (existing monorepo) |
 | **DNS** | Cloudflare (existing) — also handles rate limiting |
-| **API auth on `/convert`** | None — fully open |
-| **API auth on `/optout` (privileged write)** | Single shared bearer secret (env var on both Rust + Devvit) |
+| **API auth** | None on any route — fully open. Cloudflare handles abuse. |
 | **Rate limiting** | Cloudflare only, no Rust middleware |
 | **Domain** | Single — everything on `www.amputatorbot.com` |
 | **Test subreddit** | r/test |
 | **AI tooling** | Claude Code + Devvit MCP + JetBrains MCP in IntelliJ |
-| **Per-user opt-out** | Kept (via Devvit modmail) |
-| **Per-subreddit opt-out** | Dropped (mods uninstall instead) |
+| **Per-user opt-out** | Dropped. Users block the bot account; the per-install app identity makes block-based opt-out work at the install level. |
+| **Per-subreddit opt-out** | Dropped (mods uninstall, or toggle `autoReply` off in install settings) |
+| **Modmail / DMs** | None. No inbound modmail handler, no welcome modmail, no DMs — Reddit's "App" badge handles bot disclosure, and the Devvit App Directory listing covers onboarding. |
 | **Karma threshold** | None |
 | **App Directory submitter** | `u/Killed_Mufasa` |
 
@@ -101,11 +101,11 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 
   `dom_smoothie` wins on active maintenance + explicit Mozilla `readability.js` lineage. We use its standard (Mozilla-mimic) mode for similarity scoring. No spike needed; pin to `dom_smoothie = "0.17"` in M2.
 
-- **No auth on `/convert`, bearer secret on privileged routes.** Production currently has `authorization_required=False` (`AmputatorBotCom/main.py:162`). No one depends on bearer auth. Cloudflare handles abuse. A single shared secret on the privileged opt-out endpoint is simpler than HMAC and entirely adequate (TLS terminates at Scaleway, the secret only ever lives in env vars).
+- **No auth, anywhere.** Production currently has `authorization_required=False` on `/convert` (`AmputatorBotCom/main.py:162`). No one depends on bearer auth, and with opt-out gone the backend has no privileged routes at all. Cloudflare handles abuse.
 
 - **Cloudflare-side rate limiting.** Cloudflare already fronts the domain. Per-IP rules there are zero Rust code and configurable without redeploy.
 
-- **Modmail-only opt-out.** Reddit verifies identity for free via modmail. Blocking `u/AmputatorBot` won't work in the new world — replies post as per-install app identity, not a single account. So an explicit opt-out mechanism is needed, and a public POST endpoint would invite "opt out u/SomeoneElse" abuse.
+- **No opt-out mechanic, no modmail, no DMs.** Users and mods who don't want the bot can block the per-install app identity or uninstall the app respectively. That's enough — building a separate opt-out registry on top is mechanism we don't need. Cuts the modmail trigger, the welcome modmail, the bearer-auth privileged routes, the `optouts` table, the Redis opt-out cache, and the legacy "summoned via DM" pathway in one stroke.
 
 - **Modernize the DB schema during migration.** The migration tool runs once. Cleaning up `VARCHAR(4000)` → `TEXT`, adding the indices that `models/table.py` lacks, and dropping any dead columns is cheap to do once and never again.
 
@@ -126,7 +126,7 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 ```
 ┌─────────────────────────────────────────────┐
 │ Subreddit X (mod installed amputatorbot)    │
-│   Comments / posts / modmail                │
+│   Comments / posts                          │
 └──────────────┬──────────────────────────────┘
                │ Devvit triggers (HTTP POST to internal routes)
                ▼
@@ -137,12 +137,9 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 │   Internal HTTP routes:                     │
 │     /internal/triggers/comment-submit       │
 │     /internal/triggers/post-submit          │
-│     /internal/triggers/modmail              │
-│     /internal/on-app-install                │
 │                                             │
 │   Devvit Redis (built-in):                  │
 │     handled:{commentId}  TTL 1h             │
-│     optout:{username}    TTL 24h            │
 │                                             │
 │   Per-install settings:                     │
 │     autoReply, customFooter, killSwitch     │
@@ -150,10 +147,8 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 │   Allowlist (devvit.json):                  │
 │     http.domains: ["www.amputatorbot.com"]  │
 └──────────────┬──────────────────────────────┘
-               │ HTTPS:
-               │   GET  /api/v1/convert?q=...&gac=true&md=3      (open, no auth)
-               │   GET  /api/v1/optout/<user>                    (bearer-auth)
-               │   POST /api/v1/optout      body: {user, source} (bearer-auth)
+               │ HTTPS (no auth):
+               │   GET /api/v1/convert?q=...&gac=true&md=3
                ▼
 ┌─────────────────────────────────────────────┐
 │ Cloudflare (DNS + rate limiting + WAF)      │
@@ -165,8 +160,9 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 │                                             │
 │   Rust backend (Axum 0.8) — single binary   │
 │     /api/v1/convert    (existing contract)  │
+│     /api/v2/convert    (camelCase JSON)     │
+│     /api/v1/stats      (cached count)       │
 │     /api/v1/health                          │
-│     /api/v1/optout     (bearer-auth)        │
 │     fallback → Astro static (ServeDir)      │
 │                                             │
 │   Canonical-finding (10 methods, same       │
@@ -180,7 +176,7 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 │     DATABASE (cache lookup)                 │
 │                                             │
 │   Postgres 17 (Scaleway Managed Database):  │
-│     links, optouts, replies, kill_switch    │
+│     links                                   │
 └─────────────────────────────────────────────┘
 ```
 
@@ -331,20 +327,6 @@ Tests per pattern with positive + negative fixtures (incl. `&amp;` HTML entity, 
 
 ---
 
-## Privileged routes (bearer-auth)
-
-Single shared secret. Set as `AMPBOT_PRIVILEGED_SECRET` on both:
-- Backend: set `AMPBOT_PRIVILEGED_SECRET` in the Scaleway Serverless Container's environment variables (via console or `scw container container update`). Generate with `openssl rand -hex 32`.
-- Devvit: `devvit settings set AMPBOT_PRIVILEGED_SECRET "<same value>"`
-
-Routes:
-- `GET /api/v1/optout/:user` — returns `{ "opted_out": bool }`. Devvit caches in Redis 24h.
-- `POST /api/v1/optout` — body: `{ "user": "string", "action": "opt_in" | "opt_out", "source": "modmail" }`. Writes to Postgres `optouts` table.
-
-Both require `Authorization: Bearer <secret>` header. 401 otherwise.
-
----
-
 ## Repo layout (post-archive)
 
 ```
@@ -398,13 +380,13 @@ AmputatorBot/
 │   ├── justfile
 │   └── src/server/
 │       ├── index.ts
-│       ├── routes/triggers.ts
+│       ├── routes/triggers.ts        # comment-submit + post-submit only
 │       ├── core/
 │       │   ├── ampDetect.ts          # mirrors backend logic
 │       │   ├── urlExtract.ts
 │       │   └── reply.ts              # new reply markdown
-│       ├── backend/client.ts         # bearer-auth privileged calls
-│       ├── storage/{dedup,optoutCache}.ts
+│       ├── backend/client.ts         # fetch wrapper (no auth)
+│       ├── storage/dedup.ts          # Redis handled:{commentId} TTL 1h
 │       └── settings.ts
 ├── website/                          # Astro
 │   ├── astro.config.mjs
@@ -666,8 +648,6 @@ psql "$DATABASE_URL" -c "\
 
 ~1.7M rows in under a minute. No SSH tunnel, no sqlx wiring just for the import, no Rust binary to maintain.
 
-**No opt-out migration.** Per-user opt-outs in the new world are handled via Devvit modmail (M5) → privileged `POST /api/v1/optout` against Scaleway PG. Legacy opt-outs would re-engage on cutover, accepted tradeoff.
-
 #### Tasks
 
 1. `docker-compose.yml` at repo root for local Postgres 17 + `DATABASE_URL` plumbing in the backend.
@@ -726,28 +706,67 @@ Tasks (as-built):
 
 ### M5 — Devvit bot E2E
 
-**Done when:** AMP comment in r/test → bot replies with correct canonical; dedup prevents double-reply; opt-out via modmail works end-to-end.
+**Done when:** AMP comment in r/test → bot replies with correct canonical; dedup prevents double-reply; the `autoReply` setting silences the bot when toggled off.
+
+**Scope-down vs. earlier drafts.** This milestone was originally going to ship a modmail handler, a welcome modmail on install, a Redis-cached opt-out lookup, an `/api/v1/optout` privileged route on the backend, and a Postgres `optouts` table. All dropped — see the "Locked decisions" table and the "No opt-out mechanic" rationale. Users and mods who don't want the bot block the per-install app identity or uninstall the app respectively.
 
 Tasks:
-- Port AMP detection patterns to TS (`devvit-app/src/server/core/ampDetect.ts`) — mirror Rust logic
-- Write `backend/client.ts` — fetch wrapper, bearer auth for privileged routes, no auth for `/convert`
+- Port AMP detection patterns to TS (`devvit-app/src/server/core/ampDetect.ts`) — mirror Rust logic in `backend/src/canonical/amp_detect.rs`
+- Port URL extraction to TS (`devvit-app/src/server/core/urlExtract.ts`) — mirror `backend/src/canonical/url_extract.rs`
+- Write `backend/client.ts` — fetch wrapper for `POST /api/v2/convert` (camelCase JSON, recorded with `entry_type=COMMENT|SUBMISSION` and `api_version=2`, giving us per-source visibility into the `links` cache). No auth. Configurable base URL via setting (prod = `https://www.amputatorbot.com`, dev playtest = local Rust backend over a tunnel).
+- Write `core/reply.ts` — generate the comment markdown from a backend `Link[]` response. See "Reply markdown (locked)" below.
+- Write `storage/dedup.ts` — wraps Devvit Redis: `setHandled(commentId)` with 1h TTL, `isHandled(commentId)` returns bool.
+- Settings (`devvit.json` + `settings.ts`): `autoReply` (bool, default true — the single on/off toggle), `customFooter` (optional string — appended after the standard footer when set).
 - Implement `/internal/triggers/comment-submit`:
-  - Extract URLs from comment body
-  - Filter AMP
-  - Check Devvit Redis dedup (`handled:{commentId}`)
-  - Check Devvit Redis opt-out cache (`optout:{username}`); on miss, `GET /api/v1/optout/:user`, cache 24h
-  - If opted out → return early
+  - Early return if `autoReply` is off
+  - Extract URLs from comment body, filter to AMP
+  - Skip if dedup says we've handled this `commentId` in the last hour
   - `GET /api/v1/convert?q=<url>&gac=true&md=3`
-  - Build reply markdown, `context.reddit.submitComment`
-  - Mark Redis dedup with 1h TTL
-- Implement `/internal/triggers/post-submit` — same flow, URLs sourced from `title + url + body`
-- Implement `/internal/triggers/modmail` — parse `opt me out` / `opt me in`, `POST /api/v1/optout`, reply confirmation
-- Implement `/internal/on-app-install` — send welcome modmail
-- Settings: `autoReply` (bool, default true), `customFooter` (optional), `killSwitch` (bool, default false)
-- `devvit upload && devvit playtest r/test` — full smoke test with 5+ URLs from fixtures
-- Vitest unit tests for trigger handlers (mocked backend, mocked Reddit context)
+  - Build reply via `reply.ts`, `context.reddit.submitComment`
+  - Mark dedup with 1h TTL
+- Implement `/internal/triggers/post-submit` — same flow, URLs sourced from `title + url + selftext`, dedup key is `postId`.
+- Vitest unit tests for `ampDetect`, `urlExtract`, `reply` (snapshot), and the trigger handlers (mocked backend client, mocked Reddit context).
+- `devvit upload && devvit playtest r/test` — post 5+ AMP comments from `backend/tests/fixtures/urlconversions/`, verify replies, dedup, and the `killSwitch` toggle.
 
-**Ask points:** Welcome modmail content. Exact reply markdown format (final pass).
+#### Reply markdown (locked)
+
+Preserves the legacy template's structure and quirks (singular/plural agreement, who/what, cached-AMP note, alt-domain canonical, `*****` rule, superscript footer). Changes from legacy: drop the `^(I'm a bot | )` opener (Reddit's "App" badge handles disclosure), drop the `Summon: u/AmputatorBot` link (doesn't work in Devvit's per-install model), and replace the AMP-disclaimer sentence.
+
+Singular (one AMP URL, one canonical):
+
+```
+It looks like {who} {what} an AMP link. AMP is supposed to be faster, but it's controversial because of [concerns over privacy and the Open Web]({FAQ_LINK}).{cached_note}
+
+Maybe check out **the canonical page** instead: **[{canonical_url}]({canonical_url})**{alt_canonical}
+
+*****
+
+^([Why & About]({FAQ_LINK})^( | )[r/AmputatorBot](https://reddit.com/r/AmputatorBot)^( | )[Source](https://github.com/KilledMufasa/AmputatorBot))
+```
+
+Plural (multiple AMP URLs):
+
+```
+It looks like {who} {what} some AMP links. AMP is supposed to be faster, but it's controversial because of [concerns over privacy and the Open Web]({FAQ_LINK}).{cached_note}
+
+Maybe check out **the canonical pages** instead:
+
+- **[{url1}]({url1})**{alt1}
+- **[{url2}]({url2})**{alt2}
+
+*****
+
+^([Why & About]({FAQ_LINK})^( | )[r/AmputatorBot](https://reddit.com/r/AmputatorBot)^( | )[Source](https://github.com/KilledMufasa/AmputatorBot))
+```
+
+Variables:
+- `{who}` / `{what}` — `OP` / `posted` for post-submit, `you` / `shared` for comment-submit
+- `{cached_note}` — when at least one origin URL was cached (`origin.is_cached=true`): ` Fully cached AMP pages (like the one {who} {what}), are [especially problematic]({FAQ_LINK}).` (use "the ones" plural when >1, "some of the ones" when only some are cached — mirror `reddit_comment_generator.py:84-90`)
+- `{alt_canonical}` — when a canonical at a different domain is also available: ` | {AltDomain.capitalize()} canonical: **[{alt_url}]({alt_url})**` (mirror `reddit_comment_generator.py:48`)
+- `{FAQ_LINK}` — `https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/`
+- `{customFooter}` — when set on the install: appended as ` | {customFooter}` inside the superscript group
+
+**Ask points:** none — content and tasks both locked.
 
 ### M6 — Cloud deployment + public launch
 
@@ -783,7 +802,7 @@ Production data migration:
 
 Deploy:
 - Build the two-stage Astro+Rust Docker image, push to Scaleway Container Registry
-- Deploy the Serverless Container; configure env vars (`DATABASE_URL`, `AMPBOT_PRIVILEGED_SECRET`)
+- Deploy the Serverless Container; configure env vars (`DATABASE_URL`)
 - Smoke-test the container endpoint via `curl` (health, `/api/v1/convert`, static page, `?r=true` redirect)
 - Switch DNS (`www.amputatorbot.com` → Scaleway Serverless Container endpoint) in Cloudflare; verify TLS
 
@@ -797,7 +816,7 @@ Post-launch:
 - Old PythonAnywhere bot stays running — no kill, no DNS pressure
 - Monitor Scaleway Cockpit logs for 72h
 
-**Ask points:** DNS switch timing. Outreach list size and tone. Welcome modmail content. Whether to keep the old PythonAnywhere bot running indefinitely or set a sunset date.
+**Ask points:** DNS switch timing. Outreach list size and tone. Whether to keep the old PythonAnywhere bot running indefinitely or set a sunset date.
 
 ---
 
@@ -842,7 +861,7 @@ Per-pattern positive + negative fixtures, including the false-positive cases (`&
 
 ### Devvit-side unit tests (M5)
 
-Vitest. Mock backend client, mock Reddit context. Assert dedup, opt-out short-circuit, reply markdown.
+Vitest. Mock backend client, mock Reddit context. Assert dedup, `autoReply` short-circuit, reply markdown (snapshot test against fixture `Link[]` responses).
 
 ### Manual smoke (M3, M4, M5, M6)
 
@@ -893,7 +912,7 @@ Vitest. Mock backend client, mock Reddit context. Assert dedup, opt-out short-ci
 - `client:load` for the converter island.
 
 ### Don't-shoot-yourself-in-the-foot
-- Never commit the privileged bearer secret or the Postgres URL. Use Scaleway container env vars + `devvit settings set`.
+- Never commit the Postgres URL. Set it via Scaleway container env vars.
 - Old PRAW bot keeps running — don't accidentally stop it.
 - Rotate credentials in `archive/static/static.py` and `archive/AmputatorBotCom/main.py` — they're checked into git history. Anything reachable (Reddit OAuth secrets, Twitter keys, SSH passwords, MySQL passwords) needs rotation regardless of the archive move.
 

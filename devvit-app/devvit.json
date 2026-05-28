@@ -1,8 +1,35 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
-  "name": "amputatorbot",
+  "name": "amputatorbot-app",
   "server": {
     "dir": "dist/server",
     "entry": "index.cjs"
+  },
+  "permissions": {
+    "reddit": true,
+    "redis": true,
+    "http": {
+      "domains": ["www.amputatorbot.com"]
+    }
+  },
+  "settings": {
+    "subreddit": {
+      "autoReply": {
+        "type": "boolean",
+        "label": "Reply to AMP links",
+        "helpText": "When enabled, AmputatorBot replies to comments and posts containing AMP URLs with the canonical link. Turn off to silence the bot in this subreddit.",
+        "defaultValue": true
+      },
+      "customFooter": {
+        "type": "string",
+        "label": "Custom footer",
+        "helpText": "Optional. A short markdown snippet appended to the bot's reply footer (e.g. a link to your subreddit's modmail). Renders inside the superscript group as ` | <your text>`.",
+        "placeholder": "[Modmail us](https://reddit.com/r/YourSub)"
+      }
+    }
+  },
+  "triggers": {
+    "onCommentSubmit": "/internal/triggers/comment-submit",
+    "onPostSubmit": "/internal/triggers/post-submit"
   }
 }
