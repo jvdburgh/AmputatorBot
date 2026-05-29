@@ -14,7 +14,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1: install website dependencies (cached on lockfile/manifest changes)
 # -----------------------------------------------------------------------------
-FROM node:22-slim AS website-deps
+FROM node:26-slim AS website-deps
 RUN corepack enable && corepack prepare pnpm@11.3.0 --activate
 WORKDIR /app
 
