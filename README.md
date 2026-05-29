@@ -6,7 +6,7 @@ TL;DR: Remove AMP from your URLs — to push back on Google's power over indepen
 
 ## What it is
 
-AmputatorBot has been running on Reddit since 2019 (~181 GitHub stars, ~1.7M URLs converted so far). Three surfaces, same engine:
+AmputatorBot has been running on Reddit since 2019. Three surfaces, same engine:
 
 - **The Reddit app** — replies to AMP comments/submissions on subreddits where mods have installed it.
 - **The website** — paste a URL at [www.amputatorbot.com](https://www.amputatorbot.com/), get the canonical back.

@@ -100,7 +100,7 @@ export const CANONICAL_METHODS: Record<string, MethodInfo> = {
     label: 'Cached from a previous run',
     summary: 'AmputatorBot has resolved this AMP URL before.',
     explanation:
-      "We've seen this exact AMP URL come through the bot before. Rather than refetching the page, we return the canonical we resolved most recently — picking up any improvements to our canonical-finding methods that happened in between.",
+      "We've seen this exact AMP URL come through the bot before. Rather than refetching the page, we return the canonical we resolved most recently.",
   },
 };
 
