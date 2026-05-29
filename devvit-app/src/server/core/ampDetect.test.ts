@@ -55,6 +55,13 @@ describe('isAmpUrl', () => {
     expect(isAmpUrl('https://bandcamp.com/amp/foo')).toBe(false);
   });
 
+  it('denylist does not match unrelated hosts', () => {
+    // `notyoutube.com` ends with `youtube.com` but is not a real subdomain
+    // — must NOT be denylisted.
+    expect(isAmpUrl('https://notyoutube.com/amp/some-video')).toBe(true);
+    expect(isAmpUrl('https://myreddit.com/article/amp')).toBe(true);
+  });
+
   it('rejects malformed URLs', () => {
     expect(isAmpUrl('not a url')).toBe(false);
     expect(isAmpUrl('')).toBe(false);
@@ -83,5 +90,12 @@ describe('isCachedAmp', () => {
   it('rejects publisher AMP pages (not on a third-party cache CDN)', () => {
     expect(isCachedAmp('https://www.bbc.com/news/world-europe/amp')).toBe(false);
     expect(isCachedAmp('https://amp.cnn.com/cnn/2020/article')).toBe(false);
+  });
+
+  it('does not match unrelated hosts', () => {
+    // `notampproject.org` ends with `ampproject.org` but is not a real
+    // subdomain — must NOT be classified as an AMP cache.
+    expect(isCachedAmp('https://notampproject.org/some/path')).toBe(false);
+    expect(isCachedAmp('https://fakeampproject.net/x')).toBe(false);
   });
 });

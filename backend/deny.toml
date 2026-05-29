@@ -26,7 +26,11 @@ allow = [
     "Zlib",
     "MPL-2.0",
     "OpenSSL",
-    "CDLA-Permissive-2.0"
+    "CDLA-Permissive-2.0",
+    # Our own crate ships under GPL-3.0-or-later. cargo-deny inspects every
+    # node in the tree (including the workspace root), so the project's own
+    # license needs to be on the allow list too.
+    "GPL-3.0-or-later",
 ]
 confidence-threshold = 0.9
 

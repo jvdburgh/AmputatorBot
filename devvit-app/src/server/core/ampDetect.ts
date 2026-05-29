@@ -56,6 +56,14 @@ function hasAmpKeyword(s: string): boolean {
   return AMP_KEYWORDS.some((kw) => s.includes(kw));
 }
 
+// True when `host` is exactly `domain` or a real subdomain of it. Plain
+// `host.endsWith(domain)` would also match unrelated hosts like
+// `notyoutube.com` ↔ `youtube.com` or `notampproject.org` ↔ `ampproject.org`,
+// so denylist / cache-host checks need a dot-boundary on the suffix side.
+function hostMatchesDomain(host: string, domain: string): boolean {
+  return host === domain || host.endsWith(`.${domain}`);
+}
+
 // Returns true if the URL appears to be an AMP URL.
 //
 // Rules (same as Rust):
@@ -67,7 +75,7 @@ export function isAmpUrl(input: string): boolean {
   if (!parsed) return false;
 
   const host = parsed.hostname.toLowerCase();
-  if (DENYLISTED_DOMAINS.some((d) => host.endsWith(d))) return false;
+  if (DENYLISTED_DOMAINS.some((d) => hostMatchesDomain(host, d))) return false;
 
   if (hasAmpKeyword(host)) return true;
 
@@ -95,7 +103,7 @@ export function isCachedAmp(input: string): boolean {
   const host = parsed.hostname.toLowerCase();
   const path = parsed.pathname.toLowerCase();
 
-  if (host.endsWith('ampproject.net') || host.endsWith('ampproject.org')) {
+  if (hostMatchesDomain(host, 'ampproject.net') || hostMatchesDomain(host, 'ampproject.org')) {
     return true;
   }
 

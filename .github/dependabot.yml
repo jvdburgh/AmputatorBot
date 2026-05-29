@@ -37,7 +37,9 @@ updates:
       day: "monday"
 
   - package-ecosystem: "docker"
-    directory: "/backend"
+    # The Dockerfile lives at the repo root (combined Astro + Rust image),
+    # not under backend/. Pointing at "/backend" makes Dependabot miss it.
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"

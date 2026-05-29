@@ -63,7 +63,10 @@ pub fn is_amp_url(url: &str) -> bool {
     };
 
     let host = parsed.host_str().unwrap_or("").to_ascii_lowercase();
-    if DENYLISTED_DOMAINS.iter().any(|d| host.ends_with(d)) {
+    if DENYLISTED_DOMAINS
+        .iter()
+        .any(|d| host_matches_domain(&host, d))
+    {
         return false;
     }
 
@@ -90,6 +93,18 @@ fn has_amp_keyword(s: &str) -> bool {
     AMP_KEYWORDS.iter().any(|kw| s.contains(kw))
 }
 
+/// `true` when `host` is exactly `domain` or a real subdomain of it.
+///
+/// Plain `host.ends_with(domain)` would also match unrelated hosts like
+/// `notyoutube.com` ↔ `youtube.com` or `notampproject.org` ↔ `ampproject.org`,
+/// so denylist / cache-host checks need a dot-boundary on the suffix side.
+fn host_matches_domain(host: &str, domain: &str) -> bool {
+    host == domain
+        || (host.len() > domain.len()
+            && host.ends_with(domain)
+            && host.as_bytes()[host.len() - domain.len() - 1] == b'.')
+}
+
 /// Returns `true` if the URL is hosted on a known AMP cache
 /// (Google AMP, Bing AMP, or `ampproject.{net,org}`).
 ///
@@ -104,7 +119,8 @@ pub fn is_cached_amp(url: &str) -> bool {
     let host = parsed.host_str().unwrap_or("").to_ascii_lowercase();
     let path = parsed.path().to_ascii_lowercase();
 
-    if host.ends_with("ampproject.net") || host.ends_with("ampproject.org") {
+    if host_matches_domain(&host, "ampproject.net") || host_matches_domain(&host, "ampproject.org")
+    {
         return true;
     }
 
@@ -185,6 +201,22 @@ mod tests {
         assert!(!is_amp_url("https://www.youtube.com/amp/some-video"));
         assert!(!is_amp_url("https://open.spotify.com/amp/track/123"));
         assert!(!is_amp_url("https://bandcamp.com/amp/foo"));
+    }
+
+    #[test]
+    fn denylist_does_not_match_unrelated_hosts() {
+        // `notyoutube.com` ends with `youtube.com` but is not a real
+        // subdomain — must NOT be denylisted.
+        assert!(is_amp_url("https://notyoutube.com/amp/some-video"));
+        assert!(is_amp_url("https://myreddit.com/article/amp"));
+    }
+
+    #[test]
+    fn cached_does_not_match_unrelated_hosts() {
+        // `notampproject.org` ends with `ampproject.org` but is not a real
+        // subdomain — must NOT be classified as an AMP cache.
+        assert!(!is_cached_amp("https://notampproject.org/some/path"));
+        assert!(!is_cached_amp("https://fakeampproject.net/x"));
     }
 
     #[test]

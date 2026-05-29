@@ -41,7 +41,7 @@ This is a monorepo. Each part can be developed independently:
 
 - **[`backend/`](backend/)** — Rust + Axum service. Hosts the `/api/v2/convert` endpoint (plus the legacy `/api/v1/convert`), the canonical-finding engine, the Scalar API docs at `/api/docs`, and serves the website's static files from the same binary.
 - **[`devvit-app/`](devvit-app/)** — TypeScript Devvit app. Listens to comment and post triggers and replies per opt-in subreddit.
-- **[`website/`](website/)** — Astro 5 + Tailwind 4 + shadcn/ui frontend.
+- **[`website/`](website/)** — Astro 6 + Tailwind 4 + shadcn/ui frontend.
 - **[`praw-python-archive/`](praw-python-archive/)** — the original Python bot (PRAW + Flask). Read-only reference. See [`praw-python-archive/README-legacy.md`](praw-python-archive/README-legacy.md) for the original project README.
 - **[`.claude/skills/amputatorbot-migration/`](.claude/skills/amputatorbot-migration/)** — the migration plan v7, with locked decisions and milestones M1–M6.
 
@@ -137,7 +137,7 @@ Override the playtest subreddit with `SUB=foo just playtest`.
 
 ## The website
 
-Astro 5 + Tailwind 4 + shadcn/ui at [www.amputatorbot.com](https://www.amputatorbot.com/). Includes the URL converter form (paste a URL, get the canonical or a copy-paste-ready Reddit comment), a live "X converted so far" badge backed by `/api/v2/stats`, and explainer sections sourced from the FAQ Reddit thread. Lives in [`website/`](website/).
+Astro 6 + Tailwind 4 + shadcn/ui at [www.amputatorbot.com](https://www.amputatorbot.com/). Includes the URL converter form (paste a URL, get the canonical or a copy-paste-ready Reddit comment), a live "X converted so far" badge backed by `/api/v2/stats`, and explainer sections sourced from the FAQ Reddit thread. Lives in [`website/`](website/).
 
 The Astro static bundle is built into the Rust backend's container image (see [`backend/Dockerfile`](backend/Dockerfile)) and served from the same binary via `tower-http::ServeDir`. One service, one deploy.
 

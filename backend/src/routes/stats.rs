@@ -39,9 +39,13 @@ pub async fn handler(
         Ok(converted_total) => Ok(Json(StatsResponse { converted_total })),
         Err(err) => {
             tracing::error!(?err, "stats count failed");
+            // Keys mirror the v2 `ErrorResponse` schema this 500 documents.
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"errorMessage": "stats unavailable"})),
+                Json(json!({
+                    "errorMessage": "stats unavailable",
+                    "resultCode": "error_stats_unavailable",
+                })),
             ))
         }
     }

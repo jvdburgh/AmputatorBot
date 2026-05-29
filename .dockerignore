@@ -22,8 +22,8 @@
 .git
 .gitignore
 
-# Read-only legacy tree — Dockerfile never reads from it
-archive
+# Read-only legacy tree — Dockerfile never reads from it.
+praw-python-archive
 
 # Tests don't run during the production build, and the recorded HTML
 # fixtures alone are ~3GB. Skip the whole tree.

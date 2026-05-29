@@ -24,7 +24,10 @@ use crate::models::{CanonicalType, EntryType};
 #[derive(Debug, Clone)]
 pub struct Resolution<'a> {
     /// Where the resolution originated. v1 always sets [`EntryType::Api`];
-    /// v2 reads it from the JSON body's `entryType` field.
+    /// v2 reads it from the private `X-AmputatorBot-Entry-Type` header (the
+    /// Devvit bot and the website tag their requests; direct API callers
+    /// fall through to [`EntryType::Api`]). The field is deliberately not
+    /// part of the public v2 JSON schema.
     pub entry_type: EntryType,
     /// Which API surface produced this row: `1` for `/api/v1/convert`,
     /// `2` for `/api/v2/convert`. Stored in `links.api_version`. Legacy

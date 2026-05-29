@@ -44,7 +44,7 @@ Toolchain managed by `mise` — `mise install` reproduces the pinned Rust + Node
 
 - Rust 1.80+, Axum 0.8, `sqlx`, `scraper`, `reqwest`, `dom_smoothie` (Mozilla Readability port for article-similarity scoring)
 - TypeScript with `@devvit/web` (modern Devvit server model — not legacy Blocks)
-- Astro 5 + Tailwind 4 + shadcn/ui
+- Astro 6 + Tailwind 4 + shadcn/ui
 - Postgres 17 on Scaleway Managed Database (smallest tier — DB is 42.56 MB)
 - Hosting: Scaleway Serverless Containers (Paris/AMS, EU)
 - Lint + format: **Biome** (JS/TS), `rustfmt` + `clippy` (Rust)
