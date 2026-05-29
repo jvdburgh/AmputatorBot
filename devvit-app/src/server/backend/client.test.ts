@@ -1,33 +1,38 @@
-// Unit tests for BackendClient with `fetch` mocked. Verifies the status-code
-// → discriminated-result mapping the trigger handler relies on.
+// Unit tests for BackendClient with `fetch` mocked. Verifies the
+// status-code → discriminated-result mapping the trigger handler relies on,
+// the envelope-aware response parsing, and that the entryType header +
+// generateMarkdownComment body field are wired through.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BackendClient } from './client.ts';
-import type { Link } from './types.ts';
+import { BackendClient, ENTRY_TYPE_HEADER } from './client.ts';
+import type { ConvertResponseV2 } from './types.ts';
 
-const SAMPLE_LINKS: Link[] = [
-  {
-    origin: {
-      domain: 'google',
-      url: 'https://www.google.com/amp/s/example.eu/article',
-      isAmp: true,
-      isCached: true,
-      isValid: true,
+const SAMPLE_ENVELOPE: ConvertResponseV2 = {
+  links: [
+    {
+      origin: {
+        domain: 'google',
+        url: 'https://www.google.com/amp/s/example.eu/article',
+        isAmp: true,
+        isCached: true,
+        isValid: true,
+      },
+      canonical: {
+        domain: 'example',
+        url: 'https://example.eu/article',
+        type: 'REL',
+        isAmp: false,
+        isCached: false,
+        isValid: true,
+        isAlt: false,
+        urlSimilarity: null,
+      },
+      canonicals: [],
+      ampCanonical: null,
     },
-    canonical: {
-      domain: 'example',
-      url: 'https://example.eu/article',
-      type: 'REL',
-      isAmp: false,
-      isCached: false,
-      isValid: true,
-      isAlt: false,
-      urlSimilarity: null,
-    },
-    canonicals: [],
-    ampCanonical: null,
-  },
-];
+  ],
+  comment: 'It looks like you shared an AMP link. AMP is supposed to be faster, but it…',
+};
 
 describe('BackendClient', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
@@ -39,9 +44,9 @@ describe('BackendClient', () => {
     fetchSpy.mockRestore();
   });
 
-  it('returns ok with parsed links on 200', async () => {
+  it('returns ok with parsed links + comment on 200', async () => {
     fetchSpy.mockResolvedValue(
-      new Response(JSON.stringify(SAMPLE_LINKS), {
+      new Response(JSON.stringify(SAMPLE_ENVELOPE), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       }),
@@ -55,17 +60,19 @@ describe('BackendClient', () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.links).toEqual(SAMPLE_LINKS);
+      expect(result.links).toEqual(SAMPLE_ENVELOPE.links);
+      expect(result.comment).toEqual(SAMPLE_ENVELOPE.comment);
     }
   });
 
-  it('sends entryType, query, and POSTs to /api/v2/convert', async () => {
-    fetchSpy.mockResolvedValue(new Response(JSON.stringify(SAMPLE_LINKS), { status: 200 }));
+  it('sends entryType via header, generateMarkdownComment via body, POSTs to /api/v2/convert', async () => {
+    fetchSpy.mockResolvedValue(new Response(JSON.stringify(SAMPLE_ENVELOPE), { status: 200 }));
 
     const client = new BackendClient({ baseUrl: 'https://example.test/' }); // trailing slash
     await client.convert({
       query: 'https://example.com',
       entryType: 'SUBMISSION',
+      customFooter: '[Modmail us](https://reddit.com/r/Sub)',
     });
 
     expect(fetchSpy).toHaveBeenCalledOnce();
@@ -74,11 +81,27 @@ describe('BackendClient', () => {
     const [url, init] = call;
     expect(url).toBe('https://example.test/api/v2/convert');
     expect(init?.method).toBe('POST');
+    const headers = init?.headers as Record<string, string>;
+    expect(headers[ENTRY_TYPE_HEADER]).toBe('SUBMISSION');
+    expect(headers['Content-Type']).toBe('application/json');
     const body = JSON.parse(init?.body as string);
     expect(body).toEqual({
       query: 'https://example.com',
-      entryType: 'SUBMISSION',
+      generateMarkdownComment: true,
+      customFooter: '[Modmail us](https://reddit.com/r/Sub)',
     });
+    // entryType is never in the body — it lives in the header.
+    expect(body).not.toHaveProperty('entryType');
+  });
+
+  it('omits customFooter from the body when the option is unset', async () => {
+    fetchSpy.mockResolvedValue(new Response(JSON.stringify(SAMPLE_ENVELOPE), { status: 200 }));
+
+    const client = new BackendClient({ baseUrl: 'https://example.test' });
+    await client.convert({ query: 'https://example.com', entryType: 'COMMENT' });
+
+    const body = JSON.parse(fetchSpy.mock.calls[0]?.[1]?.body as string);
+    expect(body).not.toHaveProperty('customFooter');
   });
 
   it('classifies a 406 error_no_amp as kind: no_amp', async () => {

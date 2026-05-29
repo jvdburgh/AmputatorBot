@@ -56,7 +56,7 @@ const ampInput: TriggerInput = {
   author: 'somebody-else',
 };
 
-function okResult(): ConvertResult {
+function okResult(overrides: { comment?: string | null } = {}): ConvertResult {
   const links: Link[] = [
     {
       origin: {
@@ -80,7 +80,11 @@ function okResult(): ConvertResult {
       ampCanonical: null,
     },
   ];
-  return { ok: true, links };
+  const comment =
+    overrides.comment !== undefined
+      ? overrides.comment
+      : 'It looks like you shared an AMP link. AMP is supposed to be faster, but it — especially cached pages like the one you shared — is controversial because of [concerns over privacy and the Open Web](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot).\n\nMaybe check out **the canonical page** instead: **[https://example.eu/article](https://example.eu/article)**';
+  return { ok: true, links, comment };
 }
 
 function deps(overrides: Partial<TriggerDeps> = {}): TriggerDeps {
@@ -108,15 +112,16 @@ describe('handleAmpTrigger', () => {
     );
   });
 
-  it('uses "OP posted" voice when triggered from a post-submit', async () => {
+  it('posts the backend-generated comment verbatim', async () => {
+    // The handler no longer generates the reply markdown — the API does,
+    // server-side. The handler is just glue: it forwards `result.comment`
+    // straight to `submitComment`.
     const reddit = stubReddit();
-    await handleAmpTrigger(
-      { kind: 'post', id: 't3_xyz' as const, body: ampInput.body, author: 'somebody-else' },
-      deps({ reddit }),
-    );
+    const backend = stubBackend(okResult({ comment: 'CUSTOM COMMENT BODY' }));
+    await handleAmpTrigger(ampInput, deps({ reddit, backend }));
 
     const text = reddit.submitComment.mock.calls[0]?.[0].text as string;
-    expect(text).toContain('It looks like OP posted an AMP link.');
+    expect(text).toBe('CUSTOM COMMENT BODY');
   });
 
   it('skips with bot_self_reply when the trigger author matches the app account', async () => {

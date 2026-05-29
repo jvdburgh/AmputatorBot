@@ -1,30 +1,37 @@
 // Backend client — wraps `POST /api/v2/convert` on the AmputatorBot Rust
-// backend. v2 over v1 because we want `entry_type=COMMENT|SUBMISSION` and
-// `api_version=2` recorded in the `links` cache (per-source visibility for
-// `SELECT api_version, entry_type, COUNT(*) FROM links GROUP BY 1, 2`).
+// backend. The bot asks the backend to generate the Reddit reply markdown
+// for it (`generateMarkdownComment: true`) so reply rendering lives in
+// exactly one place (Rust) instead of being duplicated client-side.
 //
-// No auth — backend has no privileged routes (opt-out dropped). The bot
-// only ever GETs / POSTs publicly accessible endpoints.
+// `entryType` is sent via the `X-AmputatorBot-Entry-Type` HTTP header, not
+// the body — the backend treats it as internal-only and won't accept it
+// from random API callers, so per-source `links` analytics stay honest.
+//
+// No auth — the backend has no privileged routes (opt-out dropped). The
+// bot only ever POSTs publicly accessible endpoints.
 
-import type { EntryType, Link } from './types.ts';
+import type { ConvertResponseV2, EntryType } from './types.ts';
 
 export type ConvertOptions = {
   query: string;
-  // `entryType` defaults to API on the backend, but we always pass an explicit
-  // value so the `links` table reflects whether the row came from a comment
-  // trigger or a post trigger.
+  // Sent via the X-AmputatorBot-Entry-Type header. `COMMENT` for comment
+  // triggers, `SUBMISSION` for posts; the website would send `ONLINE`.
   entryType: EntryType;
+  // Optional per-install mod-supplied footer addendum. Threaded into the
+  // returned `comment` only when entryType is a bot variant; ignored by
+  // the backend for `API` / `ONLINE`.
+  customFooter?: string;
   // Defaults mirror the backend's serde defaults (true, 3). Override sparingly.
   guessAndCheck?: boolean;
   maxDepth?: number;
 };
 
-// Discriminated union — the trigger handler matches on `kind` and exits
+// Discriminated union — the trigger handler matches on `ok` and exits
 // early on anything other than `ok: true`. `no_amp` is a legitimate
 // outcome (the URL turned out not to be AMP after closer inspection) and
 // gets logged at debug, not warn.
 export type ConvertResult =
-  | { ok: true; links: Link[] }
+  | { ok: true; links: ConvertResponseV2['links']; comment: string | null }
   | {
       ok: false;
       kind: 'no_amp' | 'invalid_input' | 'server_error' | 'network_error';
@@ -41,6 +48,8 @@ export type BackendClientConfig = {
   timeoutMs?: number;
 };
 
+export const ENTRY_TYPE_HEADER = 'X-AmputatorBot-Entry-Type';
+
 export class BackendClient {
   readonly #baseUrl: string;
   readonly #timeoutMs: number;
@@ -53,7 +62,8 @@ export class BackendClient {
   async convert(options: ConvertOptions): Promise<ConvertResult> {
     const body = {
       query: options.query,
-      entryType: options.entryType,
+      generateMarkdownComment: true,
+      ...(options.customFooter !== undefined && { customFooter: options.customFooter }),
       ...(options.guessAndCheck !== undefined && { guessAndCheck: options.guessAndCheck }),
       ...(options.maxDepth !== undefined && { maxDepth: options.maxDepth }),
     };
@@ -65,7 +75,10 @@ export class BackendClient {
     try {
       response = await fetch(`${this.#baseUrl}/api/v2/convert`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          [ENTRY_TYPE_HEADER]: options.entryType,
+        },
         body: JSON.stringify(body),
         signal: controller.signal,
       });
@@ -80,8 +93,8 @@ export class BackendClient {
     }
 
     if (response.status === 200) {
-      const links = (await response.json()) as Link[];
-      return { ok: true, links };
+      const envelope = (await response.json()) as ConvertResponseV2;
+      return { ok: true, links: envelope.links, comment: envelope.comment };
     }
 
     // Backend's error responses: { errorMessage, resultCode }. 406 with

@@ -11,7 +11,6 @@ import type { T1, T3 } from '@devvit/web/shared';
 
 import type { BackendClient } from '../backend/client.ts';
 import { isAmpUrl } from '../core/ampDetect.ts';
-import { buildReply, type TriggerType } from '../core/reply.ts';
 import { extractUrls } from '../core/urlExtract.ts';
 import type { InstallSettings } from '../settings.ts';
 import { type DedupRedis, isHandled, markHandled } from '../storage/dedup.ts';
@@ -20,6 +19,11 @@ import { type DedupRedis, isHandled, markHandled } from '../storage/dedup.ts';
 // handler decoupled from the full client surface and trivial to stub in
 // tests, while still picking up signature drift from Devvit upstream.
 export type ReplyReddit = Pick<RedditClient, 'submitComment'>;
+
+// `comment` → comment-submit, parent is the comment itself (`t1_<id>`).
+// `post` → post-submit, parent is the post (`t3_<id>`); reply is posted as
+// a top-level comment on the post.
+export type TriggerType = 'comment' | 'post';
 
 export type TriggerDeps = {
   redis: DedupRedis;
@@ -36,9 +40,6 @@ export type TriggerDeps = {
 };
 
 export type TriggerInput = {
-  // 'comment' → comment-submit, parent is the comment itself (`t1_<id>`).
-  // 'post' → post-submit, parent is the post (`t3_<id>`); reply is posted as
-  // a top-level comment on the post.
   kind: TriggerType;
   // Fullname (`t1_...` for comments, `t3_...` for posts). The Devvit
   // `submitComment` call accepts both prefixes — comment replies to a comment,
@@ -110,7 +111,11 @@ export async function handleAmpTrigger(
   const query = ampUrls.join(' ');
   const entryType = input.kind === 'comment' ? 'COMMENT' : 'SUBMISSION';
 
-  const result = await deps.backend.convert({ query, entryType });
+  const result = await deps.backend.convert({
+    query,
+    entryType,
+    customFooter: deps.settings.customFooter,
+  });
   if (!result.ok) {
     if (result.kind === 'no_amp') {
       // Local heuristic flagged the URL but the backend's stricter resolver
@@ -123,11 +128,7 @@ export async function handleAmpTrigger(
     return { status: 'error', reason: `${result.kind}: ${result.message}` };
   }
 
-  const replyText = buildReply(result.links, {
-    triggerType: input.kind,
-    customFooter: deps.settings.customFooter,
-  });
-  if (replyText === null) {
+  if (result.comment === null) {
     // Backend resolved everything but found no canonical worth replying
     // about (e.g. all candidates were themselves AMP with no fallback).
     // Treat as handled — re-resolving won't help.
@@ -137,7 +138,7 @@ export async function handleAmpTrigger(
 
   // `submitComment` accepts both t1_ and t3_ fullnames on `id` — see
   // `node_modules/.../@devvit/reddit/RedditClient.d.ts#submitComment`.
-  await deps.reddit.submitComment({ id: input.id, text: replyText });
+  await deps.reddit.submitComment({ id: input.id, text: result.comment });
   await markHandled(deps.redis, input.kind, input.id);
   return { status: 'replied' };
 }

@@ -1,13 +1,10 @@
-// TypeScript shapes mirroring the Rust types in `backend/src/models/`.
+// TypeScript shapes for the v2 API the Devvit app calls. Mirrors the Rust
+// types in `backend/src/models/` — if the backend response shape ever
+// changes, these must change in lockstep, and the handler test mocks will
+// catch the drift loudly.
 //
-// Only what the Devvit app actually consumes — the full struct is in
-// `backend/src/models/link.rs` (and `canonical.rs`, `canonical_type.rs`,
-// `url_meta.rs`, `entry_type.rs`). If the backend response shape ever
-// changes, these types must change in lockstep and the snapshot tests in
-// `reply.test.ts` will catch the drift loudly.
-//
-// v2 response keys are camelCase (the Rust serde types are snake_case;
-// v2 transforms keys at the edge in `backend/src/routes/convert_v2.rs`).
+// v2 response keys are camelCase recursively (the Rust serde types are
+// snake_case; the backend transforms keys at the edge before returning).
 
 export type CanonicalType =
   | 'REL'
@@ -22,9 +19,10 @@ export type CanonicalType =
   | 'GUESS_AND_CHECK'
   | 'DATABASE';
 
-// `EntryType` enum — what the v2 body accepts for `entryType`.
-// TEST + TWEET exist in the backend enum for legacy CSV rows; the bot never
-// emits those.
+// What the bot sets on the `X-AmputatorBot-Entry-Type` request header so
+// the backend can tag the resulting `links` row with the call's origin.
+// `API` is the backend default when the header is absent; the bot itself
+// only ever sends `COMMENT` / `SUBMISSION` from triggers.
 export type EntryType = 'API' | 'COMMENT' | 'SUBMISSION' | 'MENTION' | 'ONLINE';
 
 export type UrlMeta = {
@@ -51,4 +49,12 @@ export type Link = {
   canonical: Canonical | null;
   canonicals: Canonical[];
   origin: UrlMeta;
+};
+
+// Always returned on 200 OK from `POST /api/v2/convert`. `comment` is
+// populated when the request had `generateMarkdownComment: true` and the
+// resolver found at least one AMP URL; `null` otherwise.
+export type ConvertResponseV2 = {
+  links: Link[];
+  comment: string | null;
 };
