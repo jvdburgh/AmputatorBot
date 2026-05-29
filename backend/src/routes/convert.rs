@@ -63,7 +63,7 @@ pub enum ConvertOutcome {
 /// lives in [`dispatch_v1`] so integration tests can call it without
 /// constructing Axum extractors.
 #[utoipa::path(
-    method(get, post),
+    get,
     path = "/api/v1/convert",
     tag = "convert",
     params(

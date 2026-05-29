@@ -73,10 +73,9 @@ pub fn router(state: AppState, static_dir: Option<&Path>) -> Router {
     let api = Router::new()
         .route("/api/v1/health", get(health))
         .route("/api/v1/stats", get(stats::handler))
-        .route(
-            "/api/v1/convert",
-            get(convert::handler).post(convert::handler),
-        )
+        // v1 is GET-only — the legacy contract was always query-string-based.
+        // POST callers (and anyone building new integrations) should use v2.
+        .route("/api/v1/convert", get(convert::handler))
         .route("/api/v2/convert", axum::routing::post(convert_v2::handler))
         .with_state(state)
         // Scalar mounts the UI at /api/docs and serves the spec at

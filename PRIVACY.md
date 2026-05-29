@@ -96,12 +96,11 @@ Reddit's developer platform.
 ## Changes to this policy
 
 Material changes will be noted in this file's edit history on GitHub and
-summarised in the "Changelog" section of the bot's
-[README](https://github.com/KilledMufasa/AmputatorBot/blob/main/devvit-app/README.md).
+summarised in the [changelog post on r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/comments/ch9fxp/changelog_of_amputatorbot/).
 
 ## Contact
 
 - Reddit: [u/Killed_Mufasa](https://www.reddit.com/user/Killed_Mufasa)
 - Reddit DM: [send a message](https://www.reddit.com/message/compose/?to=Killed_Mufasa)
 - Subreddit: [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot)
-- Source code + issues: <https://github.com/KilledMufasa/AmputatorBot>
+- Source code + issues: <https://github.com/jvdburgh/AmputatorBot>

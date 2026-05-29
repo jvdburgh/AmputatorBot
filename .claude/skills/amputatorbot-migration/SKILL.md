@@ -1,6 +1,11 @@
- Let# AmputatorBot → Devvit Migration Plan v7
+---
+name: amputatorbot-migration
+description: AmputatorBot migration plan v7 — locked decisions, milestones M1–M6, API contract, schema, port notes. Load when working on AmputatorBot architecture, the rewrite, or M6 deployment.
+---
 
-**Status:** living draft
+# AmputatorBot → Devvit Migration Plan v7
+
+**Status:** living draft — M1–M5 shipped, M6 (cloud deploy + launch) in progress.
 **Drafted:** 2026-05-25
 **Budget cap:** €15/month total
 
@@ -48,7 +53,7 @@ Claude prepares the exact commands and tells Joris when to run them. Reading cod
 **Goals (user-stated):**
 1. Modern stack, learn things along the way (Rust, Devvit, Astro/Tailwind4/shadcn)
 2. API contract stays backwards-compatible
-3. Old bot keeps running indefinitely as a fallback — we can break things on the new side without consequence
+3. During the rewrite (M1–M5), the old bot kept running on PythonAnywhere so the new side could break freely with no user-facing consequence. The old bot is retired at the M6 cutover — no permanent parallel-run.
 4. Sledgehammer through the rewrite; preserve old code in `praw-python-archive/`
 
 ---
@@ -57,7 +62,7 @@ Claude prepares the exact commands and tells Joris when to run them. Reading cod
 
 | | |
 |---|---|
-| **Path** | Per-subreddit opt-in, parallel-run cutover (old bot kept alive) |
+| **Path** | Per-subreddit opt-in. Direct cutover at M6 (old bot kept alive during M1–M5 dev only) |
 | **Devvit SDK** | `@devvit/web` (modern server model) |
 | **Devvit config** | `devvit.json` (official format with `$schema`) |
 | **Devvit scaffold** | `reddit/devvit-template-bare`, stripped of post/menu UI |
@@ -115,9 +120,9 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 
 - **Refresh bot reply markdown.** One-time design pass on a new template, applied at migration. Doesn't need to look identical to the old bot.
 
-- **`git mv` everything old into `praw-python-archive/` in one commit.** Sledgehammer. Old PRAW bot keeps running on PythonAnywhere as a fallback — there's no race to retire it.
+- **`git mv` everything old into `praw-python-archive/` in one commit.** Sledgehammer. Old PRAW bot keeps running on PythonAnywhere during M1–M5 so the new side can break freely; it gets stopped at the M6 cutover.
 
-- **Six milestones, no calendar.** Local-first: M1–M5 are all local development (scaffolding, canonical engine, API parity, Astro, Devvit playtest). M6 is the cloud + public launch (Scaleway provisioning, prod data migration, DNS cutover, App Directory). No external deadline (bounty is Dec 2026). Old bot covers production. Learning Rust + Devvit + Astro is part of the goal, so pacing should match comprehension, not a schedule.
+- **Six milestones, no calendar.** Local-first: M1–M5 are all local development (scaffolding, canonical engine, API parity, Astro, Devvit playtest). M6 is the cloud + public launch (Scaleway provisioning, prod data migration, DNS cutover, App Directory, old-bot retirement). No external deadline (bounty is Dec 2026). Old bot covers production until cutover. Learning Rust + Devvit + Astro is part of the goal, so pacing should match comprehension, not a schedule.
 
 ---
 
@@ -188,12 +193,12 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 
 Two endpoints ship side by side:
 
-- **`GET|POST /api/v1/convert`** — legacy contract preserved (snake_case query string, snake_case JSON response). Deprecated for new callers but supported indefinitely so external services don't break.
+- **`GET /api/v1/convert`** — legacy contract preserved (snake_case query string, snake_case JSON response). GET-only since the legacy bot was always query-string based; POST is v2-only. Deprecated for new callers but supported indefinitely so external services don't break.
 - **`POST /api/v2/convert`** — modern contract: JSON body in camelCase, JSON response in camelCase. `entryType` is a body field instead of a header. Strict validation (unknown fields → 422). Recommended for Devvit (M5) + website (M4) + new external callers.
 
 Every write to the `links` cache records `api_version` (1 or 2 — NULL for the pre-v7 legacy bot's CSV-imported rows) so adoption is queryable: `SELECT api_version, COUNT(*) FROM links GROUP BY 1`.
 
-### v1 — `GET|POST /api/v1/convert` (from `AmputatorBotCom/main.py:161+`)
+### v1 — `GET /api/v1/convert` (from `AmputatorBotCom/main.py:161+`)
 
 **Query params:**
 - `q` (required) — URL or text containing URLs
@@ -747,7 +752,7 @@ Maybe check out **the canonical page** instead: **[{canonical_url}]({canonical_u
 
 *****
 
-^([Why & About]({FAQ_LINK})^( | )[r/AmputatorBot](https://reddit.com/r/AmputatorBot)^( | )[Source](https://github.com/KilledMufasa/AmputatorBot))
+^([Why & About]({FAQ_LINK})^( | )[r/AmputatorBot](https://reddit.com/r/AmputatorBot)^( | )[Source](https://github.com/jvdburgh/AmputatorBot))
 ```
 
 Plural (multiple AMP URLs):
@@ -762,7 +767,7 @@ Maybe check out **the canonical pages** instead:
 
 *****
 
-^([Why & About]({FAQ_LINK})^( | )[r/AmputatorBot](https://reddit.com/r/AmputatorBot)^( | )[Source](https://github.com/KilledMufasa/AmputatorBot))
+^([Why & About]({FAQ_LINK})^( | )[r/AmputatorBot](https://reddit.com/r/AmputatorBot)^( | )[Source](https://github.com/jvdburgh/AmputatorBot))
 ```
 
 Variables:
@@ -776,7 +781,7 @@ Variables:
 
 ### M6 — Cloud deployment + public launch
 
-**Done when:** the Astro+Rust container is live at `www.amputatorbot.com` on Scaleway, prod Postgres holds the migrated dataset, the Devvit app is in the App Directory, r/AmputatorBot has the announcement sticky, and the old PythonAnywhere bot is still running in parallel as a safety net.
+**Done when:** the Astro+Rust container is live at `www.amputatorbot.com` on Scaleway, prod Postgres holds the migrated dataset, the Devvit app is in the App Directory, r/AmputatorBot has the announcement sticky, and the old PythonAnywhere bot has been stopped after a 72h smoke window on the new stack.
 
 Pre-deploy audit (do BEFORE any Scaleway provisioning — finding stale deps or leaked secrets after deploy is much more expensive):
 
@@ -819,10 +824,10 @@ Public launch:
 - Send modmail wave to top N subreddits (by historical link volume)
 
 Post-launch:
-- Old PythonAnywhere bot stays running — no kill, no DNS pressure
 - Monitor Scaleway Cockpit logs for 72h
+- After 72h clean, stop the old PythonAnywhere bot and cancel the subscription
 
-**Ask points:** DNS switch timing. Outreach list size and tone. Whether to keep the old PythonAnywhere bot running indefinitely or set a sunset date.
+**Ask points:** DNS switch timing. Outreach list size and tone. Exact stop-day for the old PythonAnywhere bot (target: 72h after cutover assuming no regressions).
 
 ---
 
@@ -877,7 +882,7 @@ Vitest. Mock backend client, mock Reddit context. Assert dedup, `autoReply` shor
 
 ### What we don't test
 
-- Production traffic — the old bot keeps running, so the new one isn't load-bearing for users until M6+
+- Production traffic — until the M6 cutover, the old PythonAnywhere bot still serves users; the new stack only needs to be load-bearing once we flip DNS
 - DDoS / abuse — Cloudflare's problem
 - Devvit infra behavior — Reddit's problem
 
@@ -919,7 +924,7 @@ Vitest. Mock backend client, mock Reddit context. Assert dedup, `autoReply` shor
 
 ### Don't-shoot-yourself-in-the-foot
 - Never commit the Postgres URL. Set it via Scaleway container env vars.
-- Old PRAW bot keeps running — don't accidentally stop it.
+- Don't stop the old PRAW bot before the M6 cutover — that's an explicit step in the launch sequence, not an ad-hoc action.
 - Rotate credentials in `praw-python-archive/static/static.py` and `praw-python-archive/AmputatorBotCom/main.py` — they're checked into git history. Anything reachable (Reddit OAuth secrets, Twitter keys, SSH passwords, MySQL passwords) needs rotation regardless of the archive move.
 
 ---
@@ -937,7 +942,7 @@ Vitest. Mock backend client, mock Reddit context. Assert dedup, `autoReply` shor
 | DNS + rate limiting | Cloudflare | €0 (free tier) |
 | Old site (kept running) | PythonAnywhere | $14/mo, indefinitely |
 
-**Honest framing:** all-in for the new stack is **~€15–18/mo**, roughly the same as the current PythonAnywhere bill. This migration is not a cost-reduction play; it's modernization + learning + bounty eligibility. With PythonAnywhere kept in parallel, the total monthly outlay during co-existence is ~€28–32. Steady state (if PA is ever cancelled) returns to ~€15–18.
+**Honest framing:** all-in for the new stack is **~€15–18/mo**, roughly the same as the current PythonAnywhere bill. This migration is not a cost-reduction play; it's modernization + learning + bounty eligibility. PythonAnywhere stops at the M6 cutover (after a 72h smoke window), so the dual-running window is brief and the steady-state is ~€15–18.
 
 ---
 

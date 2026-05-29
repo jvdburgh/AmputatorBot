@@ -2,7 +2,7 @@
 
 ## Source of truth
 
-The migration plan lives at `docs/amputatorbot-devvit-migration-plan-v7.md`. Read it before making architectural decisions. It supersedes anything memory or instinct suggests.
+The migration plan lives at `.claude/skills/amputatorbot-migration/SKILL.md` (project-local Claude skill). Read it before making architectural decisions. It supersedes anything memory or instinct suggests.
 
 ## Working style
 
@@ -26,7 +26,6 @@ Claude prepares exact commands and tells Joris when to run them.
 - `devvit-app/` — TypeScript Devvit app. Reddit triggers (comment/post/modmail).
 - `website/` — Astro site. Built into the Rust container.
 - `praw-python-archive/` — old Python bot + Flask site. **Read-only reference.** Don't run, modify, or import from it. Preserved for canonical-finding logic reference and history.
-- `docs/` — plan + reference docs.
 
 ## Tooling commands
 
@@ -57,7 +56,7 @@ Toolchain managed by `mise` — `mise install` reproduces the pinned Rust + Node
 
 - Don't commit credentials. The `praw-python-archive/` tree has stale ones (Reddit OAuth, MySQL, SSH, Twitter) — they need rotation, not propagation.
 - Don't run code from `praw-python-archive/`.
-- Don't add backwards-compat shims to bridge old ↔ new. The old bot keeps running in parallel as fallback; no bridge needed.
+- Don't add backwards-compat shims to bridge old ↔ new. The old bot keeps running on PythonAnywhere during M1–M5 dev only — it gets stopped at the M6 cutover. No bridge needed.
 - Don't replace `dom_smoothie` or the canonical-finding methods/order without explicit discussion — these are tuned.
 - Don't change the public `GET /api/v1/convert` contract or response shape (`AmputatorBotCom/main.py:161+` is the reference). Both encoded and unencoded URLs must continue to work; for unencoded URLs, `q` must be the last query param.
 
@@ -67,4 +66,4 @@ Persistent memory lives at `~/.claude/projects/-Users-jvdb-Projects-other-Amputa
 
 ## Per-milestone session pattern
 
-Start a fresh Claude Code session per milestone (M1–M5) to keep context tight. Open with: *"Continue M*N* of `docs/amputatorbot-devvit-migration-plan-v7.md`."* Memory carries the project decisions across sessions.
+Start a fresh Claude Code session per milestone (M1–M5) to keep context tight. Open with: *"Continue M*N* of `.claude/skills/amputatorbot-migration/SKILL.md`."* Memory carries the project decisions across sessions.
