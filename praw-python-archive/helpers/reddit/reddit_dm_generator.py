@@ -12,7 +12,7 @@ def dm_generator(result_code, reply_link=None, parent_subreddit=None, parent_typ
 
     outro = "\n\nFeel free to leave feedback by contacting u/Killed_Mufasa, " \
             "by posting on [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/) or by " \
-            "[opening an issue on GitHub](https://github.com/KilledMufasa/AmputatorBot/issues/new).\n\n" \
+            "[opening an issue on GitHub](https://github.com/jvdburgh/AmputatorBot/issues/new).\n\n" \
             "Tip: With the online version of AmputatorBot it's easier than ever to remove AMP from your URLs. " \
             f"Check out an example with your AMP link here: https://www.amputatorbot.com/?q={first_amp_origin_url}"
 

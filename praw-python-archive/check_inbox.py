@@ -8,7 +8,7 @@ Killed_Mufasa (original author)
 
 AmputatorBot
 - Sponsor: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2
-- GitHub:  https://github.com/KilledMufasa/AmputatorBot
+- GitHub:  https://github.com/jvdburgh/AmputatorBot
 - Reddit:  https://www.reddit.com/user/AmputatorBot
 - Website: https://www.amputatorbot.com
 

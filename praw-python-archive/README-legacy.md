@@ -2,7 +2,7 @@
 
 > **Note:** This is the **original project README** from the pre-v7 era, when AmputatorBot was a single Python codebase (PRAW bot + Flask website + API). It's preserved here for historical reference. The current repo is a monorepo — see [the top-level README](../README.md) for the modern setup.
 
-TL;DR: Remove AMP from your URLs. [AmputatorBot](https://github.com/KilledMufasa/AmputatorBot) is a highly specialised [Reddit](https://www.reddit.com/user/AmputatorBot)
+TL;DR: Remove AMP from your URLs. [AmputatorBot](https://github.com/jvdburgh/AmputatorBot) is a highly specialised [Reddit](https://www.reddit.com/user/AmputatorBot)
 (and former [Twitter](https://twitter.com/AmputatorBot)) bot that automatically replies to comments and submissions containing AMP URLs with the canonical link(s). It's also available as a
 [website](https://www.amputatorbot.com/) and [REST API](https://documenter.getpostman.com/view/12422626/UVC3n93T), but those haven't been made open source here.
 
@@ -52,9 +52,9 @@ TL;DR: Remove AMP from your URLs. [AmputatorBot](https://github.com/KilledMufasa
 ## Support the project
 
 - **Summon AmputatorBot** on Reddit, like so: [u/AmputatorBot](https://www.reddit.com/u/AmputatorBot/). For more info, [see here](https://www.reddit.com/r/AmputatorBot/comments/cchly3/you_can_now_summon_amputatorbot/).
-- **Give feedback**: Most new features and improvements are directly influenced by your feedback. So, hit me up if you have any feedback. [Contact me on Reddit](https://www.reddit.com/message/compose/?to=Killed_Mufasa) or [Fill an issue](https://github.com/KilledMufasa/AmputatorBot/issues).
+- **Give feedback**: Most new features and improvements are directly influenced by your feedback. So, hit me up if you have any feedback. [Contact me on Reddit](https://www.reddit.com/message/compose/?to=Killed_Mufasa) or [Fill an issue](https://github.com/jvdburgh/AmputatorBot/issues).
 - **Star**: By starring the project here on GitHub, we can reach more folks and unlock new options. It also gives me something to brag about :p
-- **Contribute**: [Pull requests](https://github.com/KilledMufasa/AmputatorBot/issues) are a great way to contribute directly to the code and functionality.
+- **Contribute**: [Pull requests](https://github.com/jvdburgh/AmputatorBot/issues) are a great way to contribute directly to the code and functionality.
 - **Spread the word**: In the end, the only goal of AmputatorBot is to allow people to have an informed choice. You can help by simply spreading the word!
 
 ### Sponsor
