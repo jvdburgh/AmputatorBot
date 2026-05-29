@@ -65,7 +65,7 @@ RUN cargo build --release --bin amputatorbot-backend
 # -----------------------------------------------------------------------------
 # Stage 6: runtime image
 # -----------------------------------------------------------------------------
-FROM debian:bookworm-slim AS runtime
+FROM debian:trixie-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*

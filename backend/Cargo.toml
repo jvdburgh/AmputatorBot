@@ -14,9 +14,9 @@ axum = "0.8"
 tokio = { version = "1", features = ["full"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["fs", "trace", "cors", "compression-full"] }
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "macros", "chrono", "migrate"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "gzip", "rustls-tls"] }
-scraper = "0.21"
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "macros", "chrono", "migrate"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "gzip", "rustls"] }
+scraper = "0.27"
 dom_smoothie = "0.17"
 textdistance = "1.1"
 serde = { version = "1", features = ["derive"] }

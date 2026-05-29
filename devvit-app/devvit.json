@@ -35,5 +35,8 @@
   },
   "marketingAssets": {
     "icon": "assets/icon.png"
+  },
+  "dev": {
+    "subreddit": "amputatorbot_app_dev"
   }
 }
