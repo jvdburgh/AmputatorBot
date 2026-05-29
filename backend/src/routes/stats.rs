@@ -15,7 +15,7 @@ use serde_json::json;
 
 use crate::state::AppState;
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct StatsResponse {
     /// Total rows in `links` — counts every resolution the bot has ever
@@ -23,6 +23,15 @@ pub struct StatsResponse {
     pub converted_total: i64,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/stats",
+    tag = "system",
+    responses(
+        (status = 200, description = "Aggregate counters (cached 1h)", body = StatsResponse),
+        (status = 500, description = "Stats unavailable", body = crate::routes::error::ErrorResponseV2),
+    )
+)]
 pub async fn handler(
     State(state): State<AppState>,
 ) -> Result<Json<StatsResponse>, (StatusCode, Json<serde_json::Value>)> {

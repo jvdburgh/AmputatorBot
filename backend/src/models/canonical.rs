@@ -10,7 +10,7 @@ use super::CanonicalType;
 /// legacy API output.
 ///
 /// Field order matches the Python `jsons.dump` output (alphabetical).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct Canonical {
     pub domain: Option<String>,
     pub is_alt: bool,

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Field order matches the Python `jsons.dump` output (alphabetical) so the
 /// serialized JSON is byte-identical to the legacy `/api/v1/convert` shape.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct UrlMeta {
     pub domain: Option<String>,
     pub is_amp: Option<bool>,

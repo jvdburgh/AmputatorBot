@@ -18,7 +18,7 @@ use super::{Canonical, UrlMeta};
 ///   so callers still get *something* better than the cached form.
 ///
 /// Field order matches the Python `jsons.dump` output (alphabetical).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct Link {
     pub amp_canonical: Option<Canonical>,
     pub canonical: Option<Canonical>,

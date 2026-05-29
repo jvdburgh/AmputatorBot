@@ -1,6 +1,6 @@
-![#AmputatorBot](praw-python-archive/img/amputatorbot_logo_banner.png)
+_![#AmputatorBot](praw-python-archive/img/amputatorbot_logo_banner.png)
 
-TL;DR: Remove AMP from your URLs. [AmputatorBot](https://github.com/KilledMufasa/AmputatorBot) is a [Reddit](https://www.reddit.com/user/AmputatorBot) bot that automatically replies to comments and submissions containing AMP URLs with the canonical link(s). It's also available as a [website](https://www.amputatorbot.com/) and [free REST API](https://www.amputatorbot.com/api).
+TL;DR: Remove AMP from your URLs. [AmputatorBot](https://github.com/KilledMufasa/AmputatorBot) is a [Reddit](https://www.reddit.com/user/AmputatorBot) bot that automatically replies to comments and submissions containing AMP URLs with the canonical link(s). It's also available as a [website](https://www.amputatorbot.com/) and [free REST API](https://www.amputatorbot.com/api/docs).
 
 [**FAQ, About & Why**](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/)
 
@@ -10,33 +10,26 @@ AmputatorBot has been running on Reddit since 2019 (\~181 GitHub stars, ~1.7M UR
 
 - **The bot** — replies to AMP comments/submissions on subreddits where mods have installed it.
 - **The website** — paste a URL at [www.amputatorbot.com](https://www.amputatorbot.com/), get the canonical back.
-- **The REST API** — `/api/v1/convert` and `/api/v2/convert`, no auth, both encoded and unencoded URLs work.
+- **The REST API** — `/api/v1/convert` and `/api/v2/convert`, doing all the hard work.
 
-As of v5, the bot is now a [Devvit](https://developers.reddit.com/) app (Reddit's official app platform) and the backend is rewritten in Rust. The old Python + Flask version is preserved in [`praw-python-archive/`](praw-python-archive/) for reference — it's how the canonical-finding methods are documented, and it's how the bot stayed alive while the rewrite was in progress.
+As of v5, the bot is now a [Devvit](https://developers.reddit.com/) app (Reddit's official app platform) and the backend is rewritten in Rust. The old Python + Flask version is preserved in [`praw-python-archive/`](praw-python-archive/) for reference.
 
 ## Repo structure
 
 This is a **monorepo**. Each part can be developed independently:
 
-- **[`backend/`](backend/)** — Rust + Axum service. Hosts the `/api/v1/convert` and `/api/v2/convert` endpoints, the canonical-finding engine (11 methods, +97% accuracy), the Scalar API docs at `/api`, and serves the website's static files from the same binary.
+- **[`backend/`](backend/)** — Rust + Axum service. Hosts the `/api/v1/convert` and `/api/v2/convert` endpoints, the canonical-finding engine (11 methods, +99% accuracy), the Scalar API docs at `/api/docs`, and serves the website's static files from the same binary.
 - **[`devvit-app/`](devvit-app/)** — TypeScript Devvit app. Listens to comment and post triggers and replies per opt-in subreddit.
 - **[`website/`](website/)** — Astro 5 + Tailwind 4 + shadcn/ui frontend at [www.amputatorbot.com](https://www.amputatorbot.com/), including the URL converter form.
 - **[`praw-python-archive/`](praw-python-archive/)** — the original Python bot (PRAW + Flask). Read-only reference. See [`praw-python-archive/README-legacy.md`](praw-python-archive/README-legacy.md) for the original project README.
-- **[`docs/`](docs/)** — design + migration docs.
 
 Each subproject has its own README with deeper detail.
-
-## Why a custom domain (heads-up for Devvit users)
-
-Devvit apps can only fetch from domains they've gotten allow-listed by Reddit. See Reddit's [HTTP-Fetch docs](https://developers.reddit.com/docs/capabilities/server/http-fetch#requesting-a-domain-to-be-allow-listed) — short version: you declare the exact hostname in `devvit.json`, and an admin approves or denies on review. The bot fetches from `www.amputatorbot.com` (our own backend on Scaleway), so that domain is what's submitted.
-
-The reply identity also changed: in Devvit's model, each install posts under a **per-install app identity** rather than `u/AmputatorBot`. That's how Devvit works — it's not negotiable. Functionally the bot still replies the same way; the username next to the reply is just per-subreddit now.
 
 ## Features
 
 ![#AmputatorBot demo](praw-python-archive/img/amputatorbot_demo.png)
 
-- **11 specialised canonical-finding methods, +97% accuracy.** Tried in priority order:
+- **11 specialised canonical-finding methods, +99% accuracy.** Tried in priority order:
   - `REL` — `<link rel="canonical">`, the HTML5 standard signal used by ~every SEO-aware CMS.
   - `CANURL` — custom `a="amp-canurl"` attribute some publishers set alongside (or instead of) `rel=canonical`.
   - `OG_URL` — Open Graph `<meta property="og:url">`.
@@ -51,12 +44,12 @@ The reply identity also changed: in Devvit's model, each install posts under a *
 - **14 AMP-detection patterns**, applied with word boundaries and URL-component scoping to keep false positives down.
 - Reads Reddit comments and posts via Devvit triggers, per opt-in subreddit.
 - ~1.7M historical conversions cached in Postgres for instant lookups.
-- Free, open, no-auth REST API at `/api/v1/convert` and `/api/v2/convert` — both encoded and unencoded URLs work. Docs at [`/api`](https://www.amputatorbot.com/api) (Scalar).
+- Free, open, no-auth REST API at `/api/v1/convert` and `/api/v2/convert` — both encoded and unencoded URLs work. Docs at [`/api/docs`](https://www.amputatorbot.com/api/docs) (Scalar).
 
 ### See also
 
 - Website: [AmputatorBot.com](https://www.amputatorbot.com/)
-- REST API docs: [www.amputatorbot.com/api](https://www.amputatorbot.com/api) (Scalar UI on the live OpenAPI spec)
+- REST API docs: [www.amputatorbot.com/api/docs](https://www.amputatorbot.com/api/docs) (Scalar UI on the live OpenAPI spec)
 - Changelog: [r/AmputatorBot post](https://www.reddit.com/r/AmputatorBot/comments/ch9fxp/changelog_of_amputatorbot/)
 - Community: [r/AmputatorBot](https://www.reddit.com/r/AmputatorBot/)
 
@@ -87,11 +80,11 @@ just db-up
 just db-seed
 
 # Starts the backend (cargo-watch rebuilds on save). API at /api/v1/convert,
-# website at /, Scalar docs at /api.
+# website at /, Scalar docs at /api/docs.
 just backend-dev
 ```
 
-That gives you the site at `http://localhost:8080` and the API responding at `/api/v1/convert?q=<amp-url>`. The Scalar UI lives at `http://localhost:8080/api` — paste a URL into the try-it-now panel for a quick sanity check.
+That gives you the site at `http://localhost:8080` and the API responding at `/api/v1/convert?q=<amp-url>`. The Scalar UI lives at `http://localhost:8080/api/docs` — paste a URL into the try-it-now panel for a quick sanity check.
 
 ### Common workflows
 
@@ -118,7 +111,7 @@ For deeper per-project workflows, see:
 
 Hosting the bot, website, and API runs about €12–15 ($14–17) per month between the Scaleway container and the managed Postgres. If you support what AmputatorBot does and want to chip in, any donation is a huge help — every bit goes straight into server costs. Thanks a bunch!
 
-> Donate to our friends in Ukraine: [u24.gov.ua](https://u24.gov.ua/)
+> Donate to our friends in Ukraine: [u24.gov.ua](https://u24.gov.ua/)  
 > Donate to AmputatorBot PayPal: [paypal.com/.../EU6ZFKTVT9VH2](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2)
 
-**From the bottom of my heart, huge thanks for the tremendous support! <3**
+**From the bottom of my heart, huge thanks for the tremendous support! <3**_

@@ -32,7 +32,7 @@ use super::convert::{ConvertInput, ConvertOutcome, convert_inner};
 /// `#[serde(deny_unknown_fields)]` keeps the contract tight — typos in
 /// field names produce a 400 rather than silently using a default. v2 is
 /// the modern API; strict beats lenient.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ConvertBodyV2 {
     /// The URL (or text containing URLs) to resolve. Required.
@@ -62,6 +62,19 @@ fn default_max_depth() -> u32 {
 /// v2 HTTP entry point. Unwraps state + JSON body; the actual dispatch
 /// logic lives in [`dispatch_v2`] so integration tests can drive it
 /// without going through Axum's extractor stack.
+#[utoipa::path(
+    post,
+    path = "/api/v2/convert",
+    tag = "convert",
+    request_body = ConvertBodyV2,
+    responses(
+        (status = 200, description = "Array of resolved Link objects, recursively camelCased", body = Vec<crate::models::Link>),
+        (status = 303, description = "Redirect to canonical (only when redirect=true and a canonical was found)"),
+        (status = 400, description = "Empty `query` field", body = crate::routes::error::ErrorResponseV2),
+        (status = 406, description = "No AMP URL detected", body = crate::routes::error::ErrorResponseV2),
+        (status = 422, description = "Body failed to deserialize — unknown field, bad casing, or wrong type"),
+    )
+)]
 pub async fn handler(State(state): State<AppState>, Json(body): Json<ConvertBodyV2>) -> Response {
     dispatch_v2(&state.fetcher, &state.db, body).await
 }

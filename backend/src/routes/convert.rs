@@ -62,6 +62,24 @@ pub enum ConvertOutcome {
 /// v1 HTTP entry point. Just unwraps state + URI; the actual dispatch logic
 /// lives in [`dispatch_v1`] so integration tests can call it without
 /// constructing Axum extractors.
+#[utoipa::path(
+    method(get, post),
+    path = "/api/v1/convert",
+    tag = "convert",
+    params(
+        ("q" = String, Query, description = "URL or text containing URLs. Required."),
+        ("gac" = Option<bool>, Query, description = "Use guess-and-check fallback. Default true."),
+        ("md" = Option<u32>, Query, description = "Max recursion depth chasing AMP chains. Default 3."),
+        ("gc" = Option<bool>, Query, description = "Accepted for legacy parity but silently ignored."),
+        ("r" = Option<bool>, Query, description = "If true, 303-redirect to the canonical instead of returning JSON."),
+    ),
+    responses(
+        (status = 200, description = "Array of resolved Link objects, snake_case", body = Vec<crate::models::Link>),
+        (status = 303, description = "Redirect to canonical (only when ?r=true and a canonical was found)"),
+        (status = 400, description = "Missing required `q` parameter", body = crate::routes::error::ErrorResponseV1),
+        (status = 406, description = "No AMP URL detected in the input", body = crate::routes::error::ErrorResponseV1),
+    )
+)]
 pub async fn handler(State(state): State<AppState>, uri: Uri) -> Response {
     dispatch_v1(&state.fetcher, &state.db, uri.query().unwrap_or("")).await
 }

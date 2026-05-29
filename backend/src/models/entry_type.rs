@@ -11,7 +11,9 @@ use serde::{Deserialize, Serialize};
 /// against the matching Postgres ENUM directly. `rename_all` maps Rust's
 /// `Api` → SQL's `'API'`. The same `SCREAMING_SNAKE_CASE` form is also used
 /// in JSON output via serde, matching the legacy API's casing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema,
+)]
 #[sqlx(type_name = "entry_type", rename_all = "SCREAMING_SNAKE_CASE")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum EntryType {

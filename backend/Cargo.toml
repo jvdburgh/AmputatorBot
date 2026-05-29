@@ -36,6 +36,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 clap = { version = "4", features = ["derive"] }
 csv = "1"
 futures = "0.3"
+# OpenAPI spec generation + Scalar UI. `axum_extras` enables param-derive
+# helpers; `chrono` matches the version we already pull in.
+utoipa = { version = "5", features = ["axum_extras", "chrono"] }
+utoipa-scalar = { version = "0.3", features = ["axum"] }
 
 [dev-dependencies]
 insta = { version = "1", features = ["json"] }

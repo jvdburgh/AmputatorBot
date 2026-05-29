@@ -14,7 +14,9 @@ use serde::{Deserialize, Serialize};
 ///
 /// SQL binding goes through `sqlx::Type` against the Postgres `canonical_type`
 /// enum — same `SCREAMING_SNAKE_CASE` literals on both sides.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema,
+)]
 #[sqlx(type_name = "canonical_type", rename_all = "SCREAMING_SNAKE_CASE")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum CanonicalType {
