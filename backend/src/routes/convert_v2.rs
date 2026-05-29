@@ -35,7 +35,10 @@ use super::convert::{ConvertInput, ConvertOutcome, convert_inner};
 #[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ConvertBodyV2 {
-    /// The URL (or text containing URLs) to resolve. Required.
+    /// The AMP URL to resolve, or free-form text containing one or more AMP
+    /// URLs (the resolver runs the same URL-extraction pass it uses for
+    /// Reddit comment bodies, so pasting a chat message or a `praw`-style
+    /// blob works the same as pasting a single URL).
     pub query: String,
     #[serde(default = "default_guess_and_check")]
     pub guess_and_check: bool,
@@ -43,11 +46,12 @@ pub struct ConvertBodyV2 {
     pub max_depth: u32,
     #[serde(default)]
     pub redirect: bool,
-    /// Where the call originated. Optional — defaults to [`EntryType::Api`]
-    /// when omitted, matching the implicit value for direct API consumers.
-    /// Devvit triggers send `"COMMENT"` / `"SUBMISSION"` / `"MENTION"`;
-    /// the website (M4) sends `"ONLINE"`. Strict matching: a typo like
-    /// `"comments"` returns 400.
+    /// Where the call originated. Optional — when omitted (or `null`) the
+    /// resolver defaults to [`EntryType::Api`] so plain API adapters don't
+    /// have to set it on every call. Devvit triggers send `"COMMENT"` /
+    /// `"SUBMISSION"` / `"MENTION"`; the website sends `"ONLINE"`. Strict
+    /// matching: a typo like `"comments"` returns 400.
+    #[schema(default = "API")]
     #[serde(default)]
     pub entry_type: Option<EntryType>,
 }

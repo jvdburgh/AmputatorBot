@@ -217,6 +217,53 @@ async fn defaults_apply_when_optional_fields_omitted() {
 }
 
 #[tokio::test]
+async fn explicit_null_entry_type_defaults_to_api() {
+    let amp = "https://www.google.com/amp/s/example.eu/article";
+    let target = "https://example.eu/article";
+    let fetcher = MockPageSource::new().with(amp, &rel_canonical_html(target));
+    let db = RecordingDatabase::default();
+
+    // Callers that send `entryType: null` explicitly get the same fallback
+    // as omitting the field.
+    let body = body_from(json!({ "query": amp, "entryType": null }));
+    let resp = dispatch_v2(&fetcher, &db, body).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(db.recorded.lock().unwrap()[0].entry_type, EntryType::Api);
+}
+
+#[tokio::test]
+async fn query_with_text_around_multiple_urls_resolves_all() {
+    // `query` mirrors the v1 `q` parameter: either a bare URL or free text
+    // containing one or more URLs. The same URL-extractor used for Reddit
+    // comment bodies handles both, so a chat-style paste works.
+    let amp1 = "https://www.google.com/amp/s/example.eu/article-1";
+    let amp2 = "https://www.google.com/amp/s/example.eu/article-2";
+    let target1 = "https://example.eu/article-1";
+    let target2 = "https://example.eu/article-2";
+    let fetcher = MockPageSource::new()
+        .with(amp1, &rel_canonical_html(target1))
+        .with(amp2, &rel_canonical_html(target2));
+    let db = RecordingDatabase::default();
+
+    let body = body_from(json!({
+        "query": format!("hey, check these out: {amp1} and also {amp2} — thanks"),
+    }));
+    let resp = dispatch_v2(&fetcher, &db, body).await;
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let json = body_json(resp).await;
+    let arr = json.as_array().expect("response is array");
+    assert_eq!(arr.len(), 2, "both AMP URLs should produce a Link");
+    assert_eq!(arr[0]["canonical"]["url"], target1);
+    assert_eq!(arr[1]["canonical"]["url"], target2);
+
+    let recorded = db.recorded.lock().unwrap();
+    assert_eq!(recorded.len(), 2);
+    assert_eq!(recorded[0].original_url, amp1);
+    assert_eq!(recorded[1].original_url, amp2);
+}
+
+#[tokio::test]
 async fn unknown_field_rejected_by_strict_deserializer() {
     // `deny_unknown_fields` should reject typos like `entry_type` (snake
     // when it should be `entryType`) at deserialization time. We test the
