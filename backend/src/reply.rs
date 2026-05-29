@@ -1,4 +1,4 @@
-//! Reddit reply markdown — port of `archive/helpers/reddit/reddit_comment_generator.py`.
+//! Reddit reply markdown — port of `praw-python-archive/helpers/reddit/reddit_comment_generator.py`.
 //!
 //! The function lives here as a reference implementation for M5, when the
 //! Devvit (TypeScript) side will produce its own reply text. Keeping the

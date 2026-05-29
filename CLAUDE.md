@@ -25,7 +25,7 @@ Claude prepares exact commands and tells Joris when to run them.
 - `backend/` — Rust (Axum). The API, canonical-finding, static-file serving. Single binary.
 - `devvit-app/` — TypeScript Devvit app. Reddit triggers (comment/post/modmail).
 - `website/` — Astro site. Built into the Rust container.
-- `archive/` — old Python bot + Flask site. **Read-only reference.** Don't run, modify, or import from it. Preserved for canonical-finding logic reference and history.
+- `praw-python-archive/` — old Python bot + Flask site. **Read-only reference.** Don't run, modify, or import from it. Preserved for canonical-finding logic reference and history.
 - `docs/` — plan + reference docs.
 
 ## Tooling commands
@@ -55,8 +55,8 @@ Toolchain managed by `mise` — `mise install` reproduces the pinned Rust + Node
 
 ## Don't
 
-- Don't commit credentials. The `archive/` tree has stale ones (Reddit OAuth, MySQL, SSH, Twitter) — they need rotation, not propagation.
-- Don't run code from `archive/`.
+- Don't commit credentials. The `praw-python-archive/` tree has stale ones (Reddit OAuth, MySQL, SSH, Twitter) — they need rotation, not propagation.
+- Don't run code from `praw-python-archive/`.
 - Don't add backwards-compat shims to bridge old ↔ new. The old bot keeps running in parallel as fallback; no bridge needed.
 - Don't replace `dom_smoothie` or the canonical-finding methods/order without explicit discussion — these are tuned.
 - Don't change the public `GET /api/v1/convert` contract or response shape (`AmputatorBotCom/main.py:161+` is the reference). Both encoded and unencoded URLs must continue to work; for unencoded URLs, `q` must be the last query param.

@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 
 /// How a canonical URL was discovered.
 ///
-/// Ports `archive/models/link.py:CanonicalType`. Variant order matches the
+/// Ports `praw-python-archive/models/link.py:CanonicalType`. Variant order matches the
 /// Python enum, which is also the priority order canonical-finding tries
-/// methods in (`archive/helpers/utils.py:get_canonicals` iterates over
+/// methods in (`praw-python-archive/helpers/utils.py:get_canonicals` iterates over
 /// `CanonicalType` directly).
 ///
 /// JSON serialization uses `SCREAMING_SNAKE_CASE` because Python's

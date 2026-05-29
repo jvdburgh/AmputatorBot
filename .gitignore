@@ -103,10 +103,10 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-# local project stuff (legacy paths — moved under archive/ during M1)
-/archive/static/static.py
-/archive/data/
-/archive/logs/
+# local project stuff (legacy paths — moved under praw-python-archive/ during M1)
+/praw-python-archive/static/static.py
+/praw-python-archive/data/
+/praw-python-archive/logs/
 
 # Node / pnpm workspaces
 node_modules/

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Where a row in the `links` cache came from.
 ///
-/// Ports `archive/models/type.py:Type`, narrowed to the values new code can
+/// Ports `praw-python-archive/models/type.py:Type`, narrowed to the values new code can
 /// actually produce. The Postgres `entry_type` enum keeps two extra
 /// historical values (`TEST`, `TWEET`) so legacy imports preserve their
 /// origin — but Rust never writes them, so they don't appear here.

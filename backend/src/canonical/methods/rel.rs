@@ -2,7 +2,7 @@
 //!
 //! The primary, highest-priority canonical signal — defined by HTML5 / WHATWG
 //! and used by ~every CMS that cares about SEO. Ports the `REL` branch of
-//! `archive/helpers/canonical_methods.py`.
+//! `praw-python-archive/helpers/canonical_methods.py`.
 
 use scraper::Selector;
 

@@ -1,6 +1,6 @@
 //! [`resolve`] — the canonical-finding orchestration loop.
 //!
-//! Ports `archive/helpers/utils.py:get_canonicals` (with the per-URL setup
+//! Ports `praw-python-archive/helpers/utils.py:get_canonicals` (with the per-URL setup
 //! from `get_url_info` folded in). Given a URL and the runtime flags, returns
 //! a [`Link`] with `canonicals[]`, the best `canonical`, and optionally
 //! `amp_canonical` if the origin was an AMP-cache URL we couldn't unwind.
@@ -252,7 +252,7 @@ fn build_canonical(method: CanonicalType, candidate_url: &str, origin_url: &str)
 }
 
 /// Mark `is_alt = true` on canonicals that represent an alternate cross-
-/// domain canonical. Ports `archive/helpers/utils.py:136-143`.
+/// domain canonical. Ports `praw-python-archive/helpers/utils.py:136-143`.
 ///
 /// Logic: find the first non-AMP canonical whose domain differs from the
 /// chosen best; if one exists, mark every canonical in the list (including

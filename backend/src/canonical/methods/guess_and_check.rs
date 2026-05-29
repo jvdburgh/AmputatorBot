@@ -14,7 +14,7 @@
 //! non-AMP canonical is found in any earlier method, mirroring the legacy
 //! Python's `use_gac` flag.
 //!
-//! Ports `archive/helpers/canonical_methods.py:get_can_url_with_guess_and_check`.
+//! Ports `praw-python-archive/helpers/canonical_methods.py:get_can_url_with_guess_and_check`.
 
 use scraper::{Html, Selector};
 use url::Url;

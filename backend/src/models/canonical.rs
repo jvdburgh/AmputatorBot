@@ -4,7 +4,7 @@ use super::CanonicalType;
 
 /// A discovered canonical URL plus metadata about how it was found.
 ///
-/// Ports `archive/models/link.py:Canonical` (which subclasses Python's
+/// Ports `praw-python-archive/models/link.py:Canonical` (which subclasses Python's
 /// `UrlMeta`). In Rust we inline the `UrlMeta` fields rather than embedding
 /// the struct, so `serde_json` produces a flat JSON object matching the
 /// legacy API output.

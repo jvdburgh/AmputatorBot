@@ -43,7 +43,7 @@ const TRAILING_MARKDOWN_CHARS = new Set([
 const URL_RE = /https?:\/\/[^\s<>"]+/gi;
 
 // Strip trailing markdown punctuation from a URL. Ports
-// `archive/helpers/utils.py:remove_markdown`.
+// `praw-python-archive/helpers/utils.py:remove_markdown`.
 export function removeMarkdown(url: string): string {
   let end = url.length;
   while (end > 0) {

@@ -49,7 +49,7 @@ Claude prepares the exact commands and tells Joris when to run them. Reading cod
 1. Modern stack, learn things along the way (Rust, Devvit, Astro/Tailwind4/shadcn)
 2. API contract stays backwards-compatible
 3. Old bot keeps running indefinitely as a fallback — we can break things on the new side without consequence
-4. Sledgehammer through the rewrite; preserve old code in `archive/`
+4. Sledgehammer through the rewrite; preserve old code in `praw-python-archive/`
 
 ---
 
@@ -115,7 +115,7 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 
 - **Refresh bot reply markdown.** One-time design pass on a new template, applied at migration. Doesn't need to look identical to the old bot.
 
-- **`git mv` everything old into `archive/` in one commit.** Sledgehammer. Old PRAW bot keeps running on PythonAnywhere as a fallback — there's no race to retire it.
+- **`git mv` everything old into `praw-python-archive/` in one commit.** Sledgehammer. Old PRAW bot keeps running on PythonAnywhere as a fallback — there's no race to retire it.
 
 - **Six milestones, no calendar.** Local-first: M1–M5 are all local development (scaffolding, canonical engine, API parity, Astro, Devvit playtest). M6 is the cloud + public launch (Scaleway provisioning, prod data migration, DNS cutover, App Directory). No external deadline (bounty is Dec 2026). Old bot covers production. Learning Rust + Devvit + Astro is part of the goal, so pacing should match comprehension, not a schedule.
 
@@ -331,7 +331,7 @@ Tests per pattern with positive + negative fixtures (incl. `&amp;` HTML entity, 
 
 ```
 AmputatorBot/
-├── archive/                          # M1: everything below moved here in one git mv
+├── praw-python-archive/                          # M1: everything below moved here in one git mv
 │   ├── check_comments.py
 │   ├── check_submissions.py
 │   ├── check_inbox.py
@@ -398,7 +398,7 @@ AmputatorBot/
 │   │   ├── pages/                    # index.astro, faq.mdx, about.mdx
 │   │   ├── components/react/         # ConverterForm island
 │   │   └── components/ui/            # shadcn
-│   └── public/                       # icons/logos copied from archive/AmputatorBotCom/static/
+│   └── public/                       # icons/logos copied from praw-python-archive/AmputatorBotCom/static/
 ├── .github/
 │   ├── workflows/                    # path-filtered CI per project (backend, devvit-app, website, security)
 │   └── dependabot.yml                # Cargo + npm + Actions + Docker dep updates
@@ -545,10 +545,10 @@ No calendar. Each milestone has a clear "done" criterion.
 
 ### M1 — Sledgehammer + scaffold + tooling (local only) ✓ DONE
 
-**Done when:** old code in `archive/`, three empty project skeletons in place, root tooling configured, every project's local check pipeline (`just check`) is green, lefthook pre-commit hooks fire.
+**Done when:** old code in `praw-python-archive/`, three empty project skeletons in place, root tooling configured, every project's local check pipeline (`just check`) is green, lefthook pre-commit hooks fire.
 
 Tasks (code/structure):
-- `git mv` all old code into `archive/`, single commit, write `archive/README-archive.md`
+- `git mv` all old code into `praw-python-archive/`, single commit, write `praw-python-archive/README-archive.md`
 - Init `backend/` with `cargo init`, minimal `main.rs` exposing `GET /api/v1/health`, Dockerfile (multi-stage, `cargo chef` for cached deps)
 - Init `devvit-app/` with minimal Hono server using `@devvit/web/server`'s `createServer` + `@hono/node-server`'s `getRequestListener`; configure `devvit.json` and `vite.config.ts` per Devvit docs (Vite plugin via `@devvit/start/vite`)
 - Init `website/` (Astro 6 + Tailwind 4 + React 19), single landing page, `pnpm astro build` outputs to `dist/`
@@ -661,7 +661,7 @@ psql "$DATABASE_URL" -c "\
    ```
 4. `PgPool` plumbed into `MethodContext` (parallels how `PageSource` got added in M2.8).
 5. Axum handler for `GET /api/v1/convert` wrapping `canonical::resolve()`.
-6. The `%20` query-parsing heuristic from `archive/AmputatorBotCom/main.py:116-127` so unencoded URLs with `q` last still work (the load-bearing public-API contract per §"API contract").
+6. The `%20` query-parsing heuristic from `praw-python-archive/AmputatorBotCom/main.py:116-127` so unencoded URLs with `q` last still work (the load-bearing public-API contract per §"API contract").
 7. Status code mapping: 200, 303 (`r=true`), 400 (no `q`), 406 (no AMP), 500 (unknown), 560 (no canonicals), 561 (problematic domain), with the `result_code` field on error responses.
 8. `r=true` — 303 redirect to `link.canonical.url`.
 9. `gc=true` reply markdown — port the legacy template, refresh per the v7 decision. Surface the draft for visual review before locking.
@@ -700,7 +700,7 @@ Tasks (as-built):
 - UkraineSection: U24 as primary CTA, PayPal sponsorship as alternative. Copy makes the not-affiliated stance explicit.
 - TechSection: "rewritten in Rust for perf + because it's fun, now also a Devvit app", EU-hosted (Scaleway Paris/AMS), live count.
 - `postcss.config.mjs` wires `@tailwindcss/postcss` — was missing initially, so the first M4 build emitted theme + preflight but no utility classes.
-- Image build context now ~10 MB after `.dockerignore` excludes `target/`, `backend/tests/` (~3 GB of recorded HTML fixtures), `node_modules/`, `dist/`, `archive/`.
+- Image build context now ~10 MB after `.dockerignore` excludes `target/`, `backend/tests/` (~3 GB of recorded HTML fixtures), `node_modules/`, `dist/`, `praw-python-archive/`.
 
 **No cloud, no DNS, no Devvit publish here** — that's M6.
 
@@ -785,7 +785,7 @@ Pre-deploy audit (do BEFORE any Scaleway provisioning — finding stale deps or 
   - TS: `pnpm -r outdated` across `devvit-app/` and `website/`. Update `@devvit/web`, Astro 5/6 LTS, Tailwind, Vitest, Biome, tsgo's preview tag.
   - GitHub Actions: dependabot already handles weekly bumps, but verify the `actions/checkout@v4` / `Swatinem/rust-cache@v2` / `jdx/mise-action@v2` pins in `.github/workflows/` are still current.
   - Docker base image: bump the Rust + Debian base tags in `backend/Dockerfile` to current LTS.
-- **Secret scan.** `gitleaks detect --no-banner --redact` against the full history (not just current tree — the `archive/static/static.py` credentials are still in older commits). Confirm every leaked credential has either (a) been rotated upstream (Reddit OAuth, MySQL, Twitter, SSH) or (b) is a now-defunct service we no longer use. Also `git grep -nE "Bearer |password|secret|client_secret|api_key" -- ':!archive'` for stray modern leaks.
+- **Secret scan.** `gitleaks detect --no-banner --redact` against the full history (not just current tree — the `praw-python-archive/static/static.py` credentials are still in older commits). Confirm every leaked credential has either (a) been rotated upstream (Reddit OAuth, MySQL, Twitter, SSH) or (b) is a now-defunct service we no longer use. Also `git grep -nE "Bearer |password|secret|client_secret|api_key" -- ':!archive'` for stray modern leaks.
 - **Vulnerability sweep.** `cargo deny check advisories` (force-refresh the RustSec DB), `pnpm -r audit --prod`, GitHub Dependabot alerts dashboard. Triage each finding; fix or accept-with-rationale.
 - **Performance sanity.** Build release: `cargo build --release` — confirm the binary stays under ~20 MB stripped (M2 baseline was around there). Run the full parity test (`just parity-full`) and check the report's success rate hasn't regressed since M3 lock. Boot the container locally and `curl` a cold request — record the latency so we have a baseline for Scaleway's cold-start measurement.
 - **Code-quality sweep.** `cargo clippy --all-targets -- -D warnings` (already CI-gated, force-run anyway), `pnpm biome ci`, `astro check`. `git grep -nE "TODO|FIXME|XXX|HACK" -- backend/src devvit-app/src website/src` — every hit should either get resolved or be promoted to an issue with a milestone.
@@ -920,7 +920,7 @@ Vitest. Mock backend client, mock Reddit context. Assert dedup, `autoReply` shor
 ### Don't-shoot-yourself-in-the-foot
 - Never commit the Postgres URL. Set it via Scaleway container env vars.
 - Old PRAW bot keeps running — don't accidentally stop it.
-- Rotate credentials in `archive/static/static.py` and `archive/AmputatorBotCom/main.py` — they're checked into git history. Anything reachable (Reddit OAuth secrets, Twitter keys, SSH passwords, MySQL passwords) needs rotation regardless of the archive move.
+- Rotate credentials in `praw-python-archive/static/static.py` and `praw-python-archive/AmputatorBotCom/main.py` — they're checked into git history. Anything reachable (Reddit OAuth secrets, Twitter keys, SSH passwords, MySQL passwords) needs rotation regardless of the archive move.
 
 ---
 

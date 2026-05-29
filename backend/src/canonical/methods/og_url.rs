@@ -2,7 +2,7 @@
 //!
 //! Open Graph URLs published by content publishers (Facebook OG standard)
 //! often point at the canonical, non-AMP version of an article. Ports the
-//! `OG_URL` branch of `archive/helpers/canonical_methods.py`.
+//! `OG_URL` branch of `praw-python-archive/helpers/canonical_methods.py`.
 
 use scraper::Selector;
 

@@ -3,7 +3,7 @@
 //! Schema.org's `mainEntityOfPage` property, embedded in `<script type=
 //! "application/ld+json">` blobs by many CMSes, points at the canonical
 //! page URL. Ports the `SCHEMA_MAINENTITY` branch of
-//! `archive/helpers/canonical_methods.py:60-63`.
+//! `praw-python-archive/helpers/canonical_methods.py:60-63`.
 
 use std::sync::LazyLock;
 

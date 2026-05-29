@@ -1,7 +1,7 @@
 //! AMP URL detection.
 //!
-//! Ports `archive/helpers/checker_utils.py` (`check_if_amp`, `check_if_cached`)
-//! and the keyword/denylist lists from `archive/static/static.py`.
+//! Ports `praw-python-archive/helpers/checker_utils.py` (`check_if_amp`, `check_if_cached`)
+//! and the keyword/denylist lists from `praw-python-archive/static/static.py`.
 //!
 //! ## Improvements over the legacy implementation
 //!
@@ -20,7 +20,7 @@
 
 use url::Url;
 
-/// 14 substring patterns from `archive/static/static.py:8-9`.
+/// 14 substring patterns from `praw-python-archive/static/static.py:8-9`.
 ///
 /// Applied against each URL component (host, path, query) by
 /// [`is_amp_url`]. The order is preserved from the legacy bot, though
@@ -35,7 +35,7 @@ pub(crate) const AMP_KEYWORDS: &[&str] = &[
 
 /// Domains hard-excluded from AMP detection regardless of URL shape.
 ///
-/// Ports `archive/static/static.py:10`. These are domains where the substring
+/// Ports `praw-python-archive/static/static.py:10`. These are domains where the substring
 /// match historically misfired, so the legacy bot just bailed.
 const DENYLISTED_DOMAINS: &[&str] = &[
     "video.twimg.kim",
@@ -93,7 +93,7 @@ fn has_amp_keyword(s: &str) -> bool {
 /// Returns `true` if the URL is hosted on a known AMP cache
 /// (Google AMP, Bing AMP, or `ampproject.{net,org}`).
 ///
-/// Ports `archive/helpers/checker_utils.py:check_if_cached`. Like
+/// Ports `praw-python-archive/helpers/checker_utils.py:check_if_cached`. Like
 /// [`is_amp_url`], we evaluate against parsed components rather than the
 /// raw string — gives the same answers but is harder to fool.
 pub fn is_cached_amp(url: &str) -> bool {

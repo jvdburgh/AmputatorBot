@@ -7,7 +7,7 @@
 //! Trigger condition: current URL contains `https://t.co` AND `amp=1`.
 //!
 //! Ports the `TCO_PAGETITLE` branch of
-//! `archive/helpers/canonical_methods.py:66-70`.
+//! `praw-python-archive/helpers/canonical_methods.py:66-70`.
 
 use super::MethodContext;
 

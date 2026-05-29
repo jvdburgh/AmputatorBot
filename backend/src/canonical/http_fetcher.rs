@@ -2,7 +2,7 @@
 //!
 //! Wraps a shared `reqwest::Client` with sane defaults (timeout, redirect
 //! policy, rustls TLS), rotating user-agent per request to reduce upstream
-//! 403s. Ports `archive/helpers/utils.py:get_page` + `get_randomized_headers`.
+//! 403s. Ports `praw-python-archive/helpers/utils.py:get_page` + `get_randomized_headers`.
 
 use std::future::Future;
 use std::time::Duration;
@@ -14,7 +14,7 @@ use crate::canonical::{Page, PageSource};
 
 /// User-agent strings rotated through per-request.
 ///
-/// Modernized for 2026 — the legacy Python list (`archive/static/static.py:28-38`)
+/// Modernized for 2026 — the legacy Python list (`praw-python-archive/static/static.py:28-38`)
 /// was 10 mobile Chrome UAs from Android 7/8/9 with Chrome 61-80, all from
 /// 2018-2019. Publishers' anti-bot heuristics flag these as suspicious now.
 ///
@@ -136,7 +136,7 @@ fn random_user_agent() -> &'static str {
 /// Extract the `<title>` text from raw HTML.
 ///
 /// Returns `"Error: Title not found"` when the document has no `<title>` or
-/// it is empty — matches `archive/helpers/utils.py:188`.
+/// it is empty — matches `praw-python-archive/helpers/utils.py:188`.
 fn extract_title(html: &str) -> String {
     static TITLE_SELECTOR: std::sync::LazyLock<Selector> =
         std::sync::LazyLock::new(|| Selector::parse("title").expect("title selector"));

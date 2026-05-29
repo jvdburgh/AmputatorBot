@@ -4,7 +4,7 @@ use scraper::Html;
 
 /// A fetched HTML page.
 ///
-/// Ports `archive/models/page.py:Page`. We store the **raw HTML** rather
+/// Ports `praw-python-archive/models/page.py:Page`. We store the **raw HTML** rather
 /// than a pre-parsed `scraper::Html` so individual canonical methods can
 /// reparse with the right selector each. Parsing is cheap and the methods
 /// do their own queries.

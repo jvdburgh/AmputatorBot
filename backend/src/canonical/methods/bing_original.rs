@@ -7,7 +7,7 @@
 //! Trigger condition: current URL contains `/amp/s/` AND `www.bing.`.
 //!
 //! Ports the `BING_ORIGINAL_URL` branch of
-//! `archive/helpers/canonical_methods.py:53-57`.
+//! `praw-python-archive/helpers/canonical_methods.py:53-57`.
 
 use std::sync::LazyLock;
 

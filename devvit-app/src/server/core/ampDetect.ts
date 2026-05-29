@@ -10,7 +10,7 @@
 // matched `//amp` after the scheme). Parsing first and matching per-component
 // fixes that without losing legitimate matches.
 
-// 14 substring patterns from `archive/static/static.py:8-9`.
+// 14 substring patterns from `praw-python-archive/static/static.py:8-9`.
 // Exported because GUESS_AND_CHECK mutates URLs by removing each keyword in
 // turn — that code is in the Rust backend, but keeping the export here makes
 // the parallel visible.
@@ -32,7 +32,7 @@ export const AMP_KEYWORDS = [
 ] as const;
 
 // Domains hard-excluded from AMP detection regardless of URL shape.
-// Ports `archive/static/static.py:10`.
+// Ports `praw-python-archive/static/static.py:10`.
 const DENYLISTED_DOMAINS = [
   'video.twimg.kim',
   'bandcamp.com',
@@ -87,7 +87,7 @@ export function isAmpUrl(input: string): boolean {
 
 // Returns true if the URL is hosted on a known AMP cache
 // (Google AMP, Bing AMP, or ampproject.{net,org}).
-// Ports `archive/helpers/checker_utils.py:check_if_cached`.
+// Ports `praw-python-archive/helpers/checker_utils.py:check_if_cached`.
 export function isCachedAmp(input: string): boolean {
   const parsed = tryParseUrl(input);
   if (!parsed) return false;

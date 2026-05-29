@@ -1,6 +1,6 @@
 // Reddit reply markdown for the Devvit bot path.
 //
-// Ports `archive/helpers/reddit/reddit_comment_generator.py` and tracks
+// Ports `praw-python-archive/helpers/reddit/reddit_comment_generator.py` and tracks
 // `backend/src/reply.rs` (the human-facing variant). Two locked deviations
 // from the legacy template (see "Reply markdown (locked)" in the v7 plan):
 //

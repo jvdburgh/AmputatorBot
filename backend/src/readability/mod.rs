@@ -5,7 +5,7 @@
 //!
 //! ## How this maps to the legacy Python bot
 //!
-//! `archive/helpers/article_comparer.py` does:
+//! `praw-python-archive/helpers/article_comparer.py` does:
 //!
 //! ```python
 //! article1 = Article(url1).download().parse()

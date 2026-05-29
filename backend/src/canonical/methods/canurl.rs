@@ -3,7 +3,7 @@
 //! Some publishers mark the canonical URL via a custom `a="amp-canurl"`
 //! attribute on a tag rather than (or in addition to) the standard
 //! `<link rel="canonical">`. Ports the `CANURL` branch of
-//! `archive/helpers/canonical_methods.py`.
+//! `praw-python-archive/helpers/canonical_methods.py`.
 //!
 //! The Python version uses BeautifulSoup's `find_all(a='amp-canurl')` which
 //! is a kwarg-as-attribute-filter on the (mis-named-by-`a`) literal

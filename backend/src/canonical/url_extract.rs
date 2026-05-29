@@ -1,6 +1,6 @@
 //! Extract URLs from comment/post bodies + strip Reddit markdown artifacts.
 //!
-//! Ports `archive/helpers/utils.py:get_urls` (which used the `urlextract`
+//! Ports `praw-python-archive/helpers/utils.py:get_urls` (which used the `urlextract`
 //! Python crate) and `remove_markdown`. For us, [`linkify`] does the URL
 //! extraction — well-maintained Rust crate, drop-in functional replacement.
 
@@ -13,7 +13,7 @@ use linkify::{LinkFinder, LinkKind};
 /// These appear when a URL is embedded in Reddit markdown — `[text](url)`
 /// leaves a `)` at the end, `(see https://example.eu.)` leaves a `.`,
 /// quote-wrapping leaves `"`, etc. The order doesn't matter; the Python
-/// version is a tuple `archive/helpers/utils.py:70-71`.
+/// version is a tuple `praw-python-archive/helpers/utils.py:70-71`.
 const TRAILING_MARKDOWN_CHARS: &[char] = &[
     '?', '(', ')', '[', ']', '\\', ',', '.', '"', '\u{201D}', // U+201D right-double-quote
     '`', '^', '*', '|', '>', '<', '{', '}', '~', ':', ';',
@@ -39,7 +39,7 @@ pub fn extract_urls(body: &str) -> Vec<String> {
 
 /// Strip trailing markdown punctuation from a URL.
 ///
-/// Ports `archive/helpers/utils.py:remove_markdown`. The Python version
+/// Ports `praw-python-archive/helpers/utils.py:remove_markdown`. The Python version
 /// loops on `url.endswith(markdown_chars)`; we just pop trailing chars
 /// while they're in the trailing-chars set.
 pub fn remove_markdown(url: &str) -> String {

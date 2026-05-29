@@ -1,4 +1,4 @@
-![#AmputatorBot](archive/img/amputatorbot_logo_banner.png)
+![#AmputatorBot](praw-python-archive/img/amputatorbot_logo_banner.png)
 
 TL;DR: Remove AMP from your URLs. [AmputatorBot](https://github.com/KilledMufasa/AmputatorBot) is a [Reddit](https://www.reddit.com/user/AmputatorBot) bot that automatically replies to comments and submissions containing AMP URLs with the canonical link(s). It's also available as a [website](https://www.amputatorbot.com/) and [free REST API](https://documenter.getpostman.com/view/12422626/UVC3n93T).
 
@@ -11,14 +11,14 @@ This is a **monorepo**. Each part of AmputatorBot lives in its own subdirectory 
 - **[`backend/`](backend/)** — Rust + Axum service. Hosts the `/api/v1/convert` endpoint, the canonical-finding engine (11 methods, +97% accuracy), and serves the website's static files from the same binary.
 - **[`devvit-app/`](devvit-app/)** — TypeScript [Devvit](https://developers.reddit.com/) app. Listens to Reddit's comment and post triggers and posts the AMP-free reply per subreddit.
 - **[`website/`](website/)** — Astro 5 + Tailwind 4 + shadcn/ui frontend at [www.amputatorbot.com](https://www.amputatorbot.com/), including the URL converter form.
-- **[`archive/`](archive/)** — the original Python bot (PRAW + Flask) kept for reference as we are testing out the Devvit/Rust rewrite. See [`archive/README-legacy.md`](archive/README-legacy.md) for the original project README.
+- **[`praw-python-archive/`](praw-python-archive/)** — the original Python bot (PRAW + Flask) kept for reference as we are testing out the Devvit/Rust rewrite. See [`praw-python-archive/README-legacy.md`](praw-python-archive/README-legacy.md) for the original project README.
 - **[`docs/`](docs/)** — design + migration docs.
 
 Each subproject has its own README with deeper detail.
 
 ## Features
 
-![#AmputatorBot demo](archive/img/amputatorbot_demo.png)
+![#AmputatorBot demo](praw-python-archive/img/amputatorbot_demo.png)
 
 - **11 specialised canonical-finding methods, +97% accuracy.** Tried in priority order:
   - `REL` — `<link rel="canonical">`, the HTML5 standard signal used by ~every SEO-aware CMS.

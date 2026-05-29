@@ -1,7 +1,7 @@
 //! [`PgDatabase`] — production [`Database`] impl backed by a `sqlx::PgPool`.
 //!
 //! The legacy bot's lookup query (from
-//! `archive/datahandlers/remote_datahandler.py:get_entry_by_original_url`)
+//! `praw-python-archive/datahandlers/remote_datahandler.py:get_entry_by_original_url`)
 //! was an unordered `LIMIT 1`. We modernize: prefer the most-recently-
 //! resolved canonical, since the bot has been running for years and the
 //! "right" canonical for a given URL can change over time (sites move,

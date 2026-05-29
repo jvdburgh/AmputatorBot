@@ -3,13 +3,13 @@
 /// Per-request options for [`crate::canonical::resolve`].
 ///
 /// Ports the `max_depth`, `use_db`, `use_gac`, `use_mr` parameters of the
-/// Python `get_canonicals` function. Defaults match `archive/static/static.py`
+/// Python `get_canonicals` function. Defaults match `praw-python-archive/static/static.py`
 /// + the Python defaults (depth 3, all gated methods enabled).
 #[derive(Debug, Clone, Copy)]
 pub struct ResolveOpts {
     /// Maximum recursion depth when a method returns another AMP URL —
     /// the orchestrator will refetch and try again, bounded by this. Matches
-    /// `archive/static/static.py:MAX_DEPTH = 3`.
+    /// `praw-python-archive/static/static.py:MAX_DEPTH = 3`.
     pub max_depth: u32,
     /// Try the DATABASE method (cache lookup).
     pub use_db: bool,

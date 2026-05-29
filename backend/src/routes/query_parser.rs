@@ -1,6 +1,6 @@
 //! Query-string parsing for `/api/v1/convert`.
 //!
-//! Refines `archive/AmputatorBotCom/main.py:109-141` — same two strategies
+//! Refines `praw-python-archive/AmputatorBotCom/main.py:109-141` — same two strategies
 //! the legacy bot used, but dispatched on whether the URL is actually
 //! encoded rather than the legacy's `%20`-presence guess (which broke for
 //! every encoded URL that didn't happen to contain a space).
@@ -54,7 +54,7 @@ pub enum ParseError {
 }
 
 /// Default `md` (max depth) when the param is absent. Ports
-/// `archive/static/static.py:MAX_DEPTH = 3`.
+/// `praw-python-archive/static/static.py:MAX_DEPTH = 3`.
 const DEFAULT_MAX_DEPTH: u32 = 3;
 
 /// Parse the raw query string. `raw` is whatever follows `?` in the request
@@ -109,7 +109,7 @@ fn parse_params(raw: &str) -> HashMap<String, String> {
     out
 }
 
-/// Ports the regex strip pass from `archive/AmputatorBotCom/main.py:116-127`.
+/// Ports the regex strip pass from `praw-python-archive/AmputatorBotCom/main.py:116-127`.
 ///
 /// Removes `md=<single-char>`, `gac=true|false`, and the literal `q=` from
 /// the raw query string. The single-character limitation on `md` is

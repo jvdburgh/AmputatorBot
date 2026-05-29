@@ -9,7 +9,7 @@
 //! `url?q=` AND `www.google.`. Returns nothing otherwise.
 //!
 //! Ports the `GOOGLE_MANUAL_REDIRECT` branch of
-//! `archive/helpers/canonical_methods.py`.
+//! `praw-python-archive/helpers/canonical_methods.py`.
 
 use scraper::Selector;
 

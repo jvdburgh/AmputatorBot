@@ -3,7 +3,7 @@
 //! Each method gets its own file under `methods/`. The 11 methods correspond
 //! 1:1 to the variants of [`crate::models::CanonicalType`], in priority order.
 //!
-//! Ports `archive/helpers/canonical_methods.py:get_canonical_with_soup` —
+//! Ports `praw-python-archive/helpers/canonical_methods.py:get_canonical_with_soup` —
 //! the Python version dispatched on `meta.type` via `if/elif`; here each
 //! method is its own function and [`try_method`] dispatches.
 
@@ -27,7 +27,7 @@ pub mod schema_mainentity;
 pub mod tco_pagetitle;
 
 /// Per-request canonical-finding configuration. Ports the `use_db`/`use_gac`/
-/// `use_mr` flags from `archive/helpers/utils.py:get_canonicals`.
+/// `use_mr` flags from `praw-python-archive/helpers/utils.py:get_canonicals`.
 ///
 /// These flags are progressively *disabled* during an iteration: once any
 /// method finds a non-AMP canonical, the resource-heavy methods (DB,
@@ -103,7 +103,7 @@ pub fn try_method(method: CanonicalType, ctx: &MethodContext<'_>) -> Vec<String>
 /// matching the Python `find_all("script", {"src": False})`) for `pattern`
 /// and return capture group 1.
 ///
-/// Ports `archive/helpers/canonical_methods.py:get_can_url_with_regex`.
+/// Ports `praw-python-archive/helpers/canonical_methods.py:get_can_url_with_regex`.
 /// `\/` is unescaped to `/` — some scripts emit JSON-encoded URLs like
 /// `https:\/\/example.eu\/`.
 pub(crate) fn find_in_inline_scripts(html: &Html, pattern: &Regex) -> Option<String> {
@@ -123,7 +123,7 @@ pub(crate) fn find_in_inline_scripts(html: &Html, pattern: &Regex) -> Option<Str
 
 /// Resolve a candidate URL from an HTML attribute against the base URL.
 ///
-/// Ports `archive/helpers/canonical_methods.py:get_can_urls_by_tags` —
+/// Ports `praw-python-archive/helpers/canonical_methods.py:get_can_urls_by_tags` —
 /// rewrites `//host/path` and `/path` references into absolute URLs using
 /// the source URL's scheme + authority. The `url` crate's `Url::join`
 /// handles every case (protocol-relative, root-relative, fully-relative,

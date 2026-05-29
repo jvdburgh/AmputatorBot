@@ -11,7 +11,7 @@
 //! and is treated as a cache miss, exactly like the legacy Python's
 //! `try/except` swallowed connection errors.
 //!
-//! Ports `archive/helpers/canonical_methods.py:89-96`.
+//! Ports `praw-python-archive/helpers/canonical_methods.py:89-96`.
 
 use super::MethodContext;
 use crate::canonical::Database;

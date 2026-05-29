@@ -4,7 +4,7 @@ use super::{Canonical, UrlMeta};
 
 /// The full result of resolving a single URL through canonical-finding.
 ///
-/// Ports `archive/models/link.py:Link`. One `Link` is emitted per URL the
+/// Ports `praw-python-archive/models/link.py:Link`. One `Link` is emitted per URL the
 /// API saw in the input (the live `/api/v1/convert` returns an array of
 /// these).
 ///

@@ -8,7 +8,7 @@
 //! redirect is one of the resource-heavy methods that gets disabled by the
 //! orchestration loop after a non-AMP canonical has been found).
 //!
-//! Ports the `META_REDIRECT` branch of `archive/helpers/canonical_methods.py:73-77`
+//! Ports the `META_REDIRECT` branch of `praw-python-archive/helpers/canonical_methods.py:73-77`
 //! and the helper `get_can_urls_with_meta_redirect:180-198`.
 
 use scraper::Selector;

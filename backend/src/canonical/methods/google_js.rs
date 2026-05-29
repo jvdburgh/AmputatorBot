@@ -7,7 +7,7 @@
 //! Trigger condition: current URL contains `url?` AND `www.google.`.
 //!
 //! Ports the `GOOGLE_JS_REDIRECT` branch of
-//! `archive/helpers/canonical_methods.py:46-51`.
+//! `praw-python-archive/helpers/canonical_methods.py:46-51`.
 
 use std::sync::LazyLock;
 

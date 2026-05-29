@@ -17,7 +17,7 @@ use crate::models::{CanonicalType, EntryType};
 /// One row's worth of resolution result, queued for persistence.
 ///
 /// Mirrors the columns the legacy `add_data` in
-/// `archive/datahandlers/remote_datahandler.py:180+` wrote. `handled_utc`
+/// `praw-python-archive/datahandlers/remote_datahandler.py:180+` wrote. `handled_utc`
 /// is filled by the DB's `DEFAULT NOW()` — not by Rust — so server clock
 /// owns the timestamp and bulk imports can preserve originals via explicit
 /// overrides.
@@ -51,7 +51,7 @@ pub trait Database: Send + Sync {
     ) -> impl Future<Output = Result<Option<String>>> + Send;
 
     /// Persist one resolution result to the cache. Ports
-    /// `archive/datahandlers/remote_datahandler.py:save_entry` — the legacy
+    /// `praw-python-archive/datahandlers/remote_datahandler.py:save_entry` — the legacy
     /// bot inserted one row per URL whenever `origin.is_amp` was true,
     /// regardless of whether canonicals were found (caller-side guard).
     ///

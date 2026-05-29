@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// Metadata about a URL — the base "shape" shared by `origin` and each
 /// `Canonical` in the API response.
 ///
-/// Ports `archive/models/urlmeta.py:UrlMeta`. All fields are `Option` because
+/// Ports `praw-python-archive/models/urlmeta.py:UrlMeta`. All fields are `Option` because
 /// the legacy Python class defaulted them to `None` and the public JSON
 /// response includes `null` for unset fields.
 ///

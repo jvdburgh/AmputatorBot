@@ -6,7 +6,7 @@
 //! and a TLD begins (TLDs aren't always one segment: `.co.uk`, `.com.br`,
 //! `.github.io` etc.).
 //!
-//! Ports `archive/helpers/canonical_methods.py:113` —
+//! Ports `praw-python-archive/helpers/canonical_methods.py:113` —
 //! `tldextract.extract(url).domain`.
 
 use url::Url;
