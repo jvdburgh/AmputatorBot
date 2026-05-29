@@ -2,7 +2,7 @@ name: website
 
 on:
   push:
-    branches: [master]
+    branches: [main]
     paths:
       - 'website/**'
       - 'pnpm-lock.yaml'

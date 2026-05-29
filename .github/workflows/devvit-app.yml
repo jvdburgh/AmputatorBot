@@ -2,7 +2,7 @@ name: devvit-app
 
 on:
   push:
-    branches: [master]
+    branches: [main]
     paths:
       - 'devvit-app/**'
       - 'pnpm-lock.yaml'

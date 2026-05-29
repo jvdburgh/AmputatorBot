@@ -40,7 +40,7 @@ implied. The maintainer makes no guarantees about the accuracy of
 canonical URL resolution, uptime, or availability. Use at your own risk.
 
 The bot ports years of canonical-finding heuristics from the legacy
-PRAW-based AmputatorBot. Accuracy is high (~97% on the test fixture
+PRAW-based AmputatorBot. Accuracy is high (+99% on the test fixture
 set) but never 100%. If the bot posts an incorrect canonical, please
 report it via the channels in the Contact section so it can be fixed.
 

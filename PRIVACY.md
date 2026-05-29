@@ -54,7 +54,7 @@ The bot **does not** collect or store:
   with that information.
 - To avoid double-replying when Devvit re-fires the same trigger.
 - The aggregated total count of resolved URLs is exposed publicly at
-  [www.amputatorbot.com/api/v1/stats](https://www.amputatorbot.com/api/v1/stats)
+  [www.amputatorbot.com/api/v2/stats](https://www.amputatorbot.com/api/v2/stats)
   (a single integer; no per-URL or per-user breakdown).
 
 The bot does not sell, share, or transfer data to third parties. The
