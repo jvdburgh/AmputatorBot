@@ -1,6 +1,6 @@
 # backend
 
-Rust + Axum service behind [www.amputatorbot.com](https://www.amputatorbot.com/). Hosts the `/api/v1/convert` and `/api/v2/convert` endpoints, the 11-method canonical-finding engine, and serves the Astro static site from the same binary via `tower-http::ServeDir`.
+Rust + Axum service behind [www.amputatorbot.com](https://www.amputatorbot.com/). Hosts the `/api/v2/convert` endpoint (plus the legacy `/api/v1/convert` for backwards compatibility), the 11-method canonical-finding engine, and serves the Astro static site from the same binary via `tower-http::ServeDir`.
 
 ## Getting started
 
@@ -26,26 +26,28 @@ just db-seed         # load the committed 10k sample into the `links` cache
 just backend-dev     # cargo-watch, rebuilds on save
 ```
 
-The server listens on `localhost:8080`. Two endpoints:
+The server listens on `localhost:8080`. Two convert endpoints (default to v2 for anything new):
 
 | Endpoint | Surface |
 |---|---|
-| `GET\|POST /api/v1/convert` | Legacy query-string contract, snake_case JSON response. Kept stable for existing external consumers. |
 | `POST /api/v2/convert` | Modern JSON in / JSON out, camelCase both ways, `entryType` as a body field. Strict validation (typo'd field → 422). |
+| `GET\|POST /api/v1/convert` | Legacy query-string contract, snake_case JSON response. Kept stable for existing external consumers — don't build new integrations against it. |
 
 Quick smoke test (assumes `just backend-dev` is running):
 
 ```bash
 URL='https://abcnews.com/amp/Politics/hhs-warns-states-removing-kids-homes-parents-approval/story?id=130696092'
 
-# v1 — `--data-urlencode` lets curl handle percent-encoding.
-curl -s --get --data-urlencode "q=$URL" http://localhost:8080/api/v1/convert | jq
-
 # v2 — `jq -nc` safely injects the URL as JSON.
 curl -s -X POST -H 'Content-Type: application/json' \
     -d "$(jq -nc --arg q "$URL" '{query: $q, entryType: "COMMENT"}')" \
     http://localhost:8080/api/v2/convert | jq
+
+# v1 (legacy) — `--data-urlencode` lets curl handle percent-encoding.
+curl -s --get --data-urlencode "q=$URL" http://localhost:8080/api/v1/convert | jq
 ```
+
+Or open the Scalar UI at [http://localhost:8080/api/docs](http://localhost:8080/api/docs) and use the try-it-now panel — same endpoints, no curl needed.
 
 ### Common commands
 
