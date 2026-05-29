@@ -8,7 +8,12 @@ import { type SnippetLang, tokenize } from '@/lib/highlight';
 import { cn } from '@/lib/utils';
 
 import { describeMethod } from './canonical-methods';
-import type { ConvertErrorBody, ConvertRequestBody, Link } from './converter-types';
+import type {
+  ConvertErrorBody,
+  ConvertRequestBody,
+  ConvertResponseV2,
+  Link,
+} from './converter-types';
 
 // One example URL Joris shipped on the legacy site's "Try with an example"
 // button. Keeping it identical so the new form's "try example" experience is
@@ -23,6 +28,7 @@ const DEFAULTS = {
   guessAndCheck: true,
   maxDepth: 3,
   redirect: false,
+  generateMarkdownComment: false,
 } as const;
 
 const SNIPPET_LANG_LABELS: Record<string, string> = {
@@ -35,6 +41,9 @@ const SNIPPET_LANG_LABELS: Record<string, string> = {
 interface ResolveState {
   status: 'idle' | 'pending' | 'success' | 'no-amp' | 'error';
   links?: Link[];
+  // Set on success when the user asked for it via the "Generate Reddit
+  // comment" toggle; `null` when the backend resolved no AMP URLs.
+  comment?: string | null;
   errorMessage?: string;
 }
 
@@ -47,6 +56,9 @@ export default function ConverterForm() {
   const [guessAndCheck, setGuessAndCheck] = useState<boolean>(DEFAULTS.guessAndCheck);
   const [maxDepth, setMaxDepth] = useState<number>(DEFAULTS.maxDepth);
   const [redirect, setRedirect] = useState<boolean>(DEFAULTS.redirect);
+  const [generateMarkdownComment, setGenerateMarkdownComment] = useState<boolean>(
+    DEFAULTS.generateMarkdownComment,
+  );
   const [resolve, setResolve] = useState<ResolveState>({ status: 'idle' });
 
   // Backwards compatibility: the legacy site rendered the same converter at
@@ -79,25 +91,31 @@ export default function ConverterForm() {
       guessAndCheck,
       maxDepth,
       redirect: false,
-      entryType: 'ONLINE',
+      generateMarkdownComment,
     };
 
     try {
       const response = await fetch('/api/v2/convert', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          // Tag the cache row with the call's origin so per-source
+          // analytics (`SELECT entry_type, COUNT(*) FROM links GROUP BY 1`)
+          // reflect actual website usage.
+          'X-AmputatorBot-Entry-Type': 'ONLINE',
+        },
         body: JSON.stringify(body),
       });
 
       if (response.status === 200) {
-        const links = (await response.json()) as Link[];
-        setResolve({ status: 'success', links });
+        const envelope = (await response.json()) as ConvertResponseV2;
+        setResolve({ status: 'success', links: envelope.links, comment: envelope.comment });
 
         // Honor "Forward me to the canonical" by JS-navigating to whichever
         // link the result-pane logic would have shown. Mirrors the legacy
         // `?r=true` 303 behavior.
         if (redirect) {
-          const first = links[0];
+          const first = envelope.links[0];
           const target = first?.canonical?.url ?? first?.ampCanonical?.url;
           if (target) window.location.href = target;
         }
@@ -221,6 +239,19 @@ export default function ConverterForm() {
                   <code className="mx-1">?r=true</code>flag.
                 </span>
               </label>
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={generateMarkdownComment}
+                  onChange={(e) => setGenerateMarkdownComment(e.target.checked)}
+                  className="mt-0.5 size-4 rounded border-border accent-brand"
+                />
+                <span>
+                  <span className="font-medium">Generate Reddit comment.</span> Show a
+                  copy-paste-ready Reddit reply alongside the canonical — the same markdown the
+                  AmputatorBot bot posts when it finds an AMP URL on a subreddit it's installed in.
+                </span>
+              </label>
               <label className="flex items-center gap-2">
                 <span className="font-medium">Maximum redirects to follow:</span>
                 <select
@@ -289,6 +320,46 @@ function ConverterResult({ state }: { state: ResolveState }) {
       {links.map((link, idx) => (
         <LinkResult key={link.origin.url ?? idx} link={link} />
       ))}
+      {state.comment ? <RedditCommentPanel markdown={state.comment} /> : null}
+    </div>
+  );
+}
+
+function RedditCommentPanel({ markdown }: { markdown: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(markdown);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard API unavailable — the textarea is selectable as a fallback.
+    }
+  }
+  return (
+    <div className="rounded-md border border-border bg-card p-4 text-sm">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+        Reddit comment (copy-paste-ready)
+      </p>
+      <textarea
+        readOnly
+        value={markdown}
+        rows={Math.min(12, Math.max(6, markdown.split('\n').length))}
+        className="mt-2 w-full resize-y rounded-md border border-input bg-background px-3 py-2 font-mono text-xs leading-relaxed"
+      />
+      <div className="mt-3">
+        <Button
+          type="button"
+          onClick={copy}
+          variant={copied ? 'secondary' : 'default'}
+          size="default"
+          className={cn('w-full sm:w-auto', copied && 'bg-emerald-100 text-emerald-900')}
+          aria-label="Copy Reddit comment markdown"
+        >
+          {copied ? <Check /> : <Copy />}
+          {copied ? 'Copied to clipboard' : 'Copy Reddit comment'}
+        </Button>
+      </div>
     </div>
   );
 }

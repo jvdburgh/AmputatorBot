@@ -47,5 +47,14 @@ export interface ConvertRequestBody {
   guessAndCheck: boolean;
   maxDepth: number;
   redirect: boolean;
-  entryType: 'ONLINE';
+  generateMarkdownComment: boolean;
+}
+
+// Always returned on 200 OK. `comment` is the Reddit-formatted reply
+// markdown the bot would post — populated when the request had
+// `generateMarkdownComment: true` and the resolver found at least one
+// AMP URL; `null` otherwise.
+export interface ConvertResponseV2 {
+  links: Link[];
+  comment: string | null;
 }
