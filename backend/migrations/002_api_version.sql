@@ -1,0 +1,15 @@
+-- Add `api_version` so we can tell which endpoint produced a row.
+--
+-- NULL  — legacy Python bot (CSV import from PythonAnywhere). Pre-v7.
+--    1  — new Rust v5 backend, /api/v1/convert. Snake_case GET contract.
+--    2  — new Rust v5 backend, /api/v2/convert. CamelCase POST contract.
+--
+-- Nullable on purpose: every row imported from the legacy MySQL stays
+-- NULL, so we can always tell "which traffic was the new backend" by
+-- `WHERE api_version IS NOT NULL`. No index — analytical queries are
+-- ad-hoc, not part of any hot path.
+--
+-- ALTER on a 1.7M-row table is metadata-only (no rewrite) in Postgres
+-- when the column is nullable and has no default — the operation
+-- completes in milliseconds even on Scaleway's smallest tier.
+ALTER TABLE links ADD COLUMN api_version SMALLINT;

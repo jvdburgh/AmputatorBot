@@ -1,0 +1,78 @@
+# amputatorbot-devvit-app tasks
+
+# Default test subreddit for playtest. Override with `just playtest SUB=foo`.
+SUB := "AmputatorBotTest"
+
+default:
+    @just --list
+
+check: fmt-check lint type-check test
+
+fmt:
+    pnpm exec biome format --write .
+
+fmt-check:
+    pnpm exec biome format .
+
+lint:
+    pnpm exec biome check .
+
+type-check:
+    pnpm exec tsgo --noEmit
+
+test:
+    pnpm exec vitest run
+
+# Build the server bundle into dist/server/index.cjs. Required before
+# `playtest` if you haven't been running `dev` (which rebuilds on save).
+build:
+    pnpm exec vite build
+
+# Rebuild on every save while playtesting. Run this in one terminal and
+# `just playtest` in another.
+dev:
+    pnpm exec vite build --watch
+
+# Install the playtest version of the app to r/{{SUB}} and stream logs.
+# Defaults to r/AmputatorBotTest; override per-call: `just playtest SUB=test`.
+# Requires the app to be initialized (`pnpm exec devvit init`) and you to
+# be logged in (`pnpm exec devvit login`).
+playtest:
+    pnpm exec devvit playtest r/{{SUB}}
+
+# Log in to Devvit as a Reddit account (browser-based OAuth). Required before
+# `init`, `playtest`, `upload`. Use u/Killed_Mufasa for this project.
+login:
+    pnpm exec devvit login
+
+# Log out of the current Devvit session.
+logout:
+    pnpm exec devvit logout
+
+# Show the currently logged-in Reddit account.
+whoami:
+    pnpm exec devvit whoami
+
+# One-time app registration on Reddit's side. Reads the slug from devvit.json.
+# Requires `login` first.
+init:
+    pnpm exec devvit init
+
+# Upload a private version to the App Directory (installable on small
+# test subreddits only). Doesn't kick off Reddit's review — for that
+# use `just publish`.
+upload: build
+    pnpm exec devvit upload
+
+# Submit the app for Reddit review as an unlisted listing (only you can
+# see it in the directory, but installable on subs you mod and any
+# allow-listed fetch domains start working once approved). Review
+# typically takes ~1 week. Bumps patch version by default.
+publish: build
+    pnpm exec devvit publish
+
+# Submit for review as a public listing (visible in the App Directory
+# to all mods + admins). Only run this after the unlisted version is
+# approved and you've verified the bot works in production.
+publish-public: build
+    pnpm exec devvit publish --public

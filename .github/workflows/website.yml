@@ -1,0 +1,51 @@
+name: website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/website.yml'
+  pull_request:
+    paths:
+      - 'website/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/website.yml'
+
+concurrency:
+  group: website-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+        with:
+          version: 2026.5.15
+          install: true
+          cache: true
+
+      - name: Install deps
+        working-directory: .
+        run: pnpm install --frozen-lockfile --filter amputatorbot-website...
+
+      - name: Biome
+        run: pnpm exec biome ci .
+
+      - name: Astro check
+        run: pnpm exec astro check
+
+      - name: Test
+        run: pnpm exec vitest run
+
+      - name: Build
+        run: pnpm exec astro build

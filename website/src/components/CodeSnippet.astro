@@ -1,0 +1,31 @@
+---
+import { type SnippetLang, tokenize } from '@/lib/highlight';
+
+export interface Props {
+  code: string;
+  language?: SnippetLang;
+  class?: string;
+}
+
+const { code, language, class: className } = Astro.props;
+const tokens = tokenize(code, language);
+
+const langLabel: Record<string, string> = {
+  html: 'HTML',
+  url: 'URL',
+  json: 'JSON',
+  js: 'JavaScript',
+};
+---
+
+<figure class:list={['rounded-md border border-border bg-muted/60', className]}>
+  {
+    language ? (
+      <figcaption class="border-b border-border px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        {langLabel[language] ?? language}
+      </figcaption>
+    ) : null
+  }
+  <pre
+    class="overflow-x-auto px-3 py-2 text-[12px] leading-relaxed text-foreground"><code>{tokens.map((t) => (t.cls ? <span class={`tok-${t.cls}`}>{t.text}</span> : t.text))}</code></pre>
+</figure>

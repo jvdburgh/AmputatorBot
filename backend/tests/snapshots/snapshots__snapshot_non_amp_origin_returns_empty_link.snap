@@ -1,0 +1,16 @@
+---
+source: tests/snapshots.rs
+expression: link
+---
+{
+  "amp_canonical": null,
+  "canonical": null,
+  "canonicals": [],
+  "origin": {
+    "domain": null,
+    "is_amp": false,
+    "is_cached": null,
+    "is_valid": true,
+    "url": "https://news.ycombinator.com/item?id=42"
+  }
+}

@@ -1,0 +1,325 @@
+//! Parity test — runs the resolver against recorded HTML fixtures and
+//! reports how its output compares to what the legacy Python bot recorded
+//! in the `URLConversions` table.
+//!
+//! Setup:
+//!
+//! ```bash
+//! cd backend
+//! just record-fixtures      # populates tests/fixtures/html/ (default CSV)
+//! just parity               # runs this test with output streamed
+//! ```
+//!
+//! If `tests/fixtures/html/` is empty (gitignored, never recorded locally),
+//! the test logs a skip and passes. Doesn't fail CI just because nobody ran
+//! the recorder.
+//!
+//! Output categorization per fixture:
+//!
+//! - **match** — both legacy + new found the same canonical URL (or both
+//!   found nothing).
+//! - **mismatch_url** — both found a canonical but they disagree on the URL.
+//! - **legacy_only** — legacy found a canonical, we didn't (resolver missed
+//!   it, possibly because it needed a depth-recursion to a URL we don't
+//!   have HTML for).
+//! - **new_only** — we found a canonical, legacy recorded none. Could be a
+//!   legitimate improvement (e.g. legacy false-positive on an AMP-detection
+//!   misfire — the famous `amputeestore.com` shape) or our false positive.
+//! - **skipped** — fixture has no HTML (the recorder failed to fetch). Not
+//!   counted toward the rate.
+
+use std::collections::HashMap;
+use std::fs;
+use std::future::{Future, ready};
+use std::path::Path;
+
+use anyhow::Result;
+use serde::Deserialize;
+
+use amputatorbot_backend::canonical::{Database, Page, PageSource, ResolveOpts, resolve};
+
+#[derive(Debug, Deserialize)]
+struct FixtureRecord {
+    csv_id: i64,
+    original_url: String,
+    expected_canonical: Option<String>,
+    #[serde(default)]
+    #[allow(dead_code)]
+    expected_type: Option<String>,
+    #[allow(dead_code)]
+    fetched_at: String,
+    final_url: String,
+    status_code: u16,
+    html: String,
+}
+
+/// `PageSource` impl backed by an in-memory map of `url -> Page`. Keys include
+/// both the original CSV URL and the post-redirect `final_url` so the
+/// resolver finds the page whichever it requests.
+struct RecordedPageSource {
+    pages: HashMap<String, Page>,
+}
+
+impl PageSource for RecordedPageSource {
+    fn fetch(&self, url: &str) -> impl Future<Output = Result<Page>> + Send {
+        let result = self
+            .pages
+            .get(url)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("no recorded HTML for {url}"));
+        ready(result)
+    }
+}
+
+/// Always-empty `Database` for the parity test.
+///
+/// We deliberately don't replay the legacy DATABASE-method hits here: the
+/// legacy bot's cache populated over years from the same canonical-finding
+/// methods, so seeding it would only make the parity test compare the
+/// resolver against itself. Comparing the fresh resolver against the recorded
+/// canonical (whatever method originally found it) is the honest measure.
+struct EmptyDb;
+
+impl Database for EmptyDb {
+    fn lookup_canonical(
+        &self,
+        _original_url: &str,
+    ) -> impl Future<Output = Result<Option<String>>> + Send {
+        ready(Ok(None))
+    }
+}
+
+fn load_fixtures(dir: &Path) -> Vec<FixtureRecord> {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return Vec::new();
+    };
+
+    entries
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map(|x| x == "json").unwrap_or(false))
+        .filter_map(|e| {
+            let bytes = fs::read(e.path()).ok()?;
+            serde_json::from_slice::<FixtureRecord>(&bytes).ok()
+        })
+        .collect()
+}
+
+/// Cap the fixture set at `max` records, preferring an even spread across the
+/// full sample rather than the first N alphabetically.
+///
+/// Deterministic — sorts by `csv_id` then walks at a stride that produces
+/// roughly `max` evenly-spaced rows. Same fixtures → same selection on every
+/// run, which matters for snapshot-style stability of the parity report.
+fn sample_fixtures(mut fixtures: Vec<FixtureRecord>, max: usize) -> Vec<FixtureRecord> {
+    if fixtures.len() <= max {
+        return fixtures;
+    }
+    fixtures.sort_by_key(|f| f.csv_id);
+    let total = fixtures.len();
+    let stride = total.div_ceil(max);
+    fixtures.into_iter().step_by(stride).take(max).collect()
+}
+
+fn build_page_source(fixtures: &[FixtureRecord]) -> RecordedPageSource {
+    let mut pages = HashMap::with_capacity(fixtures.len() * 2);
+    for f in fixtures {
+        let page = Page {
+            current_url: f.final_url.clone(),
+            status_code: f.status_code,
+            title: String::new(),
+            html: f.html.clone(),
+        };
+        pages.insert(f.original_url.clone(), page.clone());
+        if f.final_url != f.original_url {
+            pages.insert(f.final_url.clone(), page);
+        }
+    }
+    RecordedPageSource { pages }
+}
+
+#[derive(Default)]
+struct Stats {
+    matched: usize,
+    mismatch_url: usize,
+    legacy_only: usize,
+    new_only: usize,
+    skipped: usize,
+}
+
+/// Where the human-readable parity report gets written after every run.
+/// `cat backend/tests/parity-report.md` to see what happened.
+const REPORT_PATH: &str = "tests/parity-report.md";
+
+/// Default cap on fixtures evaluated per run. At ~2-5ms per fixture the
+/// resolver chews through 500 in a couple of seconds; the full 10k starts
+/// to feel slow during iteration. Override with `PARITY_MAX=10000`.
+const DEFAULT_MAX_FIXTURES: usize = 500;
+
+#[tokio::test]
+async fn parity_against_recorded_urlconversions() {
+    let fixtures_dir = Path::new("tests/fixtures/html");
+    let all_fixtures = load_fixtures(fixtures_dir);
+
+    if all_fixtures.is_empty() {
+        let msg = format!(
+            "[parity] No fixtures in {} — run `just record-fixtures` to \
+             populate them, then re-run this test. Skipping.",
+            fixtures_dir.display()
+        );
+        eprintln!("{msg}");
+        let _ = fs::write(REPORT_PATH, format!("# Parity report\n\n{msg}\n"));
+        return;
+    }
+
+    let max = std::env::var("PARITY_MAX")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(DEFAULT_MAX_FIXTURES);
+
+    let fixtures = sample_fixtures(all_fixtures, max);
+
+    eprintln!(
+        "[parity] Loaded {} fixtures (capped at {max}; set PARITY_MAX=10000 \
+         to run them all)",
+        fixtures.len()
+    );
+    let source = build_page_source(&fixtures);
+    let mut stats = Stats::default();
+    let mut mismatches: Vec<(i64, String, String, String)> = Vec::new();
+    let mut legacy_only: Vec<(i64, String, String)> = Vec::new();
+    let mut new_only: Vec<(i64, String, String)> = Vec::new();
+
+    for f in &fixtures {
+        if f.html.is_empty() || f.status_code != 200 {
+            stats.skipped += 1;
+            continue;
+        }
+
+        let link = resolve(&source, &EmptyDb, &f.original_url, ResolveOpts::default()).await;
+        let found = link.canonical.as_ref().and_then(|c| c.url.clone());
+
+        match (f.expected_canonical.as_deref(), found.as_deref()) {
+            (Some(exp), Some(got)) if exp == got => stats.matched += 1,
+            (Some(exp), Some(got)) => {
+                stats.mismatch_url += 1;
+                mismatches.push((f.csv_id, f.original_url.clone(), exp.into(), got.into()));
+            }
+            (Some(exp), None) => {
+                stats.legacy_only += 1;
+                legacy_only.push((f.csv_id, f.original_url.clone(), exp.into()));
+            }
+            (None, Some(got)) => {
+                stats.new_only += 1;
+                new_only.push((f.csv_id, f.original_url.clone(), got.into()));
+            }
+            (None, None) => stats.matched += 1,
+        }
+    }
+
+    let assessed = stats.matched + stats.mismatch_url + stats.legacy_only + stats.new_only;
+    let rate = if assessed > 0 {
+        100.0 * stats.matched as f64 / assessed as f64
+    } else {
+        0.0
+    };
+
+    let report = build_report(&stats, assessed, rate, &mismatches, &legacy_only, &new_only);
+
+    eprintln!("\n{report}");
+    if let Err(e) = fs::write(REPORT_PATH, &report) {
+        eprintln!("[parity] (couldn't write {REPORT_PATH}: {e})");
+    } else {
+        eprintln!("[parity] full report written to backend/{REPORT_PATH}");
+    }
+
+    // Hard floor: if we matched 0 across the board with non-empty fixtures
+    // present, something's broken (probably the resolver, not the data).
+    // Tighter parity-rate assertions will land as we ratchet up.
+    assert!(
+        assessed == 0 || stats.matched > 0,
+        "parity test produced 0 matches across {assessed} assessed fixtures — \
+         the resolver is broken or fixtures are corrupt"
+    );
+}
+
+fn build_report(
+    stats: &Stats,
+    assessed: usize,
+    rate: f64,
+    mismatches: &[(i64, String, String, String)],
+    legacy_only: &[(i64, String, String)],
+    new_only: &[(i64, String, String)],
+) -> String {
+    use std::fmt::Write as _;
+    let mut s = String::new();
+
+    let _ = writeln!(s, "# Parity report");
+    let _ = writeln!(s);
+    let _ = writeln!(
+        s,
+        "**{matched}/{assessed} matched** ({rate:.1}%) — parity against the \
+         legacy Python bot's `URLConversions` table.",
+        matched = stats.matched,
+        assessed = assessed,
+        rate = rate,
+    );
+    let _ = writeln!(s);
+    let _ = writeln!(s, "| Bucket | Count |");
+    let _ = writeln!(s, "|---|---|");
+    let _ = writeln!(s, "| matched | {} |", stats.matched);
+    let _ = writeln!(
+        s,
+        "| mismatch_url (both found, disagree) | {} |",
+        stats.mismatch_url
+    );
+    let _ = writeln!(s, "| legacy_only (we missed it) | {} |", stats.legacy_only);
+    let _ = writeln!(
+        s,
+        "| new_only (we found, legacy didn't — could be a fixed false positive) | {} |",
+        stats.new_only
+    );
+    let _ = writeln!(s, "| skipped (no HTML / non-200) | {} |", stats.skipped);
+    let _ = writeln!(s);
+
+    if !mismatches.is_empty() {
+        let _ = writeln!(
+            s,
+            "## Mismatches ({} total, first 25 shown)",
+            mismatches.len()
+        );
+        let _ = writeln!(s);
+        for (id, url, exp, got) in mismatches.iter().take(25) {
+            let _ = writeln!(s, "- **csv_id={id}** `{url}`");
+            let _ = writeln!(s, "  - expected: `{exp}`");
+            let _ = writeln!(s, "  - found:    `{got}`");
+        }
+        let _ = writeln!(s);
+    }
+
+    if !legacy_only.is_empty() {
+        let _ = writeln!(
+            s,
+            "## Legacy-only ({} total, first 10 shown) — resolver missed these",
+            legacy_only.len()
+        );
+        let _ = writeln!(s);
+        for (id, url, exp) in legacy_only.iter().take(10) {
+            let _ = writeln!(s, "- **csv_id={id}** `{url}` → legacy: `{exp}`");
+        }
+        let _ = writeln!(s);
+    }
+
+    if !new_only.is_empty() {
+        let _ = writeln!(
+            s,
+            "## New-only ({} total, first 10 shown) — resolver found something legacy didn't",
+            new_only.len()
+        );
+        let _ = writeln!(s);
+        for (id, url, got) in new_only.iter().take(10) {
+            let _ = writeln!(s, "- **csv_id={id}** `{url}` → found: `{got}`");
+        }
+    }
+
+    s
+}

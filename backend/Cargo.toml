@@ -1,0 +1,63 @@
+[package]
+name = "amputatorbot-backend"
+version = "5.0.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
+description = "Rust backend for AmputatorBot — Devvit-era. Replaces the legacy Flask backend."
+# `cargo run` without `--bin` picks this. Two binaries (the server +
+# record_fixtures) would otherwise force every invocation to disambiguate.
+default-run = "amputatorbot-backend"
+
+[dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "trace", "cors", "compression-full"] }
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "macros", "chrono", "migrate"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "gzip", "rustls"] }
+scraper = "0.27"
+dom_smoothie = "0.17"
+textdistance = "1.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+linkify = "0.11"
+psl = "2.1"
+regex = "1.11"
+url = "2.5"
+chrono = { version = "0.4", features = ["serde"] }
+fastrand = "2"
+anyhow = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+# Used by the `record_fixtures` binary (M2.9 recorder). Pulled into the
+# main crate's deps so the binary compiles cleanly; not used by the server.
+clap = { version = "4", features = ["derive"] }
+csv = "1"
+futures = "0.3"
+# OpenAPI spec generation. The Scalar UI is served directly via a static
+# HTML page (`res/scalar.html` → `mod.rs::scalar_page`) using Scalar's CDN
+# bundle, with the spec JSON served separately at `/api/openapi-v*.json`
+# — that's how the multi-source version switcher gets both specs.
+# `axum_extras` enables param-derive helpers; `chrono` matches the version
+# we already pull in.
+utoipa = { version = "5", features = ["axum_extras", "chrono"] }
+
+[dev-dependencies]
+insta = { version = "1", features = ["json"] }
+tokio-test = "0.4"
+http-body-util = "0.1"
+
+[[bin]]
+name = "amputatorbot-backend"
+path = "src/main.rs"
+
+[[bin]]
+name = "record_fixtures"
+path = "src/bin/record_fixtures.rs"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

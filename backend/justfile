@@ -1,0 +1,69 @@
+# amputatorbot-backend tasks
+
+# Default: list recipes
+default:
+    @just --list
+
+# Run all checks (CI equivalent)
+check: fmt-check lint test deny
+
+# Apply formatting
+fmt:
+    cargo fmt --all
+
+# Verify formatting
+fmt-check:
+    cargo fmt --all -- --check
+
+# Lint, deny warnings
+lint:
+    cargo clippy --all-targets --all-features -- -D warnings
+
+# Run tests (nextest if available, falls back to cargo test).
+# `--no-tests=pass` keeps the run green during M1 scaffolding when no tests exist yet;
+# real tests arrive in M2.
+test:
+    cargo nextest run --all-features --no-tests=pass || cargo test --all-features
+
+# Security + license audit
+deny:
+    cargo deny check
+
+# Local dev server with auto-rebuild on file change. Needs `just db-up` first.
+dev:
+    DATABASE_URL="${DATABASE_URL:-postgres://amputatorbot:amputatorbot@localhost:5432/amputatorbot}" \
+    RUST_LOG="${RUST_LOG:-info}" \
+    cargo watch -x run
+
+# Release binary, single run. Same env defaults as `dev`.
+run:
+    DATABASE_URL="${DATABASE_URL:-postgres://amputatorbot:amputatorbot@localhost:5432/amputatorbot}" \
+    RUST_LOG="${RUST_LOG:-info}" \
+    cargo run --release
+
+# Parity test (default 500-fixture sample, ~couple seconds). Reads
+# recorded fixtures from tests/fixtures/html/, writes a Markdown
+# summary to tests/parity-report.md. Sample is deterministic +
+# evenly-distributed across `csv_id` so reports compare across runs.
+parity:
+    cargo nextest run --test parity --no-capture
+
+# Parity test against EVERY recorded fixture. Slow (~minute for 10k).
+# Override the cap via env to any number; PARITY_MAX=99999 = "all".
+parity-full:
+    PARITY_MAX=99999 cargo nextest run --test parity --no-capture
+
+# Record HTML fixtures from a URLConversions CSV. Idempotent — re-runnable.
+# Default is the 10k-row unfiltered sample (includes failures + false
+# positives). Pass a path to override.
+record-fixtures CSV="tests/fixtures/urlconversions/10000_conversions_unfiltered.csv":
+    cargo run --release --bin record_fixtures -- --input {{CSV}}
+
+# Build release binary
+build:
+    cargo build --release
+
+# Build the container image locally. The combined image (Astro static + Rust
+# binary) builds from the repo root — see the root justfile's `image` recipe.
+docker-build:
+    cd .. && docker build -t amputatorbot:dev .

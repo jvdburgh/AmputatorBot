@@ -1,0 +1,55 @@
+---
+import NavLinks from '@/components/NavLinks.astro';
+---
+
+<header
+  class="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-sm"
+>
+  <div
+    class="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6"
+  >
+    <a href="/" class="flex items-center gap-2" aria-label="AmputatorBot home">
+      <img
+        src="/amputatorbot_logo_banner_tnmo.svg"
+        alt="AmputatorBot"
+        class="h-7 w-auto"
+        width="160"
+        height="28"
+      />
+    </a>
+
+    <nav aria-label="Primary" class="hidden sm:block">
+      <NavLinks variant="desktop" />
+    </nav>
+
+    <details class="site-nav-mobile sm:hidden">
+      <summary
+        class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+        aria-label="Open menu"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </summary>
+      <nav
+        aria-label="Primary mobile"
+        class="absolute inset-x-4 top-14 rounded-md border border-border bg-background shadow-lg"
+      >
+        <NavLinks variant="mobile" />
+      </nav>
+    </details>
+  </div>
+</header>

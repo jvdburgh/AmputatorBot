@@ -1,0 +1,48 @@
+name: devvit-app
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'devvit-app/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/devvit-app.yml'
+  pull_request:
+    paths:
+      - 'devvit-app/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/devvit-app.yml'
+
+concurrency:
+  group: devvit-app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: devvit-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+        with:
+          version: 2026.5.15
+          install: true
+          cache: true
+
+      - name: Install deps
+        working-directory: .
+        run: pnpm install --frozen-lockfile --filter amputatorbot-devvit-app...
+
+      - name: Biome
+        run: pnpm exec biome ci .
+
+      - name: Type check (tsgo)
+        run: pnpm exec tsgo --noEmit
+
+      - name: Test
+        run: pnpm exec vitest run

@@ -1,0 +1,13 @@
+# Tool versions for the AmputatorBot monorepo.
+# `mise install` in repo root grabs all of these.
+# https://mise.jdx.dev
+
+[tools]
+rust = "stable"
+node = "22"
+pnpm = "11"
+just = "latest"
+lefthook = "latest"
+
+[env]
+RUST_BACKTRACE = "1"

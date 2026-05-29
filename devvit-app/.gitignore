@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.devvit/
+*.log
+.env
+.env.local
+
+# `devvit init` runs npm under the hood; we use pnpm at the repo root.
+package-lock.json

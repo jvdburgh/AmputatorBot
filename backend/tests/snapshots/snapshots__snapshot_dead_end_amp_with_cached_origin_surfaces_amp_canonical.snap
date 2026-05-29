@@ -1,0 +1,36 @@
+---
+source: tests/snapshots.rs
+expression: link
+---
+{
+  "amp_canonical": {
+    "domain": "example",
+    "is_alt": false,
+    "is_amp": true,
+    "is_cached": false,
+    "is_valid": true,
+    "type": "REL",
+    "url": "https://example.eu/article/amp/",
+    "url_similarity": 0.7469879518072289
+  },
+  "canonical": null,
+  "canonicals": [
+    {
+      "domain": "example",
+      "is_alt": false,
+      "is_amp": true,
+      "is_cached": false,
+      "is_valid": true,
+      "type": "REL",
+      "url": "https://example.eu/article/amp/",
+      "url_similarity": 0.7469879518072289
+    }
+  ],
+  "origin": {
+    "domain": "google",
+    "is_amp": true,
+    "is_cached": true,
+    "is_valid": true,
+    "url": "https://www.google.com/amp/s/example.eu/article/amp/"
+  }
+}

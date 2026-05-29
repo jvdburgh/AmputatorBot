@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head prefix="og:http://ogp.me/ns#">
+    <meta charset="utf-8">
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='main.css') }}">
+    <!-- Scripts -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    <script type=text/javascript src="{{ url_for('static', filename='main.js') }}"></script>
+    <!-- Title -->
+    <title>AmputatorBot: Remove AMP from your URLs</title>
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="57x57" href="static/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="static/apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="static/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="static/apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="static/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="static/apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="static/apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="static/apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="static/apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192"  href="static/android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="static/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="static/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="static/favicon-16x16.png">
+    <link rel="manifest" href="static/manifest.json">
+    <meta name="msapplication-TileColor" content="#005af0">
+    <meta name="msapplication-TileImage" content="static/ms-icon-144x144.png">
+    <meta name="theme-color" content="#005af0">
+    <!-- Meta settings -->
+    <meta name="author" content="Killed_Mufasa">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="robots" content="index,follow,noodp,noydir">
+    <meta name="google-site-verification" content="g5lfqKi2gWC3BGbKxjQCkkw1yh4nPLAPAJWHhudl9V4"/>
+    <!-- Meta OG properties -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="AmputatorBot: Remove AMP from your URLs">
+    <meta property="og:description" content="AMP is threatening your privacy and the Open Web. With AmputatorBot, you can remove it from your URLs. AmputatorBot is available in many forms: here, as bots on Reddit and Twitter and as a free and public API">
+    <meta property="og:url" content="https://www.amputatorbot.com">
+    <meta property="og:image" content="https://www.amputatorbot.com/static/amputatorbot_logo_transparent.png">
+    <!-- Meta info -->
+    <meta name="description" content="AMP is threatening your privacy and the Open Web. With AmputatorBot, you can remove it from your URLs. AmputatorBot is available in many forms: here, as bots on Reddit and Twitter and as a free and public API">
+    <meta name="keywords" content="AmputatorBot, Google, AMP, Google AMP, Reddit, Twitter, API, remove, from, links, urls, what, open web, privacy, converter, delete, u/AmputatorBot, r/AmputatorBot, Killed_Mufasa, KilledMufasa, AmputatorBot.com, NoAmp, degoogle, Python, free, tool, clean, canonical, url, extension">
+</head>
+<body>
+<header id="header">
+    <nav>
+        <a class="nav_item desktopOnly" href="https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/" rel="noopener">ⓘ Why, About & FAQ</a>
+        <a class="nav_item desktopOnly" href="https://github.com/jvdburgh/AmputatorBot" rel="noopener"><b>&gt;</b> Open Sourced on GitHub</a>
+        <a class="nav_item desktopOnly" href="https://documenter.getpostman.com/view/12422626/UVC3n93T" rel="noopener">&ge; API Documentation</a>
+        <a class="nav_item desktopOnly" href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2" rel="noopener">&hearts; Sponsor with PayPal</a>
+        <div id="nav-icon3" class="menu-item mobileOnly" onclick="openMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <a class="menu-logo mobileOnly" href="https://www.amputatorbot.com" rel="noopener">
+            <img src="/static/amputatorbot_logo_banner_tnmo.svg" width="100%" alt="Logo of AmputatorBot"/>
+        </a>
+        <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2" rel="noopener" class="mobileOnly">
+            <svg xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#"
+                 xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://www.w3.org/2000/svg" height="25"
+                 width="20.879572" xml:space="preserve" viewBox="0 0 20.879572 25" y="0px" x="0px" id="Layer_1"
+                 version="1.1"><metadata id="metadata917"><rdf:RDF><cc:Work rdf:about=""><dc:format>image/svg+xml</dc:format><dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/><dc:title/></cc:Work></rdf:RDF></metadata><defs id="defs915"/>
+                <path id="path876" d="m 18.880989,6.45898 c 0.04233,-0.34399 0.06445,-0.69423 0.06445,-1.04965 C 18.945439,2.42187 16.523613,0 13.536113,0 H 4.4959767 C 3.9273237,0 3.4418257,0.41064 3.3474897,0.97139 L 0.01643572,20.76997 c -0.119532,0.71045 0.428125,1.35786 1.14848598,1.35786 h 3.306201 c 0.568652,0 1.063281,-0.41035 1.157568,-0.97114 0,0 0.0055,-0.0329 0.01548,-0.092 h 4.9e-5 l -0.460742,2.73857 C 5.0782057,24.42935 5.5608717,25 6.1957837,25 h 2.892432 c 0.501221,0 0.9291503,-0.36196 1.0122563,-0.8562 L 10.9222,19.26001 c 0.141651,-0.84189 0.870508,-1.45835 1.72417,-1.45835 h 0.759863 c 4.127442,0 7.47334,-3.34595 7.47334,-7.47334 0,-1.59712 -0.789453,-3.00889 -1.998584,-3.86934 z" style="fill:#190fa5;stroke-width:0.04882812"/>
+                <path id="path878" d="m 18.880989,6.45898 c -0.517285,4.20796 -4.103711,7.46631 -8.451464,7.46631 H 7.9068187 c -0.569384,0 -1.061132,0.37925 -1.21538,0.91548 l -1.507911,8.96236 C 5.0782057,24.4293 5.5608717,25 6.1957837,25 h 2.892432 c 0.501221,0 0.9291503,-0.36196 1.0122563,-0.8562 L 10.9222,19.26001 c 0.141651,-0.84189 0.870508,-1.45835 1.72417,-1.45835 h 0.759863 c 4.127442,0 7.47334,-3.34595 7.47334,-7.47334 v 0 c 0,-1.59712 -0.789453,-3.00889 -1.998584,-3.86934 z" style="fill:#005af0;stroke-width:0.04882812"/>
+                <path id="path880" d="m 7.9068187,13.92529 h 2.5227063 c 4.347802,0 7.934228,-3.25835 8.451464,-7.46626 C 18.105208,5.90698 17.157161,5.5812 16.132454,5.5812 H 9.5479817 c -0.749659,0 -1.389747,0.54136 -1.514161,1.28062 l -1.342431,7.9789 c 0.154248,-0.53623 0.646045,-0.91543 1.215429,-0.91543 z" style="fill:#00186a;stroke-width:0.04882812"/>
+            </svg>
+        </a>
+    </nav>
+</header>
+
+<div class="menu-mobile" id="menu-mobile">
+    <div class="menu-mobile-quicklinks">
+        <a href="https://www.reddit.com/user/AmputatorBot" rel="noopener"><div class="menu-mobile-item mobileOnly" id="menu-mobile-reddit">AmputatorBot on Reddit</div></a>
+        <a href="https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/" rel="noopener"><div class="menu-mobile-item mobileOnly" id="menu-mobile-about">Why, About &amp; FAQ</div></a>
+        <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2" rel="noopener"><div class="menu-mobile-item mobileOnly" id="menu-mobile-paypal">Sponsor with PayPal</div></a>
+        <a href="https://github.com/jvdburgh/AmputatorBot" rel="noopener"><div class="menu-mobile-item mobileOnly" id="menu-mobile-github">Open Sourced on GitHub</div></a>
+        <a href="https://documenter.getpostman.com/view/12422626/UVC3n93T" rel="noopener"><div class="menu-mobile-item mobileOnly" id="menu-mobile-api">API Documentation</div></a>
+    </div>
+    <div class="menu-mobile-share">
+        <div class="menu-mobile-share-idk"></div>
+        <div class="menu-mobile-share-idk-idk"><div class="menu-mobile-share-text">Spread the word.</div></div>
+        <div class="menu-mobile-share-con"><a href="https://www.reddit.com/submit?url=https://www.amputatorbot.com/&title=AmputatorBot%3A%20Remove%20AMP%20from%20your%20URLs" rel="noopener" id="menu-mobile-share-reddit" >Reddit</a><a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fwww.amputatorbot.com%2F" rel="noopener" id="menu-mobile-share-linkedin">LinkedIn</a></div>
+    </div>
+
+</div>
+<main role="main" class="container">
+    <div class=main-about>
+        <div class="main-con-item main-logo desktopOnly">
+            <a href="https://www.amputatorbot.com" rel="noopener">
+                <img src="/static/amputatorbot_logo_banner_tnmo.svg" width="100%" alt="Logo of AmputatorBot"/>
+            </a>
+        </div>
+        <div class="main-con-item main-instructions">
+            <div class="main-con-item-child"><span class="accent">1.</span> Paste an AMP link</div>
+            <div class="main-con-item-child"><span class="accent">2.</span> Click 'Submit URL'</div>
+            <div class="main-con-item-child"><span class="accent">3.</span> Copy the canonical link</div>
+            <div class="main-con-item-child"><span class="accent">4.</span> Spread the word!</div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6 mb-5" id="first-card">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+                <i class="close_icon" onclick=delete_flash(this)><b>×</b></i>{{ message }}
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </div>
+        <div class="col-md-6">
+            <div class="content-section">
+                <h3>About AMP and its controversies</h3>
+                <p><b>What is AMP?</b> AMP is an open-source web component framework aimed at improving the UX of websites, stories, ads and mail. It was first announced by Google in 2015 and has grown considerably since then. But the project has also been subject to a lot of criticism.</p>
+                <p><b>AMP threatens the Open Web.</b> For example, Google mobile Search’s Top Stories carousel has a premium position above of all other results, which is only accessible for cached AMP pages. This has the effect of further reinforcing Google’s dominance of the Web.</p>
+                <p>Other concerns include: the questionable performance boost, the way cached AMP pages keep users in Google's ecosystem, the obscurity of publisher's domains on cached AMP pages, the loss of sovereignty of websites, the lack of functionality and diversity on some AMP pages and of course, privacy concerns.</p>
+                <p>To sum up, AMP and it's implementation have some major flaws that threaten the Open Web. And as long as that's the case, AmputatorBot will be there to remove AMP from your URLs.</p>
+                <a href="https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/" rel="noopener" class="external-link">ⓘ Please note: For a much more detailed explanation with sources, click here.</a>
+            </div>
+        </div>
+    </div>
+</main>
+</body>
+</html>

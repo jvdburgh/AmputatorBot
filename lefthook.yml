@@ -1,0 +1,39 @@
+# Lefthook pre-commit hooks.
+# Setup: `lefthook install` once after cloning.
+# https://lefthook.dev
+
+pre-commit:
+  parallel: true
+  commands:
+    backend-fmt:
+      root: "backend/"
+      glob: "*.rs"
+      # mise exec — lefthook spawns a fresh shell that doesn't pick up mise's
+      # shim-PATH, so we explicitly route through mise to find cargo.
+      run: mise exec -- cargo fmt --all -- --check
+
+    backend-clippy:
+      root: "backend/"
+      glob: "*.rs"
+      run: mise exec -- cargo clippy --all-targets --quiet -- -D warnings
+
+    devvit-app-biome:
+      root: "devvit-app/"
+      glob: "*.{js,ts,jsx,tsx,json,jsonc}"
+      run: pnpm exec biome check --no-errors-on-unmatched .
+
+    website-biome:
+      root: "website/"
+      glob: "*.{js,ts,jsx,tsx,json,jsonc,astro}"
+      run: pnpm exec biome check --no-errors-on-unmatched .
+
+commit-msg:
+  commands:
+    # Soft check — warn on empty commit messages. {1} is lefthook's placeholder
+    # for the commit-msg file path (not $1).
+    not-empty:
+      run: |
+        if ! grep -qE "[A-Za-z]" "{1}"; then
+          echo "Empty commit message"
+          exit 1
+        fi

@@ -1,0 +1,55 @@
+---
+import ConvertedCount from '@/components/react/ConvertedCount';
+---
+
+<section class="border-t border-border py-12 sm:py-16">
+  <div class="mx-auto max-w-3xl px-4 sm:px-6">
+    <p class="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+      Under the hood
+    </p>
+    <h2 class="mt-2 text-3xl font-semibold tracking-tight">
+      <ConvertedCount client:load /> AMP links converted since 2019
+    </h2>
+    <p class="mt-4 text-muted-foreground">
+      The original AmputatorBot was a Python bot held together with PRAW
+      and good intentions. As of 2026 it's rewritten in <strong
+        class="text-foreground">Rust</strong> — both for the performance
+      improvement and, frankly, because Rust is fun. It's now also a{' '}
+      <strong class="text-foreground">Devvit</strong> app for Reddit's new
+      Developer Platform, with the legacy Python bot still running in
+      parallel as a safety net during the transition.
+    </p>
+    <p class="mt-3 text-muted-foreground">
+      Hosted in the EU on Scaleway (Paris/AMS), open source on GitHub, and
+      free to use — same as it's been since day one. The API is public,
+      has no auth, and accepts the same query shape it did in 2019, so any
+      tool you've wired up against it keeps working.
+    </p>
+    <div class="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+      <a
+        href="https://github.com/jvdburgh/AmputatorBot"
+        rel="noopener noreferrer"
+        target="_blank"
+        class="font-medium text-brand underline-offset-4 hover:underline"
+      >
+        View the source →
+      </a>
+      <a
+        href="https://documenter.getpostman.com/view/12422626/UVC3n93T"
+        rel="noopener noreferrer"
+        target="_blank"
+        class="font-medium text-brand underline-offset-4 hover:underline"
+      >
+        Read the API docs →
+      </a>
+      <a
+        href="https://www.reddit.com/r/AmputatorBot/comments/ch9fxp/changelog_of_amputatorbot/"
+        rel="noopener noreferrer"
+        target="_blank"
+        class="font-medium text-brand underline-offset-4 hover:underline"
+      >
+        Changelog →
+      </a>
+    </div>
+  </div>
+</section>

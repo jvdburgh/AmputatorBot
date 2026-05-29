@@ -1,0 +1,40 @@
+# Bulky build outputs / caches we never want in the build context.
+**/target
+**/node_modules
+**/dist
+**/.astro
+**/.devvit
+**/.pnpm-store
+
+# IDE / editor noise
+.idea
+.vscode
+.DS_Store
+*.swp
+
+# Local-only stuff
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Git metadata (not needed by any build step here)
+.git
+.gitignore
+
+# Read-only legacy tree — Dockerfile never reads from it.
+praw-python-archive
+
+# Tests don't run during the production build, and the recorded HTML
+# fixtures alone are ~3GB. Skip the whole tree.
+backend/tests
+backend/tools
+
+# Snapshots / parity reports from local runs
+**/*.snap.new
+
+# Docs / planning don't ship in the image
+docs
+
+# Keep the root Dockerfile itself ignored from the build context? No — Docker
+# always implicitly excludes the Dockerfile referenced by `-f`.
