@@ -74,8 +74,7 @@ pub async fn resolve<P: PageSource, D: Database>(
             return finalize(link, origin.is_cached);
         };
 
-        // Try every method against this page. Each method that finds a
-        // valid candidate appends one Canonical to link.canonicals.
+        // Each method that finds a valid candidate appends one Canonical.
         for method in CanonicalType::ALL {
             let ctx = MethodContext {
                 page: &page,
@@ -98,13 +97,11 @@ pub async fn resolve<P: PageSource, D: Database>(
             }
         }
 
-        // No canonicals found at all → return empty result.
         if link.canonicals.is_empty() {
             return finalize(link, origin.is_cached);
         }
 
-        // Sort canonicals by url_similarity descending. Ties keep their
-        // discovery order (stable sort).
+        // Stable sort by url_similarity descending — ties keep discovery order.
         link.canonicals.sort_by(|a, b| {
             b.url_similarity
                 .unwrap_or(0.0)
@@ -112,7 +109,6 @@ pub async fn resolve<P: PageSource, D: Database>(
                 .unwrap_or(Ordering::Equal)
         });
 
-        // Any non-AMP canonical → pick the best one, mark alts, done.
         if let Some(best_solved_idx) = link.canonicals.iter().position(|c| c.is_amp == Some(false))
         {
             let best = link.canonicals[best_solved_idx].clone();
@@ -121,9 +117,8 @@ pub async fn resolve<P: PageSource, D: Database>(
             return link;
         }
 
-        // All canonicals are still AMP. If the best one equals the current
-        // URL we made no progress → terminate. Otherwise recurse with the
-        // best as the next URL.
+        // All canonicals still AMP. If the best one matches the current URL,
+        // recursing would loop — terminate. Otherwise chase the best.
         let best_amp_url = link.canonicals[0].url.clone().unwrap_or_default();
         if best_amp_url == next_url {
             return finalize(link, origin.is_cached);
@@ -131,7 +126,6 @@ pub async fn resolve<P: PageSource, D: Database>(
         next_url = best_amp_url;
     }
 
-    // Max depth reached without a non-AMP canonical.
     finalize(link, origin.is_cached)
 }
 

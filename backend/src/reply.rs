@@ -29,7 +29,6 @@ const FAQ_LINK: &str =
 /// "human | Generated with AmputatorBot" footer variant. The bot footer
 /// variant lands with M5.
 pub fn build_reply(links: &[Link]) -> Option<String> {
-    // Collect everything we'll need to assemble the canonical-text block.
     // One entry per AMP-origin link that produced any canonical (real or AMP-only).
     let mut entries: Vec<String> = Vec::new();
     let mut latest_entry = String::new();
