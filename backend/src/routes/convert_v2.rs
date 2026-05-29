@@ -9,23 +9,37 @@
 //! Axum's `JsonRejection` — its default error body is fine for a v2 API and
 //! callers get a clear "deserialize failed at field X" message.
 //!
-//! Response shape is the standard [`Link`] tree with keys camelCased
-//! recursively. The conversion happens at the edge ([`camelize`]) so no
-//! v2-specific wrapper types are needed in `crate::models`.
+//! Response shape on 200 is always an envelope ([`ConvertResponseV2`]):
+//! `{ links: Link[], comment: string | null }`. `comment` is the Reddit-
+//! formatted reply markdown — populated when `generateMarkdownComment: true`
+//! was set on the request, `null` otherwise. The Devvit bot uses this to
+//! get the canonical resolution and the post-ready markdown in a single
+//! call; the website's "generate Reddit comment" copy-paste box does the
+//! same. Conversion of the inner [`Link`] tree to camelCase happens at the
+//! edge ([`camelize`]) so no v2-specific wrapper types are needed in
+//! `crate::models`.
 
 use axum::{
     Json,
     extract::State,
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::{IntoResponse, Redirect, Response},
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::models::EntryType;
+use crate::models::{EntryType, Link};
+use crate::reply::{BuildReplyOptions, build_reply};
 use crate::state::AppState;
 
 use super::convert::{ConvertInput, ConvertOutcome, convert_inner};
+
+/// Header that signals the call's origin. Set internally by the Devvit app
+/// (`COMMENT` / `SUBMISSION` / `MENTION`) and the website (`ONLINE`); absent
+/// on direct API calls, which default to `API`. Intentionally undocumented
+/// in the public API schema so external callers can't fake per-source
+/// analytics in the cache.
+const ENTRY_TYPE_HEADER: &str = "x-amputatorbot-entry-type";
 
 /// JSON body for `POST /api/v2/convert`.
 ///
@@ -36,9 +50,9 @@ use super::convert::{ConvertInput, ConvertOutcome, convert_inner};
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ConvertBodyV2 {
     /// The AMP URL to resolve, or free-form text containing one or more AMP
-    /// URLs (the resolver runs the same URL-extraction pass it uses for
-    /// Reddit comment bodies, so pasting a chat message or a `praw`-style
-    /// blob works the same as pasting a single URL).
+    /// URLs. The resolver runs the same URL-extraction pass it uses for
+    /// Reddit comment bodies, so a chat-style sentence with one or more URLs
+    /// works the same as pasting a single URL.
     pub query: String,
     #[serde(default = "default_guess_and_check")]
     pub guess_and_check: bool,
@@ -46,14 +60,31 @@ pub struct ConvertBodyV2 {
     pub max_depth: u32,
     #[serde(default)]
     pub redirect: bool,
-    /// Where the call originated. Optional — when omitted (or `null`) the
-    /// resolver defaults to [`EntryType::Api`] so plain API adapters don't
-    /// have to set it on every call. Devvit triggers send `"COMMENT"` /
-    /// `"SUBMISSION"` / `"MENTION"`; the website sends `"ONLINE"`. Strict
-    /// matching: a typo like `"comments"` returns 400.
-    #[schema(default = "API")]
+    /// When `true`, populate `comment` in the response with the
+    /// Reddit-formatted reply markdown the bot would post (or that you'd
+    /// copy-paste manually). Defaults to `false` since most callers only
+    /// want the canonical-resolution results.
     #[serde(default)]
-    pub entry_type: Option<EntryType>,
+    pub generate_markdown_comment: bool,
+    /// Optional per-install footer addendum — rendered inside the reply's
+    /// superscript footer as ` | <text>` when `generateMarkdownComment` is
+    /// true and `entryType` is a bot variant (`COMMENT` / `SUBMISSION` /
+    /// `MENTION`). Ignored for `API` / `ONLINE` entry types.
+    #[serde(default)]
+    pub custom_footer: Option<String>,
+}
+
+/// Envelope returned on 200 OK.
+#[derive(utoipa::ToSchema)]
+#[schema(rename_all = "camelCase")]
+pub struct ConvertResponseV2 {
+    /// One entry per URL the resolver saw in `query`. Empty when no AMP
+    /// URLs were detected (in which case the request returns 406 instead).
+    pub links: Vec<Link>,
+    /// Reddit-formatted reply markdown, ready to post or copy-paste. Only
+    /// populated when `generateMarkdownComment: true` was set on the
+    /// request and at least one AMP URL was resolved; `null` otherwise.
+    pub comment: Option<String>,
 }
 
 fn default_guess_and_check() -> bool {
@@ -72,20 +103,51 @@ fn default_max_depth() -> u32 {
     tag = "convert",
     request_body = ConvertBodyV2,
     responses(
-        (status = 200, description = "Array of resolved Link objects, recursively camelCased", body = Vec<crate::models::Link>),
+        (status = 200, description = "Resolved links + optional Reddit reply markdown, recursively camelCased", body = ConvertResponseV2),
         (status = 303, description = "Redirect to canonical (only when redirect=true and a canonical was found)"),
         (status = 400, description = "Empty `query` field", body = crate::routes::error::ErrorResponseV2),
         (status = 406, description = "No AMP URL detected", body = crate::routes::error::ErrorResponseV2),
         (status = 422, description = "Body failed to deserialize — unknown field, bad casing, or wrong type"),
     )
 )]
-pub async fn handler(State(state): State<AppState>, Json(body): Json<ConvertBodyV2>) -> Response {
-    dispatch_v2(&state.fetcher, &state.db, body).await
+pub async fn handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<ConvertBodyV2>,
+) -> Response {
+    let entry_type = entry_type_from_headers(&headers);
+    dispatch_v2(&state.fetcher, &state.db, body, entry_type).await
+}
+
+fn entry_type_from_headers(headers: &HeaderMap) -> EntryType {
+    headers
+        .get(ENTRY_TYPE_HEADER)
+        .and_then(|h| h.to_str().ok())
+        .and_then(parse_entry_type)
+        .unwrap_or(EntryType::Api)
+}
+
+fn parse_entry_type(s: &str) -> Option<EntryType> {
+    match s {
+        "API" => Some(EntryType::Api),
+        "COMMENT" => Some(EntryType::Comment),
+        "SUBMISSION" => Some(EntryType::Submission),
+        "MENTION" => Some(EntryType::Mention),
+        "ONLINE" => Some(EntryType::Online),
+        _ => None,
+    }
 }
 
 /// Build + render for the v2 contract. Generic over the trait bounds so
-/// tests can supply mocks.
-pub async fn dispatch_v2<P, D>(fetcher: &P, db: &D, body: ConvertBodyV2) -> Response
+/// tests can supply mocks. `entry_type` comes from the
+/// `X-AmputatorBot-Entry-Type` header in the HTTP handler; tests pass it
+/// directly.
+pub async fn dispatch_v2<P, D>(
+    fetcher: &P,
+    db: &D,
+    body: ConvertBodyV2,
+    entry_type: EntryType,
+) -> Response
 where
     P: crate::canonical::PageSource,
     D: crate::canonical::Database,
@@ -93,25 +155,53 @@ where
     if body.query.is_empty() {
         return missing_query_response_v2();
     }
+    let custom_footer = body.custom_footer;
+    let generate_comment = body.generate_markdown_comment;
     let input = ConvertInput {
         q: body.query,
         use_gac: body.guess_and_check,
         max_depth: body.max_depth,
         redirect: body.redirect,
-        entry_type: body.entry_type.unwrap_or(EntryType::Api),
+        entry_type,
         api_version: 2,
     };
-    render_v2(convert_inner(fetcher, db, input).await)
+    render_v2(
+        convert_inner(fetcher, db, input).await,
+        entry_type,
+        custom_footer,
+        generate_comment,
+    )
 }
 
-/// Render [`ConvertOutcome`] → camelCase JSON `Response`. The link tree is
+/// Render [`ConvertOutcome`] → camelCase JSON `Response`. The Link tree is
 /// produced by serde with its native snake_case naming, then transformed
-/// recursively at the edge.
-fn render_v2(outcome: ConvertOutcome) -> Response {
+/// recursively at the edge into the v2 envelope shape.
+fn render_v2(
+    outcome: ConvertOutcome,
+    entry_type: EntryType,
+    custom_footer: Option<String>,
+    generate_comment: bool,
+) -> Response {
     match outcome {
         ConvertOutcome::Resolved(links) => {
-            let value = serde_json::to_value(&links).expect("Link is always serializable");
-            (StatusCode::OK, Json(camelize(value))).into_response()
+            let comment = if generate_comment {
+                build_reply(
+                    &links,
+                    &BuildReplyOptions {
+                        entry_type,
+                        custom_footer,
+                    },
+                )
+            } else {
+                None
+            };
+            let links_value =
+                camelize(serde_json::to_value(&links).expect("Link is always serializable"));
+            let envelope = json!({
+                "links": links_value,
+                "comment": comment,
+            });
+            (StatusCode::OK, Json(envelope)).into_response()
         }
         ConvertOutcome::Redirect(target) => Redirect::to(&target).into_response(),
         ConvertOutcome::NoAmp => no_amp_response_v2(),

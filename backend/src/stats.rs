@@ -1,4 +1,4 @@
-//! Aggregate stats served from `GET /api/v1/stats`.
+//! Aggregate stats served from `GET /api/v2/stats`.
 //!
 //! Currently a single value — the total number of rows in `links`, which is
 //! the bot's "AMP links converted since 2019" headline number on the

@@ -137,7 +137,7 @@ Override the playtest subreddit with `SUB=foo just playtest`.
 
 ## The website
 
-Astro 5 + Tailwind 4 + shadcn/ui at [www.amputatorbot.com](https://www.amputatorbot.com/). Includes the URL converter form (paste a URL, get the canonical), a live "X converted so far" badge backed by `/api/v1/stats`, and explainer sections sourced from the FAQ Reddit thread. Lives in [`website/`](website/).
+Astro 5 + Tailwind 4 + shadcn/ui at [www.amputatorbot.com](https://www.amputatorbot.com/). Includes the URL converter form (paste a URL, get the canonical or a copy-paste-ready Reddit comment), a live "X converted so far" badge backed by `/api/v2/stats`, and explainer sections sourced from the FAQ Reddit thread. Lives in [`website/`](website/).
 
 The Astro static bundle is built into the Rust backend's container image (see [`backend/Dockerfile`](backend/Dockerfile)) and served from the same binary via `tower-http::ServeDir`. One service, one deploy.
 
@@ -159,10 +159,10 @@ Two convert endpoints live side by side:
 
 | Endpoint | Surface |
 |---|---|
-| `POST /api/v2/convert` | Modern JSON in / JSON out, camelCase both ways. `entryType` is a body field; when omitted it defaults to `"API"` so plain API adapters don't have to set it on every call. Strict validation (typo'd field → 422). |
+| `POST /api/v2/convert` | Modern JSON in / JSON out, camelCase both ways. Response is an envelope `{ links, comment }`; set `generateMarkdownComment: true` in the body to get a ready-to-post Reddit reply alongside the canonical resolution. Strict validation (typo'd field → 422). |
 | `GET /api/v1/convert` | Legacy query-string contract, snake_case JSON response. GET-only since the legacy bot was always query-string-based. Kept stable for existing third-party callers — don't build new integrations against it. |
 
-Plus three utility endpoints: `GET /api/v1/health` (liveness probe with version), `GET /api/v1/stats` (`{ "convertedTotal": N }`, cached 1h), and `GET /api/openapi.json` (the spec).
+Plus three utility endpoints: `GET /api/v2/health` (liveness probe with version), `GET /api/v2/stats` (`{ "convertedTotal": N }`, cached 1h), and `GET /api/openapi.json` (the spec).
 
 The `query` field on v2 (and `q` on v1) accepts either a bare AMP URL or free-form text containing one or more URLs — the same URL-extractor used for Reddit comment bodies handles both, so pasting a chat message or a Reddit post body works the same as pasting a single URL.
 
@@ -192,7 +192,7 @@ Lives in [`backend/`](backend/). Rust + Axum 0.8, single binary, hosted on Scale
 
 ### Local database
 
-The backend depends on Postgres 17 (the same major as production) for the cache. Run it locally in Docker via the recipes in the root `justfile`:
+The backend depends on Postgres 17 for the cache. Run it locally in Docker via the recipes in the root `justfile`:
 
 | Command | What it does |
 |---|---|

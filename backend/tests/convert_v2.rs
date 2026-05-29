@@ -2,7 +2,8 @@
 //!
 //! Same mock pattern as `tests/convert.rs` — drive [`dispatch_v2`] with a
 //! mock [`PageSource`] + recording [`Database`]. The handler is a thin
-//! Axum wrapper over the same code path.
+//! Axum wrapper over the same code path; the `EntryType` it reads from
+//! the `X-AmputatorBot-Entry-Type` header is passed directly here.
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -109,29 +110,34 @@ fn body_from(value: Value) -> ConvertBodyV2 {
 // ════════════════════════════════════════════════════════════════════════
 
 #[tokio::test]
-async fn happy_path_returns_camelcase_response() {
+async fn happy_path_returns_camelcase_envelope() {
     let amp = "https://www.google.com/amp/s/example.eu/article";
     let target = "https://example.eu/article";
     let fetcher = MockPageSource::new().with(amp, &rel_canonical_html(target));
     let db = RecordingDatabase::default();
 
     let body = body_from(json!({ "query": amp }));
-    let resp = dispatch_v2(&fetcher, &db, body).await;
+    let resp = dispatch_v2(&fetcher, &db, body, EntryType::Api).await;
 
     assert_eq!(resp.status(), StatusCode::OK);
     let json = body_json(resp).await;
-    let arr = json.as_array().expect("response is array");
-    assert_eq!(arr.len(), 1);
+    // 200 OK is always wrapped: { links: [...], comment: string | null }.
+    let links = json["links"].as_array().expect("links is array");
+    assert_eq!(links.len(), 1);
+    assert!(
+        json["comment"].is_null(),
+        "comment is null when generateMarkdownComment is not set"
+    );
 
     // Response keys are camelCase recursively.
-    assert_eq!(arr[0]["canonical"]["url"], target);
-    assert_eq!(arr[0]["canonical"]["isAmp"], false);
-    assert_eq!(arr[0]["origin"]["isAmp"], true);
-    assert_eq!(arr[0]["origin"]["isCached"], true);
-    assert!(arr[0]["ampCanonical"].is_null());
-    // No snake_case stragglers in the top-level shape.
-    assert!(arr[0].get("is_amp").is_none());
-    assert!(arr[0].get("amp_canonical").is_none());
+    assert_eq!(links[0]["canonical"]["url"], target);
+    assert_eq!(links[0]["canonical"]["isAmp"], false);
+    assert_eq!(links[0]["origin"]["isAmp"], true);
+    assert_eq!(links[0]["origin"]["isCached"], true);
+    assert!(links[0]["ampCanonical"].is_null());
+    // No snake_case stragglers in the inner Link shape.
+    assert!(links[0].get("is_amp").is_none());
+    assert!(links[0].get("amp_canonical").is_none());
 
     // v2 always logs api_version=2.
     let recorded = db.recorded.lock().unwrap();
@@ -141,17 +147,16 @@ async fn happy_path_returns_camelcase_response() {
 }
 
 #[tokio::test]
-async fn entry_type_from_body_is_recorded() {
+async fn header_entry_type_recorded_in_cache() {
+    // The header value comes from the HTTP handler — we test the
+    // dispatch contract directly here.
     let amp = "https://www.google.com/amp/s/example.eu/article";
     let target = "https://example.eu/article";
     let fetcher = MockPageSource::new().with(amp, &rel_canonical_html(target));
     let db = RecordingDatabase::default();
 
-    let body = body_from(json!({
-        "query": amp,
-        "entryType": "COMMENT"
-    }));
-    let resp = dispatch_v2(&fetcher, &db, body).await;
+    let body = body_from(json!({ "query": amp }));
+    let resp = dispatch_v2(&fetcher, &db, body, EntryType::Comment).await;
 
     assert_eq!(resp.status(), StatusCode::OK);
     assert_eq!(
@@ -165,7 +170,7 @@ async fn missing_query_returns_400() {
     let fetcher = MockPageSource::new();
     let db = RecordingDatabase::default();
     let body = body_from(json!({ "query": "" }));
-    let resp = dispatch_v2(&fetcher, &db, body).await;
+    let resp = dispatch_v2(&fetcher, &db, body, EntryType::Api).await;
 
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     let json = body_json(resp).await;
@@ -179,7 +184,7 @@ async fn non_amp_url_returns_406() {
     let fetcher = MockPageSource::new();
     let db = RecordingDatabase::default();
     let body = body_from(json!({ "query": "https://news.ycombinator.com/item?id=42" }));
-    let resp = dispatch_v2(&fetcher, &db, body).await;
+    let resp = dispatch_v2(&fetcher, &db, body, EntryType::Api).await;
 
     assert_eq!(resp.status(), StatusCode::NOT_ACCEPTABLE);
     let json = body_json(resp).await;
@@ -194,7 +199,7 @@ async fn redirect_303_to_canonical() {
     let db = RecordingDatabase::default();
 
     let body = body_from(json!({ "query": amp, "redirect": true }));
-    let resp = dispatch_v2(&fetcher, &db, body).await;
+    let resp = dispatch_v2(&fetcher, &db, body, EntryType::Api).await;
 
     assert_eq!(resp.status(), StatusCode::SEE_OTHER);
     let location = resp.headers().get("location").unwrap().to_str().unwrap();
@@ -208,34 +213,20 @@ async fn defaults_apply_when_optional_fields_omitted() {
     let fetcher = MockPageSource::new().with(amp, &rel_canonical_html(target));
     let db = RecordingDatabase::default();
 
-    // Only `query` set. guessAndCheck/maxDepth/redirect/entryType all default.
+    // Only `query` set. guessAndCheck/maxDepth/redirect/generateMarkdownComment
+    // all default. EntryType defaults to Api when the handler doesn't see
+    // the X-AmputatorBot-Entry-Type header.
     let body = body_from(json!({ "query": amp }));
-    let resp = dispatch_v2(&fetcher, &db, body).await;
-    assert_eq!(resp.status(), StatusCode::OK);
-    // entryType defaulted to API.
-    assert_eq!(db.recorded.lock().unwrap()[0].entry_type, EntryType::Api);
-}
-
-#[tokio::test]
-async fn explicit_null_entry_type_defaults_to_api() {
-    let amp = "https://www.google.com/amp/s/example.eu/article";
-    let target = "https://example.eu/article";
-    let fetcher = MockPageSource::new().with(amp, &rel_canonical_html(target));
-    let db = RecordingDatabase::default();
-
-    // Callers that send `entryType: null` explicitly get the same fallback
-    // as omitting the field.
-    let body = body_from(json!({ "query": amp, "entryType": null }));
-    let resp = dispatch_v2(&fetcher, &db, body).await;
+    let resp = dispatch_v2(&fetcher, &db, body, EntryType::Api).await;
     assert_eq!(resp.status(), StatusCode::OK);
     assert_eq!(db.recorded.lock().unwrap()[0].entry_type, EntryType::Api);
 }
 
 #[tokio::test]
 async fn query_with_text_around_multiple_urls_resolves_all() {
-    // `query` mirrors the v1 `q` parameter: either a bare URL or free text
-    // containing one or more URLs. The same URL-extractor used for Reddit
-    // comment bodies handles both, so a chat-style paste works.
+    // `query` accepts a bare URL or free text containing one or more URLs.
+    // The same URL-extractor used for Reddit comment bodies handles both,
+    // so a chat-style paste works.
     let amp1 = "https://www.google.com/amp/s/example.eu/article-1";
     let amp2 = "https://www.google.com/amp/s/example.eu/article-2";
     let target1 = "https://example.eu/article-1";
@@ -248,14 +239,14 @@ async fn query_with_text_around_multiple_urls_resolves_all() {
     let body = body_from(json!({
         "query": format!("hey, check these out: {amp1} and also {amp2} — thanks"),
     }));
-    let resp = dispatch_v2(&fetcher, &db, body).await;
+    let resp = dispatch_v2(&fetcher, &db, body, EntryType::Api).await;
 
     assert_eq!(resp.status(), StatusCode::OK);
     let json = body_json(resp).await;
-    let arr = json.as_array().expect("response is array");
-    assert_eq!(arr.len(), 2, "both AMP URLs should produce a Link");
-    assert_eq!(arr[0]["canonical"]["url"], target1);
-    assert_eq!(arr[1]["canonical"]["url"], target2);
+    let links = json["links"].as_array().expect("links is array");
+    assert_eq!(links.len(), 2, "both AMP URLs should produce a Link");
+    assert_eq!(links[0]["canonical"]["url"], target1);
+    assert_eq!(links[1]["canonical"]["url"], target2);
 
     let recorded = db.recorded.lock().unwrap();
     assert_eq!(recorded.len(), 2);
@@ -264,31 +255,89 @@ async fn query_with_text_around_multiple_urls_resolves_all() {
 }
 
 #[tokio::test]
+async fn generate_markdown_comment_populates_comment_field() {
+    let amp = "https://www.google.com/amp/s/example.eu/article";
+    let target = "https://example.eu/article";
+    let fetcher = MockPageSource::new().with(amp, &rel_canonical_html(target));
+    let db = RecordingDatabase::default();
+
+    let body = body_from(json!({
+        "query": amp,
+        "generateMarkdownComment": true,
+    }));
+    let resp = dispatch_v2(&fetcher, &db, body, EntryType::Comment).await;
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let json = body_json(resp).await;
+    let comment = json["comment"].as_str().expect("comment populated");
+    assert!(comment.contains("It looks like you shared an AMP link."));
+    assert!(comment.contains(&format!("**[{target}]({target})**")));
+    assert!(comment.contains("[Why & About]"));
+}
+
+#[tokio::test]
+async fn generate_markdown_comment_uses_op_voice_for_submission() {
+    let amp = "https://www.google.com/amp/s/example.eu/article";
+    let target = "https://example.eu/article";
+    let fetcher = MockPageSource::new().with(amp, &rel_canonical_html(target));
+    let db = RecordingDatabase::default();
+
+    let body = body_from(json!({
+        "query": amp,
+        "generateMarkdownComment": true,
+    }));
+    let resp = dispatch_v2(&fetcher, &db, body, EntryType::Submission).await;
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let comment = body_json(resp).await["comment"]
+        .as_str()
+        .expect("comment populated")
+        .to_string();
+    assert!(comment.contains("It looks like OP posted an AMP link."));
+}
+
+#[tokio::test]
+async fn custom_footer_threads_into_generated_comment() {
+    let amp = "https://www.google.com/amp/s/example.eu/article";
+    let target = "https://example.eu/article";
+    let fetcher = MockPageSource::new().with(amp, &rel_canonical_html(target));
+    let db = RecordingDatabase::default();
+
+    let body = body_from(json!({
+        "query": amp,
+        "generateMarkdownComment": true,
+        "customFooter": "[Modmail us](https://reddit.com/r/AmputatorBot)",
+    }));
+    let resp = dispatch_v2(&fetcher, &db, body, EntryType::Comment).await;
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    let comment = body_json(resp).await["comment"]
+        .as_str()
+        .expect("comment populated")
+        .to_string();
+    assert!(comment.contains("[Modmail us](https://reddit.com/r/AmputatorBot)"));
+}
+
+#[tokio::test]
+async fn comment_is_null_when_generate_markdown_comment_omitted() {
+    let amp = "https://www.google.com/amp/s/example.eu/article";
+    let target = "https://example.eu/article";
+    let fetcher = MockPageSource::new().with(amp, &rel_canonical_html(target));
+    let db = RecordingDatabase::default();
+
+    let body = body_from(json!({ "query": amp }));
+    let resp = dispatch_v2(&fetcher, &db, body, EntryType::Comment).await;
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert!(body_json(resp).await["comment"].is_null());
+}
+
+#[tokio::test]
 async fn unknown_field_rejected_by_strict_deserializer() {
-    // `deny_unknown_fields` should reject typos like `entry_type` (snake
-    // when it should be `entryType`) at deserialization time. We test the
-    // *deserializer* directly here since dispatch_v2 takes a parsed body
-    // and Axum is what would return the 400 in production.
+    // `deny_unknown_fields` rejects typos at deserialization time. Use a
+    // clearly-typo'd field name so the test isn't tied to any specific
+    // legitimate field.
     let parsed: std::result::Result<ConvertBodyV2, _> =
-        serde_json::from_value(json!({ "query": "x", "entry_type": "API" }));
+        serde_json::from_value(json!({ "query": "x", "quary": "y" }));
     assert!(parsed.is_err(), "strict deserializer must reject typos");
-}
-
-#[tokio::test]
-async fn invalid_entry_type_value_rejected() {
-    // Strict enum values: serde rejects unknown EntryType strings.
-    let parsed: std::result::Result<ConvertBodyV2, _> =
-        serde_json::from_value(json!({ "query": "x", "entryType": "BANANA" }));
-    assert!(parsed.is_err(), "unknown entryType must be rejected");
-}
-
-#[tokio::test]
-async fn invalid_entry_type_casing_rejected() {
-    // SCREAMING_SNAKE_CASE is required; "comment" doesn't match.
-    let parsed: std::result::Result<ConvertBodyV2, _> =
-        serde_json::from_value(json!({ "query": "x", "entryType": "comment" }));
-    assert!(
-        parsed.is_err(),
-        "v2 is strict on casing; lowercase entryType must be rejected"
-    );
 }

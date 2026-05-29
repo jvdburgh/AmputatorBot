@@ -10,8 +10,8 @@ use tower_http::services::ServeDir;
 use utoipa::OpenApi;
 use utoipa_scalar::{Scalar, Servable};
 
-use crate::models::{Canonical, CanonicalType, EntryType, Link, UrlMeta};
-use crate::routes::convert_v2::ConvertBodyV2;
+use crate::models::{Canonical, CanonicalType, Link, UrlMeta};
+use crate::routes::convert_v2::{ConvertBodyV2, ConvertResponseV2};
 use crate::routes::error::{ErrorResponseV1, ErrorResponseV2, HealthResponse};
 use crate::routes::stats::StatsResponse;
 use crate::state::AppState;
@@ -33,7 +33,7 @@ pub mod stats;
     info(
         title = "AmputatorBot API",
         version = "5.0.0",
-        description = "Strip AMP from URLs. Free, no auth. Two versions live side by side: v1 (legacy, snake_case) and v2 (modern, camelCase JSON-in/JSON-out). Both call the same canonical-finding engine.",
+        description = "Strip AMP from URLs. Free, no auth. The modern endpoint is POST /api/v2/convert (JSON in / JSON out, camelCase). GET /api/v1/convert stays alive for legacy third-party callers.",
         contact(name = "AmputatorBot", url = "https://www.amputatorbot.com"),
         license(name = "MIT")
     ),
@@ -48,9 +48,9 @@ pub mod stats;
         Canonical,
         UrlMeta,
         CanonicalType,
-        EntryType,
         StatsResponse,
         ConvertBodyV2,
+        ConvertResponseV2,
         HealthResponse,
         ErrorResponseV1,
         ErrorResponseV2,
@@ -71,8 +71,10 @@ pub struct ApiDoc;
 /// run` without a website build.
 pub fn router(state: AppState, static_dir: Option<&Path>) -> Router {
     let api = Router::new()
-        .route("/api/v1/health", get(health))
-        .route("/api/v1/stats", get(stats::handler))
+        // Utility endpoints (health, stats) live under v2 — they're new in
+        // this rewrite, not part of the legacy contract.
+        .route("/api/v2/health", get(health))
+        .route("/api/v2/stats", get(stats::handler))
         // v1 is GET-only — the legacy contract was always query-string-based.
         // POST callers (and anyone building new integrations) should use v2.
         .route("/api/v1/convert", get(convert::handler))
@@ -101,7 +103,7 @@ pub fn router(state: AppState, static_dir: Option<&Path>) -> Router {
 
 #[utoipa::path(
     get,
-    path = "/api/v1/health",
+    path = "/api/v2/health",
     tag = "system",
     responses((status = 200, description = "Service is up", body = HealthResponse))
 )]

@@ -31,7 +31,7 @@ pub struct ErrorResponseV2 {
     pub error_message: String,
 }
 
-/// Health endpoint payload — `GET /api/v1/health`.
+/// Health endpoint payload — `GET /api/v2/health`.
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct HealthResponse {
     /// Always `true` on a 200. Present so monitoring tools can match on the

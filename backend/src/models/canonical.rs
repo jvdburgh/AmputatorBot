@@ -4,12 +4,11 @@ use super::CanonicalType;
 
 /// A discovered canonical URL plus metadata about how it was found.
 ///
-/// Ports `praw-python-archive/models/link.py:Canonical` (which subclasses Python's
-/// `UrlMeta`). In Rust we inline the `UrlMeta` fields rather than embedding
-/// the struct, so `serde_json` produces a flat JSON object matching the
-/// legacy API output.
-///
-/// Field order matches the Python `jsons.dump` output (alphabetical).
+/// `type` records which of the 11 canonical-finding methods produced this
+/// candidate (`REL`, `OG_URL`, `GOOGLE_MANUAL_REDIRECT`, etc.). `isAmp`
+/// flips false once the resolver has confirmed the URL is no longer AMP;
+/// `urlSimilarity` is the article-text similarity score against the origin
+/// when guess-and-check produced the candidate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct Canonical {
     pub domain: Option<String>,

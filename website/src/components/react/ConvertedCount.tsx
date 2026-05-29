@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-// Small live-count badge. Fetches `/api/v1/stats` on mount and renders the
+// Small live-count badge. Fetches `/api/v2/stats` on mount and renders the
 // number with thousands separators. While loading or if the request fails,
 // renders the conservative "1.7M+" placeholder so the section never shows
 // a missing value to the user. The backend caches the count for 1h so this
@@ -17,7 +17,7 @@ export default function ConvertedCount() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/v1/stats')
+    fetch('/api/v2/stats')
       .then((r) => (r.ok ? (r.json() as Promise<StatsResponse>) : null))
       .then((data) => {
         if (cancelled || !data) return;

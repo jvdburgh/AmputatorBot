@@ -1,14 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-/// Metadata about a URL — the base "shape" shared by `origin` and each
-/// `Canonical` in the API response.
+/// Metadata about a URL — the base shape used by `Link.origin` in the
+/// response.
 ///
-/// Ports `praw-python-archive/models/urlmeta.py:UrlMeta`. All fields are `Option` because
-/// the legacy Python class defaulted them to `None` and the public JSON
-/// response includes `null` for unset fields.
-///
-/// Field order matches the Python `jsons.dump` output (alphabetical) so the
-/// serialized JSON is byte-identical to the legacy `/api/v1/convert` shape.
+/// All fields are nullable. `null` appears when the resolver couldn't
+/// determine a value (e.g. `domain` is null when the URL couldn't be
+/// parsed); `isValid: false` flags a malformed URL.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct UrlMeta {
     pub domain: Option<String>,

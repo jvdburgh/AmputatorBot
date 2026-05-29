@@ -166,8 +166,8 @@ C- **`dom_smoothie` over `rs-trafilatura` and other Readability ports.** The exi
 │   Rust backend (Axum 0.8) — single binary   │
 │     /api/v1/convert    (existing contract)  │
 │     /api/v2/convert    (camelCase JSON)     │
-│     /api/v1/stats      (cached count)       │
-│     /api/v1/health                          │
+│     /api/v2/stats      (cached count)       │
+│     /api/v2/health                          │
 │     fallback → Astro static (ServeDir)      │
 │                                             │
 │   Canonical-finding (10 methods, same       │
@@ -694,7 +694,7 @@ Locked deviations from the original M4 task list:
 - **`/faq` page dropped.** Content folded back to the same Reddit thread; `@astrojs/mdx` and `MdxLayout.astro` removed since nothing else used MDX.
 - **`SiteFooter` dropped.** All navigation lives in the header. Mobile nav uses a native `<details>`/`<summary>` collapsing menu — keyboard- and screen-reader-accessible by default, zero JS, near-full-width on mobile.
 - **`/amputatorbot` legacy route NOT preserved** (Joris confirmed it was never used in practice). The `?q=<url>` pre-fill on `/` is preserved (legacy bot DM templates deep-link with that pattern).
-- **`GET /api/v1/stats` added** (not in original plan). Returns `{"convertedTotal": N}` from `SELECT COUNT(*) FROM links`, cached 1h via `Arc<RwLock<...>>` in `src/stats.rs`. Powers the homepage's live count via the `ConvertedCount` React island.
+- **`GET /api/v2/stats` added** (not in original plan; later moved from `/api/v1/stats` since it's a new endpoint, not part of the legacy contract). Returns `{"convertedTotal": N}` from `SELECT COUNT(*) FROM links`, cached 1h via `Arc<RwLock<...>>` in `src/stats.rs`. Powers the homepage's live count via the `ConvertedCount` React island.
 - **Tiny zero-dep token-based highlighter** at `website/src/lib/highlight.ts` covers html/json/js/url. Both Astro `CodeSnippet.astro` and the React `Snippet` in `ConverterForm.tsx` render the same tokens (no `dangerouslySetInnerHTML`). Token CSS in `global.css`.
 - **`gc=true` and the bot reply markdown stay deferred to M5** (already noted in M3 lock). The "Generate comment" option was deliberately *not* added to the converter form to avoid building UI against a template that's about to change.
 

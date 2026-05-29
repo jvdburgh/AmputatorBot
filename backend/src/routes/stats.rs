@@ -1,4 +1,4 @@
-//! `GET /api/v1/stats` — public aggregate counters.
+//! `GET /api/v2/stats` — public aggregate counters.
 //!
 //! Currently a single value (`convertedTotal`) the homepage's tech section
 //! reads to display "X AMP links converted since 2019". Backed by a cached
@@ -25,7 +25,7 @@ pub struct StatsResponse {
 
 #[utoipa::path(
     get,
-    path = "/api/v1/stats",
+    path = "/api/v2/stats",
     tag = "system",
     responses(
         (status = 200, description = "Aggregate counters (cached 1h)", body = StatsResponse),
