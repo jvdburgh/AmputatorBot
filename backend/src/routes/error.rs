@@ -1,32 +1,30 @@
 //! Error + ack response shapes — typed so the OpenAPI spec can document them.
 //!
-//! v1 and v2 emit slightly different shapes (snake_case vs. camelCase) and
-//! the handlers historically produced them via `serde_json::json!(...)` inline.
-//! These structs are pure documentation aids — `utoipa` consumes them via
-//! `ToSchema`, and they serialize byte-identical to the legacy JSON output so
-//! the public contract stays put.
-//!
-//! No handler actually constructs these (they'd be slower than the inline
-//! `json!` macro and offer nothing functional in return). They live here so
-//! `#[utoipa::path(..., responses(...))]` annotations can reference them by
-//! type rather than hand-writing JSON-schema fragments.
+//! The v1 endpoint emits snake_case keys; the v2 endpoint emits camelCase.
+//! Both ship inline via `serde_json::json!(...)` in their handlers — the
+//! structs here exist purely so `#[utoipa::path(..., responses(...))]`
+//! annotations can reference them by type rather than hand-writing the
+//! JSON-schema fragments.
 
 use serde::Serialize;
 
-/// v1 error response. snake_case keys, matches the legacy `/api/v1/convert`
-/// shape byte-for-byte.
+/// Deprecated v1 error response. snake_case keys, matches the legacy
+/// `/api/v1/convert` shape byte-for-byte.
+#[allow(dead_code)]
+#[deprecated = "Use ErrorResponse (v2 camelCase)"]
 #[derive(Serialize, utoipa::ToSchema)]
-pub struct ErrorResponseV1 {
+#[schema(deprecated)]
+pub struct LegacyErrorResponse {
     /// Short string identifier, e.g. `"error_no_amp"`, `"api_error_required_field_missing"`.
     pub result_code: String,
     /// Human-readable explanation.
     pub error_message: String,
 }
 
-/// v2 error response. camelCase keys, matches the v2 convention.
+/// v2 error response. camelCase keys.
 #[derive(Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct ErrorResponseV2 {
+pub struct ErrorResponse {
     pub result_code: String,
     pub error_message: String,
 }

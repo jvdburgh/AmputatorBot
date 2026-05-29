@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+    <title>AmputatorBot API Docs</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+</head>
+<body>
+
+<div id="app"></div>
+
+<!--
+  Scalar standalone via CDN (https://github.com/scalar/scalar). `sources`
+  gives a v1 / v2 dropdown in the top bar; each URL points at a JSON spec
+  served by the backend (`mod.rs::openapi_*_json`). `favicon` is rendered
+  by Scalar; `/favicon.svg` is served by Astro dev (4321) and by the
+  combined production container.
+-->
+<script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+<script>
+  Scalar.createApiReference('#app', {
+    favicon: '/favicon.svg',
+    sources: [
+      { slug: 'v2', title: 'v2', url: '/api/openapi-v2.json', default: true },
+      { slug: 'v1', title: 'v1 (legacy)', url: '/api/openapi-v1.json' },
+    ],
+  })
+</script>
+</body>
+</html>

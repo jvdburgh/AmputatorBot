@@ -18,13 +18,30 @@ const howItWorks = [
     </h1>
     <p class="mt-4 text-lg text-muted-foreground sm:text-xl">
       AmputatorBot strips AMP from links and returns the canonical version —
-      as a website, a Reddit bot, and a free public API.
+      as a website, a{' '}
+      <a
+        href="https://www.reddit.com/user/AmputatorBot"
+        rel="noopener noreferrer"
+        target="_blank"
+        class="underline-offset-4 hover:underline"
+      >
+        Reddit bot
+      </a>, and a{' '}
+      <a href="/api/docs" class="underline-offset-4 hover:underline">
+        free public API
+      </a>. Built to push back on Google's power over independent publishers,
+      protect user privacy, and support the Open Web.
     </p>
   </div>
 
   <div class="mt-10">
     <ConverterForm client:load />
   </div>
+
+  <p class="mx-auto mt-6 max-w-2xl text-center text-sm text-muted-foreground">
+    Spot AMP URLs by looking for <code>/amp/</code> in the path — e.g.{' '}
+    <code>google.com/amp/…</code> or <code>bbc.com/news/amp/…</code>.
+  </p>
 
   <ol
     class="mx-auto mt-12 grid max-w-4xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"

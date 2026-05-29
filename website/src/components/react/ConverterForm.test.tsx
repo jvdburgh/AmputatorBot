@@ -12,9 +12,11 @@ describe('ConverterForm', () => {
   test('renders the URL input and submit button', () => {
     render(<ConverterForm />);
 
-    const input = screen.getByPlaceholderText(/google\.com\/amp/i);
+    const input = screen.getByPlaceholderText(/paste a url/i);
     expect(input.tagName).toBe('INPUT');
-    expect(input.getAttribute('type')).toBe('url');
+    // type="text" — backend accepts free-form text containing URLs, so we
+    // don't constrain the browser to URL-only validation.
+    expect(input.getAttribute('type')).toBe('text');
 
     const submit = screen.getByRole('button', { name: /submit url/i });
     expect(submit).not.toBeNull();

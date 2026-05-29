@@ -1,219 +1,403 @@
-//! `/api/v1/convert` (this file) and the shared convert-engine internals
-//! ([`ConvertInput`], [`ConvertOutcome`], [`convert_inner`]) that the v2
-//! handler also calls.
+//! `POST /api/v2/convert` — the default JSON API.
 //!
-//! The split: parsing the request and rendering the response are per-version;
-//! the resolve loop in the middle is shared. v2 (camelCase, JSON body) and
-//! v1 (snake_case, query string) reach the same engine via [`convert_inner`]
-//! and render its [`ConvertOutcome`] each in their own dialect.
+//! JSON body in camelCase, JSON response envelope in camelCase. `entryType`
+//! is a first-class body field instead of an HTTP header. Status-code map
+//! mirrors v1 except for missing/invalid body fields, which return 400 via
+//! Axum's default JSON-rejection path — its default error body is fine and
+//! callers get a clear "deserialize failed at field X" message.
 //!
-//! v1 contract changes locked in for v7:
-//!
-//! - `gc` is accepted but silently ignored — legacy `run_api` never read it.
-//! - 560 + 561 collapse to 200 + null canonical (web-standard shape).
-//! - `?r=true` returns a 303 redirect to the chosen canonical (or falls
-//!   through to the JSON response if no canonical was found).
-//! - `entry_type` is always [`EntryType::Api`] on v1. Callers that need to
-//!   annotate the origin use [`super::convert_v2`] instead, where it's a
-//!   first-class body field.
+//! Response shape on 200 is always an envelope ([`ConvertResponse`]):
+//! `{ links: Link[], comment: string | null }`. `comment` is the Reddit-
+//! formatted reply markdown — populated when `generateMarkdownComment: true`
+//! was set on the request, `null` otherwise. The Devvit bot uses this to
+//! get the canonical resolution and the post-ready markdown in a single
+//! call; the website's "generate Reddit comment" copy-paste box does the
+//! same. Conversion of the inner [`crate::models::Link`] tree to camelCase
+//! happens at the edge ([`camelize`]) so no v2-specific wrapper types are
+//! needed in `crate::models`.
 
 use axum::{
     Json,
     extract::State,
-    http::{StatusCode, Uri},
+    http::{HeaderMap, StatusCode},
     response::{IntoResponse, Redirect, Response},
 };
-use serde_json::json;
+use serde::Deserialize;
+use serde_json::{Value, json};
 
-use crate::canonical::database::Resolution;
-use crate::canonical::{self, Database, HttpFetcher, PageSource, PgDatabase, ResolveOpts};
-use crate::models::{EntryType, Link};
+use crate::models::{CanonicalType, EntryType};
+use crate::reply::{BuildReplyOptions, build_reply};
 use crate::state::AppState;
 
-use super::query_parser::{self, ParseError};
+use super::convert_engine::{ConvertInput, ConvertOutcome, convert_inner};
 
-/// Normalized input both v1 and v2 produce before handing off to
-/// [`convert_inner`]. Decoupling the input shape from the resolve loop keeps
-/// the two endpoints honest: same engine, different surface.
-#[derive(Debug, Clone)]
-pub struct ConvertInput {
-    pub q: String,
-    pub use_gac: bool,
+/// Header that signals the call's origin. Set internally by the Devvit app
+/// (`COMMENT` / `SUBMISSION` / `MENTION`) and the website (`ONLINE`); absent
+/// on direct API calls, which default to `API`. Intentionally undocumented
+/// in the public API schema so external callers can't fake per-source
+/// analytics in the cache.
+const ENTRY_TYPE_HEADER: &str = "x-amputatorbot-entry-type";
+
+#[derive(Debug, Clone, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ConvertBody {
+    /// The AMP URL to resolve, or free-form text containing one or more AMP
+    /// URLs. The resolver runs the same URL-extraction pass it uses for
+    /// Reddit comment bodies, so a chat-style sentence with one or more URLs
+    /// works the same as pasting a single URL.
+    #[schema(
+        example = "https://www.google.com/amp/s/electrek.co/2018/06/19/tesla-model-3-assembly-line-inside-tent-elon-musk/amp/"
+    )]
+    pub query: String,
+    /// Fall back to the guess-and-check heuristic — strip AMP keywords from
+    /// the URL, fetch it, accept the result when article-text similarity is
+    /// high — when no explicit canonical signal is found.
+    #[serde(default = "default_guess_and_check")]
+    pub guess_and_check: bool,
+    /// Maximum recursion depth when chasing AMP-of-AMP chains.
+    #[serde(default = "default_max_depth")]
+    #[schema(maximum = 5, example = 3)]
     pub max_depth: u32,
+    /// Return a 303 redirect to the canonical URL instead of the JSON
+    /// envelope.
+    #[serde(default)]
     pub redirect: bool,
-    pub entry_type: EntryType,
-    /// 1 for v1, 2 for v2. Persisted to `links.api_version` so the analytical
-    /// "who's using v2?" question is a single GROUP BY.
-    pub api_version: i16,
+    /// When `true`, populate `comment` in the response with the
+    /// Reddit-formatted reply markdown the bot would post (or that you'd
+    /// copy-paste manually). Defaults to `false` since most callers only
+    /// want the canonical-resolution results.
+    #[serde(default)]
+    pub generate_markdown_comment: bool,
+    /// Optional per-install footer addendum — rendered inside the reply's
+    /// superscript footer as ` | <text>` when `generateMarkdownComment` is
+    /// true and `entryType` is a bot variant (`COMMENT` / `SUBMISSION` /
+    /// `MENTION`). Ignored for `API` / `ONLINE` entry types.
+    #[serde(default)]
+    pub custom_footer: Option<String>,
 }
 
-/// What [`convert_inner`] decided to do. Stays version-agnostic so each
-/// handler renders its own JSON shape (snake_case for v1, camelCase for v2).
-#[derive(Debug)]
-pub enum ConvertOutcome {
-    /// 200 OK with the array of resolved links.
-    Resolved(Vec<Link>),
-    /// 303 redirect to this URL.
-    Redirect(String),
-    /// 406 — no AMP URL detected in `input.q`.
-    NoAmp,
+/// Envelope returned on 200 OK.
+#[derive(utoipa::ToSchema)]
+#[schema(rename_all = "camelCase")]
+pub struct ConvertResponse {
+    /// One entry per URL the resolver saw in `query`. Empty when no AMP
+    /// URLs were detected (in which case the request returns 406 instead).
+    pub links: Vec<Link>,
+    /// Reddit-formatted reply markdown, ready to post or copy-paste. Only
+    /// populated when `generateMarkdownComment: true` was set on the
+    /// request and at least one AMP URL was resolved; `null` otherwise.
+    pub comment: Option<String>,
 }
 
-/// v1 HTTP entry point. Just unwraps state + URI; the actual dispatch logic
-/// lives in [`dispatch_v1`] so integration tests can call it without
-/// constructing Axum extractors.
+// ---------------------------------------------------------------------------
+// camelCase schema mirrors.
+//
+// Doc-only types — the runtime `crate::models::Link`/`Canonical`/`UrlMeta`
+// stay snake_case so v1's serde output is unchanged; v2's response is
+// camelCased at the edge by [`camelize`]. The mirrors below exist purely so
+// utoipa documents the same camelCase shape that v2 actually emits. Field
+// rustdoc here is the per-field description Scalar shows in the docs, so
+// keep it user-facing (not implementation talk).
+
+/// One resolved URL. The response emits an array of these, one per URL the
+/// resolver detected in `query` — typically a single entry, but a
+/// chat-style body with multiple URLs produces multiple entries.
+#[allow(dead_code)]
+#[derive(utoipa::ToSchema)]
+#[schema(rename_all = "camelCase")]
+pub struct Link {
+    /// When the only canonicals found are themselves AMP and the origin was
+    /// a cached AMP URL, this surfaces the AMP canonical so callers get
+    /// *something* better than the cached form. `null` otherwise.
+    pub amp_canonical: Option<Canonical>,
+    /// The best non-AMP canonical picked from `canonicals`. `null` when no
+    /// non-AMP canonical could be reached.
+    pub canonical: Option<Canonical>,
+    /// Every candidate canonical found, sorted by similarity descending.
+    /// Often a single entry, sometimes several (e.g. syndicated copies).
+    pub canonicals: Vec<Canonical>,
+    /// The URL as received from the caller, plus parsed metadata.
+    pub origin: UrlMeta,
+}
+
+/// A discovered canonical URL plus metadata about how it was found.
+#[allow(dead_code)]
+#[derive(utoipa::ToSchema)]
+#[schema(rename_all = "camelCase")]
+pub struct Canonical {
+    /// Parsed host (e.g. `"electrek.co"`). `null` when the URL couldn't be
+    /// parsed.
+    pub domain: Option<String>,
+    /// `true` when this is an alternative canonical (e.g. a syndicated copy)
+    /// rather than the primary one returned in `canonical`.
+    pub is_alt: bool,
+    /// `true` when the URL still matches AMP patterns, `false` once the
+    /// resolver has confirmed it's non-AMP. `null` when undetermined.
+    pub is_amp: Option<bool>,
+    /// `true` when the URL is a cached AMP variant served by an AMP cache
+    /// (e.g. `google.com/amp/s/...`, `cdn.ampproject.org/...`).
+    pub is_cached: Option<bool>,
+    /// `true` when the URL parses as a valid HTTP(S) URL.
+    pub is_valid: Option<bool>,
+    /// Which canonical-finding method produced this candidate. See the
+    /// `CanonicalType` schema for the full list (`REL`, `OG_URL`,
+    /// `GUESS_AND_CHECK`, etc.).
+    #[schema(rename = "type")]
+    pub type_: Option<CanonicalType>,
+    /// The resolved canonical URL.
+    pub url: Option<String>,
+    /// Article-text similarity score (0–1) against the origin. Only set
+    /// when the candidate came from the `GUESS_AND_CHECK` method —
+    /// `null` for every other method.
+    pub url_similarity: Option<f64>,
+}
+
+/// Parsed metadata about an input URL — the shape used by `Link.origin`.
+/// All fields are nullable: `null` means the resolver couldn't determine a
+/// value (e.g. `domain` when the URL didn't parse). `isValid: false` flags a
+/// malformed URL.
+#[allow(dead_code)]
+#[derive(utoipa::ToSchema)]
+#[schema(rename_all = "camelCase")]
+pub struct UrlMeta {
+    /// Parsed host (e.g. `"google.com"`).
+    pub domain: Option<String>,
+    /// `true` when the URL matches AMP patterns (path contains `/amp/`,
+    /// known AMP-cache hosts, etc.).
+    pub is_amp: Option<bool>,
+    /// `true` when the URL is a cached AMP variant served by an AMP cache
+    /// (e.g. `google.com/amp/s/...`, `cdn.ampproject.org/...`).
+    pub is_cached: Option<bool>,
+    /// `true` when the URL parses as a valid HTTP(S) URL.
+    pub is_valid: Option<bool>,
+    /// The URL as received from the caller.
+    pub url: Option<String>,
+}
+
+fn default_guess_and_check() -> bool {
+    true
+}
+fn default_max_depth() -> u32 {
+    3
+}
+
+/// HTTP entry point. Unwraps state + JSON body; the actual dispatch logic
+/// lives in [`dispatch`] so integration tests can drive it without going
+/// through Axum's extractor stack.
 #[utoipa::path(
-    get,
-    path = "/api/v1/convert",
+    post,
+    path = "/api/v2/convert",
     tag = "convert",
-    params(
-        ("q" = String, Query, description = "URL or text containing URLs. Required."),
-        ("gac" = Option<bool>, Query, description = "Use guess-and-check fallback. Default true."),
-        ("md" = Option<u32>, Query, description = "Max recursion depth chasing AMP chains. Default 3."),
-        ("gc" = Option<bool>, Query, description = "Accepted for legacy parity but silently ignored."),
-        ("r" = Option<bool>, Query, description = "If true, 303-redirect to the canonical instead of returning JSON."),
-    ),
+    summary = "Convert AMP URL",
+    description = "Resolve AMP URLs to their canonicals.",
+    request_body = ConvertBody,
     responses(
-        (status = 200, description = "Array of resolved Link objects, snake_case", body = Vec<crate::models::Link>),
-        (status = 303, description = "Redirect to canonical (only when ?r=true and a canonical was found)"),
-        (status = 400, description = "Missing required `q` parameter", body = crate::routes::error::ErrorResponseV1),
-        (status = 406, description = "No AMP URL detected in the input", body = crate::routes::error::ErrorResponseV1),
+        (status = 200, description = "Resolved links + optional Reddit reply markdown, recursively camelCased", body = ConvertResponse),
+        (status = 303, description = "Redirect to canonical (only when redirect=true and a canonical was found)"),
+        (status = 400, description = "Empty `query` field", body = crate::routes::error::ErrorResponse),
+        (status = 406, description = "No AMP URL detected", body = crate::routes::error::ErrorResponse),
+        (status = 422, description = "Body failed to deserialize — unknown field, bad casing, or wrong type"),
     )
 )]
-pub async fn handler(State(state): State<AppState>, uri: Uri) -> Response {
-    dispatch_v1(&state.fetcher, &state.db, uri.query().unwrap_or("")).await
+pub async fn handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<ConvertBody>,
+) -> Response {
+    let entry_type = entry_type_from_headers(&headers);
+    dispatch(&state.fetcher, &state.db, body, entry_type).await
 }
 
-/// Parse + render for the v1 contract. Generic over the trait bounds so
-/// tests can supply mocks.
-pub async fn dispatch_v1<P, D>(fetcher: &P, db: &D, raw_query: &str) -> Response
+fn entry_type_from_headers(headers: &HeaderMap) -> EntryType {
+    headers
+        .get(ENTRY_TYPE_HEADER)
+        .and_then(|h| h.to_str().ok())
+        .and_then(parse_entry_type)
+        .unwrap_or(EntryType::Api)
+}
+
+fn parse_entry_type(s: &str) -> Option<EntryType> {
+    match s {
+        "API" => Some(EntryType::Api),
+        "COMMENT" => Some(EntryType::Comment),
+        "SUBMISSION" => Some(EntryType::Submission),
+        "MENTION" => Some(EntryType::Mention),
+        "ONLINE" => Some(EntryType::Online),
+        _ => None,
+    }
+}
+
+/// Build + render the v2 contract. Generic over the trait bounds so tests
+/// can supply mocks. `entry_type` comes from the
+/// `X-AmputatorBot-Entry-Type` header in the HTTP handler; tests pass it
+/// directly.
+pub async fn dispatch<P, D>(
+    fetcher: &P,
+    db: &D,
+    body: ConvertBody,
+    entry_type: EntryType,
+) -> Response
 where
-    P: PageSource,
-    D: Database,
+    P: crate::canonical::PageSource,
+    D: crate::canonical::Database,
 {
-    let params = match query_parser::parse(raw_query) {
-        Ok(p) => p,
-        Err(ParseError::MissingQ) => return missing_q_response_v1(),
-    };
+    if body.query.is_empty() {
+        return missing_query_response();
+    }
+    let custom_footer = body.custom_footer;
+    let generate_comment = body.generate_markdown_comment;
     let input = ConvertInput {
-        q: params.q,
-        use_gac: params.use_gac,
-        max_depth: params.max_depth,
-        redirect: params.redirect,
-        entry_type: EntryType::Api,
-        api_version: 1,
+        q: body.query,
+        use_gac: body.guess_and_check,
+        max_depth: body.max_depth,
+        redirect: body.redirect,
+        entry_type,
+        api_version: 2,
     };
-    render_v1(convert_inner(fetcher, db, input).await)
-}
-
-/// Shared engine. Resolves every URL in `input.q`, persists results, and
-/// returns a [`ConvertOutcome`]. Generic over the trait bounds so unit tests
-/// can drive it with mocks.
-pub async fn convert_inner<P, D>(fetcher: &P, db: &D, input: ConvertInput) -> ConvertOutcome
-where
-    P: PageSource,
-    D: Database,
-{
-    // Match the legacy `check_criteria(mustBeAMP=True)` precheck: if the body
-    // parses to zero AMP URLs we never reach `resolve()`. Returning early here
-    // keeps DB writes scoped to "we actually tried" cases.
-    let urls = canonical::extract_urls(&input.q);
-    if !urls.iter().any(|u| canonical::is_amp_url(u)) {
-        return ConvertOutcome::NoAmp;
-    }
-
-    let opts = ResolveOpts {
-        use_gac: input.use_gac,
-        max_depth: input.max_depth,
-        ..ResolveOpts::default()
-    };
-
-    let mut links: Vec<Link> = Vec::with_capacity(urls.len());
-    for url in &urls {
-        let link = canonical::resolve(fetcher, db, url, opts).await;
-
-        // Legacy `save_entry` writes one row per link whose origin is AMP
-        // (regardless of whether a canonical was found). A row with
-        // `canonical_url = NULL` is meaningful: it tells the next run "we
-        // tried this URL and got nothing."
-        if link.origin.is_amp == Some(true) {
-            let resolution = Resolution {
-                entry_type: input.entry_type,
-                api_version: input.api_version,
-                original_url: url,
-                canonical_url: link.canonical.as_ref().and_then(|c| c.url.as_deref()),
-                canonical_type: link.canonical.as_ref().and_then(|c| c.type_),
-            };
-            if let Err(e) = db.record_resolution(resolution).await {
-                tracing::warn!(error = ?e, url = %url, "record_resolution failed; continuing");
-            }
-        }
-
-        links.push(link);
-    }
-
-    if input.redirect
-        && let Some(target) = links.iter().find_map(redirect_target).map(String::from)
-    {
-        return ConvertOutcome::Redirect(target);
-    }
-
-    ConvertOutcome::Resolved(links)
-}
-
-/// Pick the URL we'd redirect to: prefer the non-AMP `canonical`, fall back
-/// to `amp_canonical` (set when the origin was a cached AMP URL and the
-/// resolver couldn't reach a non-AMP version). Matches the legacy fall-
-/// through in `run_amputatorbotcom` (`AmputatorBotCom/main.py:67-75`).
-pub(super) fn redirect_target(link: &Link) -> Option<&str> {
-    link.canonical
-        .as_ref()
-        .and_then(|c| c.url.as_deref())
-        .or_else(|| link.amp_canonical.as_ref().and_then(|c| c.url.as_deref()))
-}
-
-/// Render a v1 outcome → snake_case JSON `Response`. Matches the legacy
-/// `/api/v1/convert` shape byte-for-byte. Public so integration tests can
-/// drive the full v1 stack (engine + render) without going through Axum.
-pub fn render_v1(outcome: ConvertOutcome) -> Response {
-    match outcome {
-        ConvertOutcome::Resolved(links) => (StatusCode::OK, Json(links)).into_response(),
-        ConvertOutcome::Redirect(target) => Redirect::to(&target).into_response(),
-        ConvertOutcome::NoAmp => no_amp_response_v1(),
-    }
-}
-
-fn missing_q_response_v1() -> Response {
-    error_response_v1(
-        StatusCode::BAD_REQUEST,
-        "api_error_required_field_missing",
-        "Error: No query field provided. Please specify a query (q=)",
+    render(
+        convert_inner(fetcher, db, input).await,
+        entry_type,
+        custom_footer,
+        generate_comment,
     )
 }
 
-fn no_amp_response_v1() -> Response {
-    error_response_v1(
+/// Render [`ConvertOutcome`] → camelCase JSON `Response`. The Link tree is
+/// produced by serde with its native snake_case naming, then transformed
+/// recursively at the edge into the v2 envelope shape.
+fn render(
+    outcome: ConvertOutcome,
+    entry_type: EntryType,
+    custom_footer: Option<String>,
+    generate_comment: bool,
+) -> Response {
+    match outcome {
+        ConvertOutcome::Resolved(links) => {
+            let comment = if generate_comment {
+                build_reply(
+                    &links,
+                    &BuildReplyOptions {
+                        entry_type,
+                        custom_footer,
+                    },
+                )
+            } else {
+                None
+            };
+            let links_value =
+                camelize(serde_json::to_value(&links).expect("Link is always serializable"));
+            let envelope = json!({
+                "links": links_value,
+                "comment": comment,
+            });
+            (StatusCode::OK, Json(envelope)).into_response()
+        }
+        ConvertOutcome::Redirect(target) => Redirect::to(&target).into_response(),
+        ConvertOutcome::NoAmp => no_amp_response(),
+    }
+}
+
+fn missing_query_response() -> Response {
+    error_response(
+        StatusCode::BAD_REQUEST,
+        "api_error_required_field_missing",
+        "Error: No query field provided. Set `query` in the JSON body.",
+    )
+}
+
+fn no_amp_response() -> Response {
+    error_response(
         StatusCode::NOT_ACCEPTABLE,
         "error_no_amp",
         "Error: Entry doesn't meet criteria (no AMP link detected)",
     )
 }
 
-fn error_response_v1(status: StatusCode, result_code: &str, message: &str) -> Response {
+fn error_response(status: StatusCode, result_code: &str, message: &str) -> Response {
+    // Error keys are already valid camelCase identifiers; emit directly.
     (
         status,
         Json(json!({
-            "error_message": message,
-            "result_code": result_code,
+            "errorMessage": message,
+            "resultCode": result_code,
         })),
     )
         .into_response()
 }
 
-/// Compile-time check that production types satisfy the trait bounds the
-/// generic handler requires. Cheaper than a runtime smoke test.
-#[allow(dead_code)]
-fn _assert_app_state_satisfies_bounds(state: AppState) {
-    fn takes<P: PageSource, D: Database>(_p: &P, _d: &D) {}
-    takes::<HttpFetcher, PgDatabase>(&state.fetcher, &state.db);
+/// Recursively rename object keys from `snake_case` to `camelCase`.
+///
+/// Used by the response renderer so the snake_case [`crate::models`] types
+/// (kept that way for v1 compatibility) come out camelCase on the wire.
+/// Cost: one Value clone + tree walk per response. Negligible vs. the
+/// canonical-finding work that produced the data.
+fn camelize(value: Value) -> Value {
+    match value {
+        Value::Object(map) => Value::Object(
+            map.into_iter()
+                .map(|(k, v)| (snake_to_camel(&k), camelize(v)))
+                .collect(),
+        ),
+        Value::Array(arr) => Value::Array(arr.into_iter().map(camelize).collect()),
+        other => other,
+    }
+}
+
+fn snake_to_camel(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut capitalize = false;
+    for c in s.chars() {
+        if c == '_' {
+            capitalize = true;
+        } else if capitalize {
+            out.push(c.to_ascii_uppercase());
+            capitalize = false;
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn snake_to_camel_basics() {
+        assert_eq!(snake_to_camel("is_amp"), "isAmp");
+        assert_eq!(snake_to_camel("url_similarity"), "urlSimilarity");
+        assert_eq!(snake_to_camel("amp_canonical"), "ampCanonical");
+        // Already camel / single word — pass through unchanged.
+        assert_eq!(snake_to_camel("origin"), "origin");
+        assert_eq!(snake_to_camel("canonical"), "canonical");
+    }
+
+    #[test]
+    fn snake_to_camel_handles_trailing_underscore() {
+        // serde's `#[serde(rename = "type")]` on Canonical.type_ already
+        // hides the trailing underscore from JSON output, but be defensive.
+        assert_eq!(snake_to_camel("foo_"), "foo");
+    }
+
+    #[test]
+    fn camelize_walks_nested_objects() {
+        let input = json!({
+            "amp_canonical": null,
+            "canonical": {
+                "url_similarity": 0.95,
+                "is_amp": false
+            },
+            "canonicals": [
+                { "is_alt": true, "url_similarity": 0.5 }
+            ],
+            "origin": { "is_amp": true, "is_cached": false }
+        });
+        let out = camelize(input);
+        assert_eq!(out["ampCanonical"], Value::Null);
+        assert_eq!(out["canonical"]["urlSimilarity"], 0.95);
+        assert_eq!(out["canonical"]["isAmp"], false);
+        assert_eq!(out["canonicals"][0]["isAlt"], true);
+        assert_eq!(out["origin"]["isCached"], false);
+    }
 }

@@ -1,6 +1,6 @@
 ![#AmputatorBot](praw-python-archive/img/amputatorbot_logo_banner.png)
 
-TL;DR: Remove AMP from your URLs. [AmputatorBot](https://github.com/jvdburgh/AmputatorBot) is a [Reddit](https://www.reddit.com/user/AmputatorBot) bot that automatically replies to comments and submissions containing AMP URLs with the canonical link(s). It's also available as a [website](https://www.amputatorbot.com/) and a [free REST API](https://www.amputatorbot.com/api/docs).
+TL;DR: Remove AMP from your URLs — to push back on Google's power over independent publishers, protect user privacy, and support the Open Web. [AmputatorBot](https://github.com/jvdburgh/AmputatorBot) is a [Reddit](https://www.reddit.com/user/AmputatorBot) bot that automatically replies to comments and submissions containing AMP URLs with the canonical link(s). It's also available as a [website](https://www.amputatorbot.com/) and a [free REST API](https://www.amputatorbot.com/api/docs).
 
 [**FAQ & Why**](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/) · [**Changelog**](https://www.reddit.com/r/AmputatorBot/comments/ch9fxp/changelog_of_amputatorbot/) · [**Community**](https://www.reddit.com/r/AmputatorBot/)
 

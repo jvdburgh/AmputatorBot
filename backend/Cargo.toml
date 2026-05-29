@@ -2,7 +2,7 @@
 name = "amputatorbot-backend"
 version = "5.0.0"
 edition = "2024"
-license = "MIT"
+license = "GPL-3.0-or-later"
 publish = false
 description = "Rust backend for AmputatorBot — Devvit-era. Replaces the legacy Flask backend."
 # `cargo run` without `--bin` picks this. Two binaries (the server +
@@ -36,10 +36,13 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 clap = { version = "4", features = ["derive"] }
 csv = "1"
 futures = "0.3"
-# OpenAPI spec generation + Scalar UI. `axum_extras` enables param-derive
-# helpers; `chrono` matches the version we already pull in.
+# OpenAPI spec generation. The Scalar UI is served directly via a static
+# HTML page (`res/scalar.html` → `mod.rs::scalar_page`) using Scalar's CDN
+# bundle, with the spec JSON served separately at `/api/openapi-v*.json`
+# — that's how the multi-source version switcher gets both specs.
+# `axum_extras` enables param-derive helpers; `chrono` matches the version
+# we already pull in.
 utoipa = { version = "5", features = ["axum_extras", "chrono"] }
-utoipa-scalar = { version = "0.3", features = ["axum"] }
 
 [dev-dependencies]
 insta = { version = "1", features = ["json"] }

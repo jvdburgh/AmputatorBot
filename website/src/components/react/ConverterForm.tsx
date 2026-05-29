@@ -157,17 +157,16 @@ export default function ConverterForm() {
       <CardContent className="space-y-4 py-6">
         <form id={formId} ref={formRef} onSubmit={onSubmit} className="space-y-3">
           <label htmlFor={`${formId}-q`} className="sr-only">
-            AMP URL
+            AMP URL or text containing one
           </label>
           <Input
             id={`${formId}-q`}
             ref={queryInputRef}
             name="q"
-            type="url"
+            type="text"
             required
-            inputMode="url"
             autoComplete="off"
-            placeholder="https://www.google.com/amp/s/example.eu/article/amp/"
+            placeholder="Paste a URL — or text containing one (e.g. a Reddit comment)"
             disabled={resolve.status === 'pending'}
             className="h-12 text-base md:text-base"
           />
@@ -235,7 +234,7 @@ export default function ConverterForm() {
                 />
                 <span>
                   <span className="font-medium">Forward me to the canonical.</span> After resolving,
-                  navigate this tab to the canonical URL automatically — like the legacy
+                  navigate this tab to the canonical URL automatically.
                   <code className="mx-1">?r=true</code>flag.
                 </span>
               </label>
@@ -339,7 +338,7 @@ function RedditCommentPanel({ markdown }: { markdown: string }) {
   return (
     <div className="rounded-md border border-border bg-card p-4 text-sm">
       <p className="text-xs uppercase tracking-wide text-muted-foreground">
-        Reddit comment (copy-paste-ready)
+        Reddit comment (Markdown)
       </p>
       <textarea
         readOnly
@@ -457,7 +456,7 @@ function HowWeFoundIt({
           Article-text similarity to the original page:{' '}
           <span className="font-mono text-foreground">{(urlSimilarity * 100).toFixed(0)}%</span>{' '}
           <span className="text-muted-foreground">
-            (1.0 = identical text; we accept above 35% with a "low confidence" flag, above 60% as
+            (100% = identical text; we accept above 35% with a "low confidence" flag, above 60% as
             high confidence)
           </span>
           .
@@ -513,7 +512,7 @@ function CopyButton({ value }: { value: string }) {
     try {
       await navigator.clipboard.writeText(value);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      setTimeout(() => setCopied(false), 3000);
     } catch {
       // Older browsers / permission denied — silently ignore. The user can
       // still select-and-copy from the link text.
@@ -523,7 +522,7 @@ function CopyButton({ value }: { value: string }) {
     <Button
       type="button"
       onClick={copy}
-      variant={copied ? 'secondary' : 'default'}
+      variant={copied ? 'secondary' : 'outline'}
       size="default"
       className={cn('w-full sm:w-auto', copied && 'bg-emerald-100 text-emerald-900')}
       aria-label="Copy canonical URL"

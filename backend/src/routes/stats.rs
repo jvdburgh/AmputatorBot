@@ -18,8 +18,8 @@ use crate::state::AppState;
 #[derive(Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct StatsResponse {
-    /// Total rows in `links` — counts every resolution the bot has ever
-    /// written, including the legacy CSV-imported corpus.
+    /// Total rows in `links` — every resolution (successful and failed)
+    /// the bot has recorded since 2019.
     pub converted_total: i64,
 }
 
@@ -29,7 +29,7 @@ pub struct StatsResponse {
     tag = "system",
     responses(
         (status = 200, description = "Aggregate counters (cached 1h)", body = StatsResponse),
-        (status = 500, description = "Stats unavailable", body = crate::routes::error::ErrorResponseV2),
+        (status = 500, description = "Stats unavailable", body = crate::routes::error::ErrorResponse),
     )
 )]
 pub async fn handler(
