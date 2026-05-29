@@ -35,6 +35,53 @@ As of v5, the bot is a [Devvit](https://developers.reddit.com/) app (Reddit's of
 - ~1.7M historical conversions cached in Postgres for instant lookups.
 - Free, open, no-auth REST API at `/api/v2/convert` (camelCase JSON in/out). Both encoded and unencoded URLs work. Docs at [`/api/docs`](https://www.amputatorbot.com/api/docs) (Scalar).
 
+## Repo structure
+
+This is a monorepo. Each part can be developed independently:
+
+- **[`backend/`](backend/)** — Rust + Axum service. Hosts the `/api/v2/convert` endpoint (plus the legacy `/api/v1/convert`), the canonical-finding engine, the Scalar API docs at `/api/docs`, and serves the website's static files from the same binary.
+- **[`devvit-app/`](devvit-app/)** — TypeScript Devvit app. Listens to comment and post triggers and replies per opt-in subreddit.
+- **[`website/`](website/)** — Astro 5 + Tailwind 4 + shadcn/ui frontend.
+- **[`praw-python-archive/`](praw-python-archive/)** — the original Python bot (PRAW + Flask). Read-only reference. See [`praw-python-archive/README-legacy.md`](praw-python-archive/README-legacy.md) for the original project README.
+- **[`.claude/skills/amputatorbot-migration/`](.claude/skills/amputatorbot-migration/)** — the migration plan v7, with locked decisions and milestones M1–M6.
+
+## Tools we use
+
+A small, specific toolchain. None of it is exotic — `mise` and `just` together replace what'd otherwise be ten one-off install steps:
+
+- **[mise](https://mise.jdx.dev)** — pins Rust stable, Node 22, pnpm 11, just, and lefthook for this repo. `mise install` reproduces the whole toolchain from `mise.toml`.
+- **[just](https://github.com/casey/just)** — task runner. Every subproject has its own `justfile`. `just <recipe>` from the repo root fans out to all three projects where it makes sense. Try `just --list`.
+- **[pnpm](https://pnpm.io)** — workspace package manager for `devvit-app/` and `website/`. `pnpm install` from the repo root sets both up.
+- **[cargo](https://doc.rust-lang.org/cargo/)** — Rust's build + test runner. We add **[cargo-nextest](https://nexte.st)** (faster tests + per-test isolation) and **[cargo-deny](https://embarkstudios.github.io/cargo-deny/)** (license + vuln audit).
+- **[biome](https://biomejs.dev)** — TypeScript/JavaScript formatter + linter, in one fast Rust binary. Replaces ESLint + Prettier.
+- **[lefthook](https://lefthook.dev)** — git hook manager. `just setup` registers it so `biome` and `rustfmt`+`clippy` run on staged files at commit time.
+- **Docker** — only needed for the local Postgres 17 that `just db-up` boots.
+
+## Getting started
+
+```bash
+git clone https://github.com/jvdburgh/AmputatorBot
+cd AmputatorBot
+
+# Install pinned toolchains + register git hooks
+mise install
+just setup
+
+# Boot Postgres 17 in Docker and seed the 10k-row historical sample
+just db-up
+just db-seed
+
+# Run backend + website (cargo-watch rebuilds on save)
+just backend-dev
+```
+
+Open:
+
+- Website: `http://localhost:8080`
+- API docs (Scalar): `http://localhost:8080/api/docs`
+
+Then click around the Scalar UI to call `POST /api/v2/convert`, or curl directly as shown under [The REST API](#the-rest-api) below.
+
 ## The Reddit app
 
 The Devvit app lives in [`devvit-app/`](devvit-app/) (TypeScript, `@devvit/web`). It's a per-subreddit Reddit app: mods install it on subs they moderate, and the bot replies to AMP URLs in comments and posts on those subs only.
@@ -66,7 +113,7 @@ Devvit apps can only fetch from domains they've gotten allow-listed by Reddit. S
 
 ### Per-install identity
 
-In Devvit's model, each install posts under a per-install app identity rather than `u/AmputatorBot`. That's how Devvit works — it's not negotiable. Functionally the bot replies the same way; the username next to the reply is just per-subreddit now.
+In Devvit's model, each install posts under a per-install app identity rather than `u/AmputatorBot`. That's how Devvit works. Functionally, the bot replies the same way; the username next to the reply is just per-subreddit now.
 
 ### Local playtest
 
@@ -84,19 +131,27 @@ just playtest   # installs the dev build on r/AmputatorBotTest
 
 Override the playtest subreddit with `SUB=foo just playtest`.
 
+### Tests
+
+`cd devvit-app && just test` — Vitest covers AMP-detection mirror, URL extraction mirror, reply markdown (snapshot-pinned), and the trigger handler with a mocked Reddit context.
+
 ## The website
 
 Astro 5 + Tailwind 4 + shadcn/ui at [www.amputatorbot.com](https://www.amputatorbot.com/). Includes the URL converter form (paste a URL, get the canonical), a live "X converted so far" badge backed by `/api/v1/stats`, and explainer sections sourced from the FAQ Reddit thread. Lives in [`website/`](website/).
 
 The Astro static bundle is built into the Rust backend's container image (see [`backend/Dockerfile`](backend/Dockerfile)) and served from the same binary via `tower-http::ServeDir`. One service, one deploy.
 
-### Local dev (Astro only)
+### Local dev
 
 ```bash
 cd website && just dev
 ```
 
-Runs the Astro dev server on its own. No backend, no DB needed — but the converter form won't work without the API on the same origin. For the full stack, see [Getting started](#getting-started) below.
+Runs the Astro dev server on its own. No backend, no DB needed — but the converter form won't work without the API on the same origin. For the full stack, see [Getting started](#getting-started) above.
+
+### Tests
+
+`cd website && just test` — Vitest, light unit coverage on the React islands.
 
 ## The REST API
 
@@ -156,62 +211,13 @@ The DATABASE-method query in `backend/src/canonical/pg_database.rs` uses the com
 
 When you change any `sqlx::query!` SQL or the schema: re-run `cargo sqlx prepare` from `backend/` (with `DATABASE_URL` set and PG running) and commit the updated `.sqlx/` JSON. CI fails if `.sqlx/` drifts from the actual queries.
 
-## Repo structure
+### Tests
 
-This is a monorepo. Each part can be developed independently:
+Three layers in the backend:
 
-- **[`backend/`](backend/)** — Rust + Axum service. Hosts the `/api/v2/convert` endpoint (plus the legacy `/api/v1/convert`), the canonical-finding engine, the Scalar API docs at `/api/docs`, and serves the website's static files from the same binary.
-- **[`devvit-app/`](devvit-app/)** — TypeScript Devvit app. Listens to comment and post triggers and replies per opt-in subreddit.
-- **[`website/`](website/)** — Astro 5 + Tailwind 4 + shadcn/ui frontend.
-- **[`praw-python-archive/`](praw-python-archive/)** — the original Python bot (PRAW + Flask). Read-only reference. See [`praw-python-archive/README-legacy.md`](praw-python-archive/README-legacy.md) for the original project README.
-- **[`.claude/skills/amputatorbot-migration/`](.claude/skills/amputatorbot-migration/)** — the migration plan v7, with locked decisions and milestones M1–M6.
-
-## Getting started
-
-```bash
-git clone https://github.com/jvdburgh/AmputatorBot
-cd AmputatorBot
-
-# Install pinned toolchains + register git hooks
-mise install
-just setup
-
-# Boot Postgres 17 in Docker and seed the 10k-row historical sample
-just db-up
-just db-seed
-
-# Run backend + website (cargo-watch rebuilds on save)
-just backend-dev
-```
-
-Open:
-
-- Website: `http://localhost:8080`
-- API docs (Scalar): `http://localhost:8080/api/docs`
-
-Then either click around the Scalar UI to call `POST /api/v2/convert`, or curl as shown in [Smoke test](#smoke-test) above (swap the host for `localhost:8080`).
-
-## Tools we use
-
-A small, specific toolchain. None of it is exotic — `mise` and `just` together replace what'd otherwise be ten one-off install steps:
-
-- **[mise](https://mise.jdx.dev)** — pins Rust stable, Node 22, pnpm 11, just, and lefthook for this repo. `mise install` reproduces the whole toolchain from `mise.toml`.
-- **[just](https://github.com/casey/just)** — task runner. Every subproject has its own `justfile`. `just <recipe>` from the repo root fans out to all three projects where it makes sense. Try `just --list`.
-- **[pnpm](https://pnpm.io)** — workspace package manager for `devvit-app/` and `website/`. `pnpm install` from the repo root sets both up.
-- **[cargo](https://doc.rust-lang.org/cargo/)** — Rust's build + test runner. We add **[cargo-nextest](https://nexte.st)** (faster tests + per-test isolation) and **[cargo-deny](https://embarkstudios.github.io/cargo-deny/)** (license + vuln audit).
-- **[biome](https://biomejs.dev)** — TypeScript/JavaScript formatter + linter, in one fast Rust binary. Replaces ESLint + Prettier.
-- **[lefthook](https://lefthook.dev)** — git hook manager. `just setup` registers it so `biome` and `rustfmt`+`clippy` run on staged files at commit time.
-- **Docker** — only needed for the local Postgres 17 that `just db-up` boots.
-
-## Tests
-
-Three layers in the backend, one in each TypeScript project. All run via `just test` from the repo root.
-
-- **Backend unit tests** — per-module tests for AMP detection, URL extraction, the 11 canonical methods, and the orchestration loop. Mock-driven, no network, sub-second. Run via `cd backend && just test`.
-- **Backend snapshot tests** (`insta`) — pin the JSON shape of `resolve()` for ~10 representative scenarios. Catches accidental response-shape drift. Regenerate after an intentional shape change with `INSTA_UPDATE=always cargo nextest run --test snapshots` then `cargo insta review`.
-- **Backend parity tests** — replay a 10k-row legacy `URLConversions` sample against the new resolver and compare each result to what the legacy Python bot recorded. Records HTML fixtures once (`just record-fixtures`, ~1 hour), then `just parity-full` runs ~minute per run and writes `tests/parity-report.md`.
-- **Devvit-app tests** (`vitest`) — unit tests for the AMP-detection mirror, URL extraction mirror, reply markdown, and the trigger handler with a mocked Reddit context. Run via `cd devvit-app && just test`.
-- **Website tests** (`vitest`) — light unit coverage on the React islands. Run via `cd website && just test`.
+- **Unit tests** — per-module tests for AMP detection, URL extraction, the 11 canonical methods, and the orchestration loop. Mock-driven, no network, sub-second. `cd backend && just test`.
+- **Snapshot tests** (`insta`) — pin the JSON shape of `resolve()` for ~10 representative scenarios. Catches accidental response-shape drift. Regenerate after an intentional shape change with `INSTA_UPDATE=always cargo nextest run --test snapshots` then `cargo insta review`.
+- **Parity tests** — replay a 10k-row legacy `URLConversions` sample against the new resolver and compare each result to what the legacy Python bot recorded. Records HTML fixtures once (`just record-fixtures`, ~1 hour), then `just parity-full` runs ~minute per run and writes `tests/parity-report.md`.
 
 ## Support the project
 

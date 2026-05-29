@@ -90,7 +90,7 @@ describe('buildReply', () => {
     expect(reply).toContain('- **[https://example.eu/b]');
   });
 
-  it('appends the cached-AMP note when origin was cached', () => {
+  it('weaves the cached-AMP qualifier into the intro when origin was cached', () => {
     const link: Link = {
       origin: ampOrigin('https://www.google.com/amp/s/example.eu/x', true),
       canonical: canonical('https://example.eu/x', 'example', false),
@@ -98,7 +98,9 @@ describe('buildReply', () => {
       ampCanonical: null,
     };
     const reply = buildReply([link], { triggerType: 'comment' });
-    expect(reply).toContain('Fully cached AMP pages (like the one you shared)');
+    expect(reply).toContain(
+      'AMP is supposed to be faster, but it — especially cached pages like the one you shared — is controversial because of [concerns over privacy and the Open Web]',
+    );
   });
 
   it('surfaces a cross-domain alt canonical', () => {
@@ -151,13 +153,13 @@ describe('buildReply', () => {
       ampCanonical: null,
     };
     expect(buildReply([link], { triggerType: 'comment' })).toMatchInlineSnapshot(`
-      "It looks like you shared an AMP link. AMP is supposed to be faster, but it's controversial because of [concerns over privacy and the Open Web](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot). Fully cached AMP pages (like the one you shared), are [especially problematic](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot).
+      "It looks like you shared an AMP link. AMP is supposed to be faster, but it — especially cached pages like the one you shared — is controversial because of [concerns over privacy and the Open Web](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot).
 
       Maybe check out **the canonical page** instead: **[https://example.eu/article](https://example.eu/article)**
 
       *****
 
-       ^([Why & About](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[r/AmputatorBot](https://reddit.com/r/AmputatorBot)^( | )[Source](https://github.com/KilledMufasa/AmputatorBot))"
+       ^([Why & About](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot)^( | )[r/AmputatorBot](https://reddit.com/r/AmputatorBot)^( | )[Source](https://github.com/jvdburgh/AmputatorBot))"
     `);
   });
 });

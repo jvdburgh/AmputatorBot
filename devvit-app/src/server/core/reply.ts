@@ -22,7 +22,7 @@ import type { Canonical, Link } from '../backend/types.ts';
 const FAQ_LINK =
   'https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot';
 const SUB_LINK = 'https://reddit.com/r/AmputatorBot';
-const SOURCE_LINK = 'https://github.com/KilledMufasa/AmputatorBot';
+const SOURCE_LINK = 'https://github.com/jvdburgh/AmputatorBot';
 
 export type TriggerType = 'comment' | 'post';
 
@@ -71,8 +71,7 @@ export function buildReply(links: Link[], options: BuildReplyOptions): string | 
   const { who, what } = subject(options.triggerType);
   const nAmp = entries.length;
 
-  const introWhy = `AMP is supposed to be faster, but it's controversial because of [concerns over privacy and the Open Web](${FAQ_LINK}).`;
-  const cachedNote = buildCachedNote(nAmp, nCached, who, what);
+  const introWhy = buildIntroWhy(nAmp, nCached, who, what);
 
   let introWhoWhat: string;
   let introMaybe: string;
@@ -90,7 +89,7 @@ export function buildReply(links: Link[], options: BuildReplyOptions): string | 
   const customFooterPart = options.customFooter ? `^( | )${options.customFooter}` : '';
   const outro = `\n\n*****\n\n ^([Why & About](${FAQ_LINK})^( | )[r/AmputatorBot](${SUB_LINK})^( | )[Source](${SOURCE_LINK})${customFooterPart})`;
 
-  return `${introWhoWhat}${introWhy}${cachedNote}${introMaybe}${canonicalText}${outro}`;
+  return `${introWhoWhat}${introWhy}${introMaybe}${canonicalText}${outro}`;
 }
 
 function subject(t: TriggerType): { who: string; what: string } {
@@ -109,13 +108,14 @@ function altCanonicalFor(link: Link, primary: Canonical): string {
   return ` | ${domain} canonical: **[${url}](${url})**`;
 }
 
-function buildCachedNote(nAmp: number, nCached: number, who: string, what: string): string {
-  if (nCached === 0) return '';
-  let nNote: string;
-  if (nAmp === 1 && nCached === 1) nNote = 'the one';
-  else if (nAmp === nCached) nNote = 'the ones';
-  else nNote = 'some of the ones';
-  return ` Fully cached AMP pages (like ${nNote} ${who} ${what}), are [especially problematic](${FAQ_LINK}).`;
+function buildIntroWhy(nAmp: number, nCached: number, who: string, what: string): string {
+  const why = `controversial because of [concerns over privacy and the Open Web](${FAQ_LINK}).`;
+  if (nCached === 0) {
+    return `AMP is supposed to be faster, but it's ${why}`;
+  }
+  const nNote =
+    nAmp === 1 && nCached === 1 ? 'the one' : nAmp === nCached ? 'the ones' : 'some of the ones';
+  return `AMP is supposed to be faster, but it — especially cached pages like ${nNote} ${who} ${what} — is ${why}`;
 }
 
 // ASCII capitalize — matches Python's `str.capitalize()` (uppercase first char,
