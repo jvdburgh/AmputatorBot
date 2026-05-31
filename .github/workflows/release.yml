@@ -75,12 +75,11 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Update Scaleway container image
+        # `update image=…` itself triggers Scaleway's redeploy — no separate
+        # redeploy call needed; doing so races on the still-updating resource.
         run: |
           scw container container update "$SCW_CONTAINER_ID" \
             image="${REGISTRY}/${IMAGE_NAME}:${{ steps.tags.outputs.primary }}"
-
-      - name: Trigger redeploy
-        run: scw container container redeploy "$SCW_CONTAINER_ID"
 
       - name: Poll for healthy
         # Container status: ready (success) | error (deploy failed; previous
