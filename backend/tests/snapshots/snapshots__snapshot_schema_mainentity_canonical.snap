@@ -12,7 +12,10 @@ expression: link
     "is_valid": true,
     "type": "SCHEMA_MAINENTITY",
     "url": "https://example.eu/news/story",
-    "url_similarity": 0.9354838709677419
+    "url_similarity": 0.9354838709677419,
+    "article_similarity": null,
+    "confidence_score": 0.5870967741935484,
+    "confidence_level": "LIKELY"
   },
   "canonicals": [
     {
@@ -23,7 +26,10 @@ expression: link
       "is_valid": true,
       "type": "SCHEMA_MAINENTITY",
       "url": "https://example.eu/news/story",
-      "url_similarity": 0.9354838709677419
+      "url_similarity": 0.9354838709677419,
+      "article_similarity": null,
+      "confidence_score": 0.5870967741935484,
+      "confidence_level": "LIKELY"
     }
   ],
   "origin": {

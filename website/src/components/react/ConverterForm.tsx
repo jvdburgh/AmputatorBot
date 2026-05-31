@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 
 import { describeMethod } from './canonical-methods';
 import type {
+  ConfidenceLevel,
   ConvertErrorBody,
   ConvertRequestBody,
   ConvertResponseV2,
@@ -16,7 +17,7 @@ import type {
 } from './converter-types';
 
 const EXAMPLE_URL =
-  'https://www.google.com/amp/s/news.sky.com/story/amp/gravely-concerning-claims-of-russian-interference-in-general-election-to-spread-support-for-farages-reform-13161235';
+  'https://www.google.com/amp/s/www.psychologytoday.com/ca/blog/the-state-of-our-unions/202402/the-anatomy-of-an-apology/amp';
 
 // v2 schema defaults — kept in sync with `convert_v2.rs::default_*`. Source
 // of truth is the backend; we mirror them here so the form can pre-populate
@@ -217,9 +218,9 @@ export default function ConverterForm() {
                   className="mt-0.5 size-4 rounded border-border accent-brand"
                 />
                 <span>
-                  <span className="font-medium">Guess-and-check if necessary.</span> When no
-                  canonical signal is present in the page, guess the canonical from the URL pattern
-                  and verify it by article-similarity scoring.
+                  <span className="font-medium">Guess and Check</span> When no canonical signal is
+                  present in the page, guess the canonical from the URL pattern and verify it by
+                  article-similarity scoring.
                 </span>
               </label>
               <label className="flex items-start gap-2">
@@ -231,8 +232,7 @@ export default function ConverterForm() {
                 />
                 <span>
                   <span className="font-medium">Forward me to the canonical.</span> After resolving,
-                  navigate this tab to the canonical URL automatically.
-                  <code className="mx-1">?r=true</code>flag.
+                  navigate to the canonical URL automatically.
                 </span>
               </label>
               <label className="flex items-start gap-2">
@@ -244,8 +244,7 @@ export default function ConverterForm() {
                 />
                 <span>
                   <span className="font-medium">Generate Reddit comment.</span> Show a
-                  copy-paste-ready Reddit reply alongside the canonical — the same markdown the
-                  AmputatorBot bot posts when it finds an AMP URL on a subreddit it's installed in.
+                  copy-paste-ready Reddit markdown reply alongside the canonical.
                 </span>
               </label>
               <label className="flex items-center gap-2">
@@ -397,10 +396,18 @@ function LinkResult({ link }: { link: Link }) {
         <CopyButton value={chosen.url} />
       </div>
 
+      <ConfidenceBadge
+        level={chosen.confidenceLevel}
+        score={chosen.confidenceScore}
+        articleSimilarity={chosen.articleSimilarity}
+        urlSimilarity={chosen.urlSimilarity}
+        method={method}
+      />
+
       <HowWeFoundIt
         method={method}
+        articleSimilarity={chosen.articleSimilarity}
         urlSimilarity={chosen.urlSimilarity}
-        isLowConfidence={chosen.isValid === false}
         isAmpFallback={isAmpFallback}
       />
 
@@ -429,17 +436,96 @@ function LinkResult({ link }: { link: Link }) {
   );
 }
 
+interface ConfidenceBadgeProps {
+  level: ConfidenceLevel | null;
+  score: number | null;
+  articleSimilarity: number | null;
+  urlSimilarity: number | null;
+  method: ReturnType<typeof describeMethod>;
+}
+
+function ConfidenceBadge({
+  level,
+  score,
+  articleSimilarity,
+  urlSimilarity,
+  method,
+}: ConfidenceBadgeProps) {
+  if (level === null) return null;
+
+  const palette: Record<ConfidenceLevel, { dot: string; chip: string; label: string }> = {
+    VERIFIED: {
+      dot: 'bg-emerald-500',
+      chip: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+      label: 'Verified',
+    },
+    LIKELY: {
+      dot: 'bg-amber-500',
+      chip: 'bg-amber-50 text-amber-900 border-amber-200',
+      label: 'Likely',
+    },
+    UNCONFIRMED: {
+      dot: 'bg-rose-500',
+      chip: 'bg-rose-50 text-rose-900 border-rose-200',
+      label: 'Unconfirmed',
+    },
+  };
+  const tone = palette[level];
+
+  const tooltip = [
+    `Method: ${method.label}`,
+    typeof score === 'number' ? `Score: ${(score * 100).toFixed(0)}%` : null,
+    typeof articleSimilarity === 'number'
+      ? `Article similarity: ${(articleSimilarity * 100).toFixed(0)}%`
+      : 'Article similarity: not computable',
+    typeof urlSimilarity === 'number'
+      ? `URL similarity: ${(urlSimilarity * 100).toFixed(0)}%`
+      : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return (
+    <div className="mt-3 flex items-center gap-2">
+      <span
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium',
+          tone.chip,
+        )}
+        title={tooltip}
+      >
+        <span className={cn('inline-block h-1.5 w-1.5 rounded-full', tone.dot)} aria-hidden />
+        {tone.label}
+      </span>
+      <span className="text-xs text-muted-foreground">
+        {confidenceCopy(level, articleSimilarity)}
+      </span>
+    </div>
+  );
+}
+
+function confidenceCopy(level: ConfidenceLevel, articleSimilarity: number | null): string {
+  if (level === 'VERIFIED')
+    return `we fetched the canonical and its article text matches the AMP page.`;
+  if (level === 'LIKELY') {
+    return articleSimilarity === null
+      ? `we couldn't compare article content, but the URL + method are strong signals.`
+      : `the article content is similar but below the verified threshold.`;
+  }
+  return `URL was guessed without verification — may be wrong.`;
+}
+
 interface HowWeFoundItProps {
   method: ReturnType<typeof describeMethod>;
+  articleSimilarity: number | null | undefined;
   urlSimilarity: number | null | undefined;
-  isLowConfidence: boolean;
   isAmpFallback: boolean;
 }
 
 function HowWeFoundIt({
   method,
+  articleSimilarity,
   urlSimilarity,
-  isLowConfidence,
   isAmpFallback,
 }: HowWeFoundItProps) {
   return (
@@ -448,21 +534,18 @@ function HowWeFoundIt({
       <p className="mt-1 text-sm font-medium text-foreground">{method.label}</p>
       <p className="mt-1 text-muted-foreground">{method.explanation}</p>
       {method.snippet ? <Snippet code={method.snippet} language={method.snippetLanguage} /> : null}
-      {typeof urlSimilarity === 'number' ? (
+      {typeof articleSimilarity === 'number' ? (
         <p className="mt-2 text-muted-foreground">
-          Article-text similarity to the original page:{' '}
-          <span className="font-mono text-foreground">{(urlSimilarity * 100).toFixed(0)}%</span>{' '}
-          <span className="text-muted-foreground">
-            (100% = identical text; we accept above 35% with a "low confidence" flag, above 60% as
-            high confidence)
-          </span>
-          .
+          Article-content similarity:{' '}
+          <span className="font-mono text-foreground">{(articleSimilarity * 100).toFixed(0)}%</span>{' '}
+          (100% = identical text extracted from both pages).
         </p>
       ) : null}
-      {isLowConfidence ? (
-        <p className="mt-2 rounded-sm bg-amber-100 px-2 py-1 text-amber-900">
-          Low confidence — the canonical was guessed and verified, but the similarity score is in
-          the 35–60% band rather than the high-confidence zone.
+      {typeof urlSimilarity === 'number' ? (
+        <p className="mt-1 text-muted-foreground">
+          URL string similarity:{' '}
+          <span className="font-mono text-foreground">{(urlSimilarity * 100).toFixed(0)}%</span>{' '}
+          (Ratcliff-Obershelp on the URL strings).
         </p>
       ) : null}
       {isAmpFallback ? (

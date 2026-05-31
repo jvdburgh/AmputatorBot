@@ -33,6 +33,8 @@ export type UrlMeta = {
   url: string | null;
 };
 
+export type ConfidenceLevel = 'VERIFIED' | 'LIKELY' | 'UNCONFIRMED';
+
 export type Canonical = {
   domain: string | null;
   isAlt: boolean;
@@ -42,6 +44,9 @@ export type Canonical = {
   type: CanonicalType | null;
   url: string | null;
   urlSimilarity: number | null;
+  articleSimilarity: number | null;
+  confidenceScore: number | null;
+  confidenceLevel: ConfidenceLevel | null;
 };
 
 export type Link = {

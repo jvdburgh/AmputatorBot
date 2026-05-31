@@ -12,7 +12,7 @@ use std::future::{Future, ready};
 
 use anyhow::Result;
 
-use crate::models::{CanonicalType, EntryType};
+use crate::models::{CanonicalType, ConfidenceLevel, EntryType};
 
 /// One row's worth of resolution result, queued for persistence.
 ///
@@ -36,6 +36,10 @@ pub struct Resolution<'a> {
     pub original_url: &'a str,
     pub canonical_url: Option<&'a str>,
     pub canonical_type: Option<CanonicalType>,
+    pub url_similarity: Option<f64>,
+    pub article_similarity: Option<f64>,
+    pub confidence_score: Option<f64>,
+    pub confidence_level: Option<ConfidenceLevel>,
 }
 
 /// `Send + Sync` are required so this trait composes with `tokio::spawn`

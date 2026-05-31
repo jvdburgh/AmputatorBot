@@ -1,0 +1,87 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT canonical_url, url_similarity, article_similarity, confidence_score, confidence_level AS \"confidence_level: ConfidenceLevel\" FROM links WHERE original_url = $1 LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "canonical_url",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "links",
+            "name": "canonical_url"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "url_similarity",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "links",
+            "name": "url_similarity"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "article_similarity",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "links",
+            "name": "article_similarity"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "confidence_score",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "links",
+            "name": "confidence_score"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "confidence_level: ConfidenceLevel",
+        "type_info": {
+          "Custom": {
+            "name": "confidence_level",
+            "kind": {
+              "Enum": [
+                "VERIFIED",
+                "LIKELY",
+                "UNCONFIRMED"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "links",
+            "name": "confidence_level"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "8e7f39bda2063c7562a0a68580b162631900767d30202fb48126409023c5e2af"
+}

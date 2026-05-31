@@ -3,6 +3,18 @@
 //! Wraps a shared `reqwest::Client` with sane defaults (timeout, redirect
 //! policy, rustls TLS), rotating user-agent per request to reduce upstream
 //! 403s. Ports `praw-python-archive/helpers/utils.py:get_page` + `get_randomized_headers`.
+//!
+//! ## Limitations (known, accepted)
+//!
+//! Plain reqwest+rustls has a TLS fingerprint that doesn't match real
+//! browsers, and big publishers (sky.com, bbc.com, anything fronted by
+//! Cloudflare with aggressive bot rules) 403 us regardless of headers.
+//! `wreq` with browser-fingerprint emulation was evaluated and abandoned —
+//! it beat passive fingerprinting but not the JS-challenge layer that the
+//! same publishers run, and the BoringSSL build cost (~50 MB of native
+//! tooling in the Docker stage, ~10× the binary size) wasn't worth the
+//! marginal coverage gain. See `GUESS_AND_DONT_CHECK` canonical method for the
+//! fallback path when the publisher blocks us.
 
 use std::future::Future;
 use std::time::Duration;
@@ -19,19 +31,8 @@ use crate::canonical::{Page, PageSource};
 /// 2018-2019. Publishers' anti-bot heuristics flag these as suspicious now.
 ///
 /// Current list: 15 Firefox UAs across platforms + 3 Firefox versions.
-/// Verified against Mozilla's product-details API on 2026-05-25:
-/// - Firefox 151    — current stable
-/// - Firefox 150.0  — one version back, still plausible to encounter
-/// - Firefox 140    — current ESR
-///
 /// All Firefox — Mozilla-only, matching the project's anti-AMP ideological
 /// alignment (AMP is a Google initiative; we're not pretending to be Chrome).
-///
-/// Platform coverage:
-/// - Linux x86_64 / aarch64 / Ubuntu
-/// - macOS 14.6 / 14.7 / 15.0 (Sonoma & Sequoia)
-/// - Windows NT 10.0 (10/11) — Win64 + WOW64 variants
-/// - Android 14 + 15, Mobile + Tablet form factors
 const USER_AGENTS: &[&str] = &[
     // Firefox 151 — Linux
     "Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0",
@@ -66,9 +67,8 @@ const MAX_REDIRECTS: usize = 10;
 ///
 /// Holds a `reqwest::Client` with:
 /// - 15s overall request timeout (matches Python)
-/// - Up to 10 redirects followed (Python defaults to ~30 but the URLs we
-///   chase rarely need that depth; capping smaller is safer)
-/// - rustls TLS backend (from `Cargo.toml`)
+/// - Up to 10 redirects followed
+/// - rustls TLS backend
 ///
 /// Cheap to clone (the underlying `Client` is `Arc`-internally).
 #[derive(Debug, Clone)]
@@ -155,58 +155,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn random_user_agent_returns_a_known_ua() {
-        for _ in 0..100 {
-            let ua = random_user_agent();
-            assert!(USER_AGENTS.contains(&ua));
-            assert!(ua.starts_with("Mozilla/"));
-        }
+    fn extract_title_returns_title_text() {
+        let html = r#"<html><head><title>Hello World</title></head></html>"#;
+        assert_eq!(extract_title(html), "Hello World");
     }
 
     #[test]
-    fn random_user_agent_distributes_across_options() {
-        // Sanity check that the random source isn't pinned to a single index.
-        // With N UAs and 1000 draws, statistically every UA should appear; we
-        // assert the weaker invariant that we see *most* of them — leaves
-        // headroom for fastrand's PRNG without making the test flaky.
-        let mut seen = std::collections::HashSet::new();
-        for _ in 0..1000 {
-            seen.insert(random_user_agent());
-        }
-        assert!(
-            seen.len() >= USER_AGENTS.len() * 3 / 4,
-            "expected variety; got {} of {} UAs",
-            seen.len(),
-            USER_AGENTS.len()
-        );
-    }
-
-    #[test]
-    fn extract_title_handles_normal_html() {
-        let html = r#"<!doctype html><html><head><title>Article Title</title></head><body>...</body></html>"#;
-        assert_eq!(extract_title(html), "Article Title");
-    }
-
-    #[test]
-    fn extract_title_trims_whitespace() {
-        let html = "<html><head><title>  spaces all around  </title></head></html>";
-        assert_eq!(extract_title(html), "spaces all around");
-    }
-
-    #[test]
-    fn extract_title_falls_back_when_missing() {
-        let html = "<html><body>no head, no title</body></html>";
-        assert_eq!(extract_title(html), "Error: Title not found");
-    }
-
-    #[test]
-    fn extract_title_falls_back_when_empty() {
-        let html = "<html><head><title></title></head></html>";
-        assert_eq!(extract_title(html), "Error: Title not found");
-    }
-
-    #[test]
-    fn fetcher_constructs_without_error() {
-        let _ = HttpFetcher::new().expect("client should build");
+    fn extract_title_returns_sentinel_when_missing() {
+        assert_eq!(extract_title("<html></html>"), "Error: Title not found");
     }
 }

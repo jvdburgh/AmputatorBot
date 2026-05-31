@@ -69,12 +69,17 @@ where
         // `canonical_url = NULL` is meaningful: it tells the next run "we
         // tried this URL and got nothing."
         if link.origin.is_amp == Some(true) {
+            let chosen = link.canonical.as_ref();
             let resolution = Resolution {
                 entry_type: input.entry_type,
                 api_version: input.api_version,
                 original_url: url,
-                canonical_url: link.canonical.as_ref().and_then(|c| c.url.as_deref()),
-                canonical_type: link.canonical.as_ref().and_then(|c| c.type_),
+                canonical_url: chosen.and_then(|c| c.url.as_deref()),
+                canonical_type: chosen.and_then(|c| c.type_),
+                url_similarity: chosen.and_then(|c| c.url_similarity),
+                article_similarity: chosen.and_then(|c| c.article_similarity),
+                confidence_score: chosen.and_then(|c| c.confidence_score),
+                confidence_level: chosen.and_then(|c| c.confidence_level),
             };
             if let Err(e) = db.record_resolution(resolution).await {
                 tracing::warn!(error = ?e, url = %url, "record_resolution failed; continuing");

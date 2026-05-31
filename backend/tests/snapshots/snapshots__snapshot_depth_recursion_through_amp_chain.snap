@@ -12,7 +12,10 @@ expression: link
     "is_valid": true,
     "type": "REL",
     "url": "https://example.eu/article/",
-    "url_similarity": 0.6835443037974683
+    "url_similarity": 0.9310344827586207,
+    "article_similarity": null,
+    "confidence_score": 0.5862068965517242,
+    "confidence_level": "LIKELY"
   },
   "canonicals": [
     {
@@ -23,7 +26,10 @@ expression: link
       "is_valid": true,
       "type": "REL",
       "url": "https://example.eu/article/amp/",
-      "url_similarity": 0.7469879518072289
+      "url_similarity": 0.7469879518072289,
+      "article_similarity": 1.0,
+      "confidence_score": 0.9746987951807228,
+      "confidence_level": "VERIFIED"
     },
     {
       "domain": "example",
@@ -33,7 +39,10 @@ expression: link
       "is_valid": true,
       "type": "REL",
       "url": "https://example.eu/article/",
-      "url_similarity": 0.6835443037974683
+      "url_similarity": 0.9310344827586207,
+      "article_similarity": null,
+      "confidence_score": 0.5862068965517242,
+      "confidence_level": "LIKELY"
     }
   ],
   "origin": {

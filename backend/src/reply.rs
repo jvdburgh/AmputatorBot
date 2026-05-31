@@ -30,7 +30,7 @@
 //! `generateMarkdownComment` field so the resolver can return the markdown
 //! alongside the canonical-finding results.
 
-use crate::models::{Canonical, EntryType, Link};
+use crate::models::{Canonical, ConfidenceLevel, EntryType, Link};
 
 const FAQ_LINK: &str =
     "https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot";
@@ -68,11 +68,13 @@ pub fn build_reply(links: &[Link], options: &BuildReplyOptions) -> Option<String
                 .map(|a| {
                     let domain = capitalize(a.domain.as_deref().unwrap_or(""));
                     let url = a.url.as_deref().unwrap_or("");
-                    format!(" | {domain} canonical: **[{url}]({url})**")
+                    let alt_label = confidence_label(a.confidence_level);
+                    format!(" | {domain} canonical: **[{url}]({url})**{alt_label}")
                 })
                 .unwrap_or_default();
             let url = canonical.url.as_deref().unwrap_or("");
-            latest_entry = format!("**[{url}]({url})**{alt_link}");
+            let label = confidence_label(canonical.confidence_level);
+            latest_entry = format!("**[{url}]({url})**{label}{alt_link}");
             entries.push(latest_entry.clone());
         } else if let Some(amp_canonical) = &link.amp_canonical {
             let url = amp_canonical.url.as_deref().unwrap_or("");
@@ -181,6 +183,18 @@ fn alt_canonical_for<'a>(link: &'a Link, primary: &Canonical) -> Option<&'a Cano
         .find(|c| c.is_amp == Some(false) && c.domain != primary.domain)
 }
 
+/// Inline confidence label rendered alongside each canonical URL in the
+/// Reddit comment. Empty when `level` is `None` (e.g. legacy DB rows that
+/// pre-date the confidence model).
+fn confidence_label(level: Option<ConfidenceLevel>) -> String {
+    match level {
+        Some(ConfidenceLevel::Verified) => " ^(\u{2014} verified)".to_string(),
+        Some(ConfidenceLevel::Likely) => " ^(\u{2014} likely)".to_string(),
+        Some(ConfidenceLevel::Unconfirmed) => " ^(\u{2014} unconfirmed)".to_string(),
+        None => String::new(),
+    }
+}
+
 /// ASCII-only capitalize. The legacy `domain.capitalize()` is Python's
 /// equivalent — uppercase first char, lowercase the rest. Domain strings
 /// in our data are ASCII-only (we extract via `psl`), so this is fine.
@@ -221,6 +235,9 @@ mod tests {
             is_alt: false,
             type_: Some(CanonicalType::Rel),
             url_similarity: Some(1.0),
+            article_similarity: Some(0.95),
+            confidence_score: Some(0.95),
+            confidence_level: Some(ConfidenceLevel::Verified),
         }
     }
 

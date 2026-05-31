@@ -1,6 +1,6 @@
 //! Canonical-finding methods.
 //!
-//! Each method gets its own file under `methods/`. The 11 methods correspond
+//! Each method gets its own file under `methods/`. The 12 methods correspond
 //! 1:1 to the variants of [`crate::models::CanonicalType`], in priority order.
 //!
 //! Ports `praw-python-archive/helpers/canonical_methods.py:get_canonical_with_soup` —
@@ -91,11 +91,11 @@ pub fn try_method(method: CanonicalType, ctx: &MethodContext<'_>) -> Vec<String>
         CanonicalType::SchemaMainentity => schema_mainentity::find(ctx),
         CanonicalType::TcoPagetitle => tco_pagetitle::find(ctx),
         CanonicalType::MetaRedirect => meta_redirect::find(ctx),
-        // GUESS_AND_CHECK is async (issues a second HTTP fetch) and lives in
-        // `guess_and_check::find` — the orchestrator awaits it directly
-        // rather than routing through this sync dispatch. DATABASE lands
-        // with the M3 sqlx + Postgres work.
-        CanonicalType::GuessAndCheck | CanonicalType::Database => Vec::new(),
+        CanonicalType::GuessAndCheck => guess_and_check::find(ctx),
+        // DATABASE lookup is async (queries sqlx) and lives in
+        // `methods/database.rs` — the orchestrator awaits it directly
+        // rather than routing through this sync dispatch.
+        CanonicalType::Database => Vec::new(),
     }
 }
 

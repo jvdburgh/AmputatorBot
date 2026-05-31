@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO links (entry_type, original_url, canonical_url, canonical_type, api_version) VALUES ($1, $2, $3, $4, $5)",
+  "query": "INSERT INTO links (entry_type, original_url, canonical_url, canonical_type, api_version, url_similarity, article_similarity, confidence_score, confidence_level) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
   "describe": {
     "columns": [],
     "parameters": {
@@ -43,10 +43,25 @@
             }
           }
         },
-        "Int2"
+        "Int2",
+        "Float4",
+        "Float4",
+        "Float4",
+        {
+          "Custom": {
+            "name": "confidence_level",
+            "kind": {
+              "Enum": [
+                "VERIFIED",
+                "LIKELY",
+                "UNCONFIRMED"
+              ]
+            }
+          }
+        }
       ]
     },
     "nullable": []
   },
-  "hash": "4b48601868d42ad33656fe7ef6036ccd32a97cc7246f38e48f0dc799421ae18b"
+  "hash": "c0ca678d1e7a3eb4493dd888fb2368e78687370e2a0c5f674289c4b65a0fa219"
 }

@@ -12,7 +12,10 @@ expression: link
     "is_valid": true,
     "type": "META_REDIRECT",
     "url": "https://example.eu/article",
-    "url_similarity": 0.9285714285714286
+    "url_similarity": 0.9285714285714286,
+    "article_similarity": null,
+    "confidence_score": 0.4657142857142857,
+    "confidence_level": "LIKELY"
   },
   "canonicals": [
     {
@@ -23,7 +26,10 @@ expression: link
       "is_valid": true,
       "type": "META_REDIRECT",
       "url": "https://example.eu/article",
-      "url_similarity": 0.9285714285714286
+      "url_similarity": 0.9285714285714286,
+      "article_similarity": null,
+      "confidence_score": 0.4657142857142857,
+      "confidence_level": "LIKELY"
     }
   ],
   "origin": {

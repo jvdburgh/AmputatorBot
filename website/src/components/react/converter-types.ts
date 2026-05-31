@@ -16,6 +16,8 @@ export type CanonicalType =
   | 'GUESS_AND_CHECK'
   | 'DATABASE';
 
+export type ConfidenceLevel = 'VERIFIED' | 'LIKELY' | 'UNCONFIRMED';
+
 export interface UrlMeta {
   domain: string | null;
   isAmp: boolean | null;
@@ -28,6 +30,9 @@ export interface Canonical extends UrlMeta {
   isAlt: boolean;
   type: CanonicalType | null;
   urlSimilarity: number | null;
+  articleSimilarity: number | null;
+  confidenceScore: number | null;
+  confidenceLevel: ConfidenceLevel | null;
 }
 
 export interface Link {

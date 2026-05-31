@@ -1,208 +1,284 @@
-//! `GUESS_AND_CHECK` — the article-similarity fallback method.
+//! `GUESS_AND_CHECK` — heuristic URL-only AMP-variant removal.
 //!
-//! When the cheap methods (REL, OG_URL, etc.) all fail, mutate the AMP URL
-//! by stripping each AMP keyword (e.g. `amp.`, `/amp/`, `?amp=1`) in turn
-//! and fetch the result. If the mutated URL serves a page whose article
-//! text is sufficiently similar to the AMP page's article text, accept it
-//! as the canonical.
-//!
-//! Async because it issues an extra HTTP fetch per candidate. Not dispatched
-//! via [`super::try_method`] — the orchestrator awaits it directly, keeping
-//! the sync dispatch fn sync.
-//!
-//! Gated by `ctx.flags.use_gac`. The orchestrator turns this off after a
-//! non-AMP canonical is found in any earlier method, mirroring the legacy
-//! Python's `use_gac` flag.
-//!
-//! Ports `praw-python-archive/helpers/canonical_methods.py:get_can_url_with_guess_and_check`.
+//! Strips `/amp/` path segments, decodes `google.com/amp/s/` and
+//! `cdn.ampproject.org` cache hosts, drops `amp.` subdomains. The "check"
+//! happens at the orchestrator level: every candidate URL from every method
+//! is fetched and its article text compared to the origin's, with the
+//! result captured in `Canonical::confidence_*`. A `VERIFIED` result means
+//! the article match succeeded; `UNCONFIRMED` means we couldn't verify.
 
-use scraper::{Html, Selector};
 use url::Url;
 
 use super::MethodContext;
-use crate::canonical::PageSource;
-use crate::canonical::amp_detect::AMP_KEYWORDS;
-use crate::readability::{article_similarity, extract_article_text};
 
-/// Pure decision: given an origin AMP URL's HTML and a guessed canonical
-/// URL's HTML, is the guess accepted as the canonical?
-///
-/// Returns `Some(guessed_url)` if accepted, `None` otherwise.
-///
-/// Acceptance rules (port of the Python thresholds verbatim):
-/// 1. Both pages produce extractable article text.
-/// 2. Article similarity `> 0.6` → high-confidence accept.
-/// 3. Or article similarity `> 0.35` AND the guessed page contains
-///    `<link rel="amphtml" href="<origin_url>">` (a mutual back-reference
-///    confirming this is the same article).
-pub fn evaluate_guess(
-    origin_url: &str,
-    origin_html: &str,
-    guessed_url: &str,
-    guessed_html: &str,
-) -> Option<String> {
-    let origin_text = extract_article_text(origin_html)?;
-    let guessed_text = extract_article_text(guessed_html)?;
-    let similarity = article_similarity(&origin_text, &guessed_text);
-
-    tracing::debug!(%origin_url, %guessed_url, similarity, "guess_and_check evaluated");
-
-    let accepted = similarity > 0.6
-        || (similarity > 0.35 && guessed_page_links_back_to_amp(guessed_html, origin_url));
-
-    accepted.then(|| guessed_url.to_string())
+pub fn find(ctx: &MethodContext<'_>) -> Vec<String> {
+    strip_amp_variants(ctx.url)
 }
 
-/// Does the guessed page declare the origin URL as its AMP variant via
-/// `<link rel="amphtml" href="...">`? A "yes" is strong evidence both URLs
-/// describe the same article — the canonical page is pointing back at the
-/// AMP page we started from.
-fn guessed_page_links_back_to_amp(guessed_html: &str, origin_url: &str) -> bool {
-    static SELECTOR: std::sync::LazyLock<Selector> = std::sync::LazyLock::new(|| {
-        Selector::parse("link[rel=amphtml]").expect("amphtml selector")
-    });
+pub(crate) fn strip_amp_variants(url_str: &str) -> Vec<String> {
+    let Ok(parsed) = Url::parse(url_str) else {
+        return Vec::new();
+    };
 
-    let doc = Html::parse_document(guessed_html);
-    doc.select(&SELECTOR)
-        .filter_map(|el| el.value().attr("href"))
-        .any(|href| href == origin_url)
+    let mut out: Vec<String> = Vec::new();
+
+    if let Some(host) = parsed.host_str()
+        && host.ends_with(".cdn.ampproject.org")
+        && let Some(unwrapped) = unwrap_ampproject_cache(parsed.path(), parsed.query())
+    {
+        out.push(unwrapped);
+    }
+
+    if let Some(host) = parsed.host_str()
+        && (host == "google.com" || host.starts_with("www.google."))
+        && let Some(unwrapped) = unwrap_google_amp_cache(parsed.path(), parsed.query())
+    {
+        out.push(unwrapped);
+    }
+
+    if let Some(host) = parsed.host_str()
+        && (host == "bing.com" || host.starts_with("www.bing."))
+        && let Some(unwrapped) = unwrap_google_amp_cache(parsed.path(), parsed.query())
+    {
+        out.push(unwrapped);
+    }
+
+    if let Some(host) = parsed.host_str()
+        && let Some(stripped) = host.strip_prefix("amp.")
+    {
+        let mut u = parsed.clone();
+        let _ = u.set_host(Some(stripped));
+        out.push(u.to_string());
+    }
+
+    if !is_amp_cache_host(parsed.host_str()) {
+        let path = parsed.path();
+        let stripped_path = strip_amp_path_segment(path);
+        if stripped_path != path {
+            let mut u = parsed.clone();
+            u.set_path(&stripped_path);
+            out.push(u.to_string());
+        }
+    }
+
+    if let Some(stripped) = parsed.path().strip_suffix(".amp") {
+        let mut u = parsed.clone();
+        u.set_path(stripped);
+        out.push(u.to_string());
+    }
+
+    if let Some(query) = parsed.query()
+        && let Some(cleaned_query) = strip_amp_query_params(query)
+    {
+        let mut u = parsed.clone();
+        u.set_query(if cleaned_query.is_empty() {
+            None
+        } else {
+            Some(&cleaned_query)
+        });
+        out.push(u.to_string());
+    }
+
+    out.sort();
+    out.dedup();
+    out
 }
 
-/// Async wrapper — runs the guess-and-check loop, fetching each mutation.
-///
-/// Returns the first accepted canonical, or `None` if every keyword mutation
-/// either fails to fetch, returns non-200, or fails the similarity check.
-pub async fn find<P: PageSource>(ctx: &MethodContext<'_>, fetcher: &P) -> Option<String> {
-    if !ctx.flags.use_gac {
+pub(crate) fn is_amp_cache_host(host: Option<&str>) -> bool {
+    let Some(h) = host else { return false };
+    h == "google.com"
+        || h.starts_with("www.google.")
+        || h == "bing.com"
+        || h.starts_with("www.bing.")
+        || h.ends_with(".cdn.ampproject.org")
+}
+
+/// True when the URL's host is a known AMP cache. Article-text similarity
+/// is meaningless for these URLs because the cache responds with an
+/// interstitial / redirect-notice page, not the cached article — comparing
+/// that 200-byte boilerplate against the real canonical's text produces a
+/// trivially low score that misrepresents the result's correctness.
+pub(crate) fn url_is_on_cache_host(url: &str) -> bool {
+    url::Url::parse(url)
+        .ok()
+        .map(|u| is_amp_cache_host(u.host_str()))
+        .unwrap_or(false)
+}
+
+fn unwrap_ampproject_cache(path: &str, query: Option<&str>) -> Option<String> {
+    let after_prefix = path
+        .strip_prefix("/c/")
+        .or_else(|| path.strip_prefix("/v/"))?;
+    let (scheme, rest) = match after_prefix.strip_prefix("s/") {
+        Some(s) => ("https", s),
+        None => ("http", after_prefix),
+    };
+    if rest.is_empty() || rest.starts_with('/') {
         return None;
     }
+    Some(match query {
+        Some(q) => format!("{scheme}://{rest}?{q}"),
+        None => format!("{scheme}://{rest}"),
+    })
+}
 
-    for keyword in AMP_KEYWORDS {
-        if !ctx.url.contains(keyword) {
-            continue;
-        }
-        let guessed = ctx.url.replace(keyword, "");
-        if Url::parse(&guessed).is_err() {
-            continue;
-        }
-
-        let Ok(guessed_page) = fetcher.fetch(&guessed).await else {
-            continue;
-        };
-        if guessed_page.status_code != 200 {
-            continue;
-        }
-
-        if let Some(canonical) =
-            evaluate_guess(ctx.url, &ctx.page.html, &guessed, &guessed_page.html)
-        {
-            return Some(canonical);
-        }
+fn unwrap_google_amp_cache(path: &str, query: Option<&str>) -> Option<String> {
+    let after_prefix = path.strip_prefix("/amp/")?;
+    let (scheme, rest) = match after_prefix.strip_prefix("s/") {
+        Some(s) => ("https", s),
+        None => ("http", after_prefix),
+    };
+    if rest.is_empty() || rest.starts_with('/') {
+        return None;
     }
+    Some(match query {
+        Some(q) => format!("{scheme}://{rest}?{q}"),
+        None => format!("{scheme}://{rest}"),
+    })
+}
 
-    None
+fn strip_amp_path_segment(path: &str) -> String {
+    let mut out = path.replace("/amp/", "/");
+    if let Some(rest) = out.strip_suffix("/amp/") {
+        out = if rest.is_empty() {
+            "/".to_string()
+        } else {
+            rest.to_string()
+        };
+    } else if let Some(rest) = out.strip_suffix("/amp") {
+        out = if rest.is_empty() {
+            "/".to_string()
+        } else {
+            rest.to_string()
+        };
+    }
+    out
+}
+
+fn strip_amp_query_params(query: &str) -> Option<String> {
+    let mut changed = false;
+    let kept: Vec<&str> = query
+        .split('&')
+        .filter(|pair| {
+            let name = pair.split_once('=').map(|(n, _)| n).unwrap_or(pair);
+            let is_amp_param = name == "amp"
+                || name.ends_with("_amp")
+                || (name == "output" && *pair == "output=amp");
+            if is_amp_param {
+                changed = true;
+            }
+            !is_amp_param
+        })
+        .collect();
+    changed.then(|| kept.join("&"))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // Wrap multi-paragraph article text in minimal HTML so dom_smoothie
-    // recognizes it as article content (needs at least <html>/<body> + enough
-    // paragraph text to clear its scoring heuristics).
-    fn article_html(body: &str) -> String {
-        format!(
-            r#"<!doctype html><html><head><title>x</title></head><body><article>{body}</article></body></html>"#
-        )
-    }
-
-    fn many_paragraphs() -> String {
-        // Five paragraphs of unique content per article. dom_smoothie has
-        // length-based heuristics; very short text gets rejected as "thin".
-        let p = "<p>Tesla unveiled the Model 3 production line today in Fremont. Workers are assembling vehicles inside a temporary tent erected outside the main factory. Elon Musk announced the milestone on Twitter early in the morning. Production rates have climbed to over five thousand cars per week.</p>";
-        format!("{p}{p}{p}{p}{p}")
+    #[test]
+    fn unwraps_google_amp_cache_https() {
+        let result = strip_amp_variants(
+            "https://www.google.com/amp/s/www.pbs.org/newshour/politics/article",
+        );
+        assert!(result.contains(&"https://www.pbs.org/newshour/politics/article".to_string()));
     }
 
     #[test]
-    fn accepts_when_similarity_above_high_threshold() {
-        let origin = article_html(&many_paragraphs());
-        let guessed = article_html(&many_paragraphs());
-        let result = evaluate_guess(
-            "https://amp.example.eu/article",
-            &origin,
-            "https://example.eu/article",
-            &guessed,
-        );
-        assert_eq!(result.as_deref(), Some("https://example.eu/article"));
+    fn unwraps_bing_amp_cache() {
+        let result = strip_amp_variants("https://www.bing.com/amp/s/example.com/article");
+        assert!(result.contains(&"https://example.com/article".to_string()));
     }
 
     #[test]
-    fn rejects_when_similarity_below_low_threshold() {
-        let origin = article_html(
-            "<p>The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog.</p>",
+    fn unwraps_cdn_ampproject_org() {
+        let result = strip_amp_variants(
+            "https://www-pbs-org.cdn.ampproject.org/c/s/www.pbs.org/newshour/politics/article",
         );
-        let guessed = article_html(
-            "<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.</p>",
-        );
-        let result = evaluate_guess(
-            "https://amp.example.eu/x",
-            &origin,
-            "https://example.eu/x",
-            &guessed,
-        );
-        assert!(result.is_none());
+        assert!(result.contains(&"https://www.pbs.org/newshour/politics/article".to_string()));
     }
 
     #[test]
-    fn accepts_in_mid_band_when_amphtml_links_back() {
-        // Build two articles with moderate similarity. Pad with enough shared
-        // content to land in 0.35-0.6 range, then prove the rel=amphtml back-
-        // reference flips the verdict to accept.
-        let shared = "Tesla announced today they have started Model 3 production using new robotic assembly lines in their Fremont factory.";
-        let origin = article_html(&format!(
-            "<p>{shared}</p><p>This AMP version has additional ad-network paragraphs and tracking widgets injected by the AMP cache that won't appear in the canonical desktop article view.</p><p>More junk text specific to the AMP path that the canonical doesn't contain.</p>"
-        ));
-        let guessed = format!(
-            r#"<!doctype html><html><head><title>x</title><link rel="amphtml" href="https://amp.example.eu/article"></head><body><article><p>{shared}</p><p>Desktop version with totally different supporting content compared to the AMP page, including charts and an editorial sidebar that aren't replicated on AMP.</p><p>Another desktop-only paragraph to keep similarity in the mid-band.</p></article></body></html>"#
-        );
+    fn strips_amp_subdomain() {
+        let result = strip_amp_variants("https://amp.example.com/news/story");
+        assert!(result.contains(&"https://example.com/news/story".to_string()));
+    }
 
-        // First sanity-check we're in the mid-band; if we're not the test is
-        // misconfigured.
-        let origin_text = extract_article_text(&origin).expect("origin extracts");
-        let guessed_text = extract_article_text(&guessed).expect("guessed extracts");
-        let s = article_similarity(&origin_text, &guessed_text);
+    #[test]
+    fn strips_amp_path_segment_in_middle() {
+        let result = strip_amp_variants("https://news.sky.com/story/amp/article-13161235");
+        assert!(result.contains(&"https://news.sky.com/story/article-13161235".to_string()));
+    }
+
+    #[test]
+    fn strips_amp_extension() {
+        let result = strip_amp_variants("https://bbc.com/news/articles/cxyz.amp");
+        assert!(result.contains(&"https://bbc.com/news/articles/cxyz".to_string()));
+    }
+
+    #[test]
+    fn strips_amp_query_param() {
+        let result = strip_amp_variants("https://example.com/article?hs_amp=true");
+        assert!(result.contains(&"https://example.com/article".to_string()));
+    }
+
+    #[test]
+    fn returns_empty_on_invalid_url() {
+        assert!(strip_amp_variants("not a url").is_empty());
+    }
+
+    #[test]
+    fn does_not_strip_amp_inside_a_word() {
+        let result = strip_amp_variants("https://example.com/sports/champion");
+        assert!(result.is_empty());
+    }
+
+    /// Path-strip rule must NOT fire when the host is itself an AMP cache —
+    /// e.g. for `google.com/amp/s/<pub>/.../amp/...` blindly replacing
+    /// `/amp/` in the path would produce a garbage Google URL like
+    /// `google.com/s/<pub>/...`. Cache decoders handle cache hosts; path-strip
+    /// only runs once we've unwrapped to the publisher's URL.
+    #[test]
+    fn skips_path_strip_on_cache_host() {
+        let result =
+            strip_amp_variants("https://www.google.com/amp/s/news.sky.com/story/amp/article");
+        // The cache-unwrap rule should still fire.
+        assert!(result.contains(&"https://news.sky.com/story/amp/article".to_string()));
+        // The garbage path-strip result must NOT be present.
         assert!(
-            (0.35..=0.6).contains(&s),
-            "test misconfigured — needs mid-band similarity, got {s}"
+            !result
+                .iter()
+                .any(|u| u.starts_with("https://www.google.com/s/")),
+            "path-strip leaked on cache host: {result:?}"
         );
-
-        let result = evaluate_guess(
-            "https://amp.example.eu/article",
-            &origin,
-            "https://example.eu/article",
-            &guessed,
-        );
-        assert_eq!(result.as_deref(), Some("https://example.eu/article"));
     }
 
     #[test]
-    fn detects_amphtml_back_reference() {
-        let html =
-            r#"<html><head><link rel="amphtml" href="https://amp.example.eu/x"></head></html>"#;
-        assert!(guessed_page_links_back_to_amp(
-            html,
-            "https://amp.example.eu/x"
+    fn url_is_on_cache_host_matches_known_caches() {
+        assert!(url_is_on_cache_host("https://www.google.com/amp/s/x/y"));
+        assert!(url_is_on_cache_host("https://www.bing.com/amp/s/x/y"));
+        assert!(url_is_on_cache_host(
+            "https://www-pbs-org.cdn.ampproject.org/c/s/x/y"
         ));
-        assert!(!guessed_page_links_back_to_amp(html, "https://other.com/x"));
+        assert!(!url_is_on_cache_host("https://news.sky.com/story/article"));
+        assert!(!url_is_on_cache_host("https://example.com/article"));
+        assert!(!url_is_on_cache_host("not a url"));
     }
 
     #[test]
-    fn detects_amphtml_back_reference_returns_false_when_absent() {
-        let html =
-            r#"<html><head><link rel="canonical" href="https://example.eu/x"></head></html>"#;
-        assert!(!guessed_page_links_back_to_amp(
-            html,
-            "https://amp.example.eu/x"
-        ));
+    fn skips_path_strip_on_cdn_ampproject_host() {
+        let result = strip_amp_variants(
+            "https://www-news-example-com.cdn.ampproject.org/c/s/news.example.com/story/amp/article",
+        );
+        // Cache-unwrap fires.
+        assert!(result.contains(&"https://news.example.com/story/amp/article".to_string()));
+        // Path-strip on the cdn.ampproject.org host should NOT fire.
+        assert!(
+            !result
+                .iter()
+                .any(|u| u.contains("cdn.ampproject.org") && !u.contains("/amp/")),
+            "path-strip leaked on cdn host: {result:?}"
+        );
     }
 }

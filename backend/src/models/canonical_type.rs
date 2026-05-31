@@ -24,6 +24,18 @@ pub enum CanonicalType {
 }
 
 impl CanonicalType {
+    pub fn confidence_weight(self) -> f64 {
+        match self {
+            Self::Rel | Self::Canurl | Self::OgUrl | Self::SchemaMainentity | Self::Database => 1.0,
+            Self::GoogleManualRedirect
+            | Self::GoogleJsRedirect
+            | Self::BingOriginalUrl
+            | Self::TcoPagetitle
+            | Self::MetaRedirect => 0.7,
+            Self::GuessAndCheck => 0.3,
+        }
+    }
+
     /// Iterate over every variant in priority order — the resolver's
     /// main loop walks this constant in sequence.
     pub const ALL: [CanonicalType; 11] = [

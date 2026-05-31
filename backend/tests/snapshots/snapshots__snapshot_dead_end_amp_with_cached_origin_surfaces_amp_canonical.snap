@@ -3,17 +3,20 @@ source: tests/snapshots.rs
 expression: link
 ---
 {
-  "amp_canonical": {
+  "amp_canonical": null,
+  "canonical": {
     "domain": "example",
     "is_alt": false,
-    "is_amp": true,
-    "is_cached": false,
+    "is_amp": false,
+    "is_cached": null,
     "is_valid": true,
-    "type": "REL",
-    "url": "https://example.eu/article/amp/",
-    "url_similarity": 0.7469879518072289
+    "type": "GUESS_AND_CHECK",
+    "url": "https://example.eu/article/",
+    "url_similarity": 0.9310344827586207,
+    "article_similarity": null,
+    "confidence_score": 0.3062068965517242,
+    "confidence_level": "UNCONFIRMED"
   },
-  "canonical": null,
   "canonicals": [
     {
       "domain": "example",
@@ -23,7 +26,23 @@ expression: link
       "is_valid": true,
       "type": "REL",
       "url": "https://example.eu/article/amp/",
-      "url_similarity": 0.7469879518072289
+      "url_similarity": 0.7469879518072289,
+      "article_similarity": 1.0,
+      "confidence_score": 0.9746987951807228,
+      "confidence_level": "VERIFIED"
+    },
+    {
+      "domain": "example",
+      "is_alt": false,
+      "is_amp": false,
+      "is_cached": null,
+      "is_valid": true,
+      "type": "GUESS_AND_CHECK",
+      "url": "https://example.eu/article/",
+      "url_similarity": 0.9310344827586207,
+      "article_similarity": null,
+      "confidence_score": 0.3062068965517242,
+      "confidence_level": "UNCONFIRMED"
     }
   ],
   "origin": {

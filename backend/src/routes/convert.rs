@@ -146,10 +146,23 @@ pub struct Canonical {
     pub type_: Option<CanonicalType>,
     /// The resolved canonical URL.
     pub url: Option<String>,
-    /// Article-text similarity score (0–1) against the origin. Only set
-    /// when the candidate came from the `GUESS_AND_CHECK` method —
-    /// `null` for every other method.
+    /// Ratcliff-Obershelp string similarity (0–1) between the candidate URL
+    /// and the input URL the resolver was working from.
     pub url_similarity: Option<f64>,
+    /// Ratcliff-Obershelp similarity (0–1) between the article text extracted
+    /// from the origin page and the article text extracted from the candidate
+    /// canonical's page. `null` when either side had no extractable article
+    /// (e.g. origin was a Google AMP-cache interstitial, or the candidate
+    /// fetch was blocked/4xx).
+    pub article_similarity: Option<f64>,
+    /// Combined confidence score (0–1). Formula: when article similarity is
+    /// available, `0.7 * article + 0.2 * method_weight + 0.1 * url`; otherwise
+    /// `min(0.6, 0.4 * method_weight + 0.2 * url)` — so a result can never
+    /// be `VERIFIED` without an article-content match.
+    pub confidence_score: Option<f64>,
+    /// Bucketed `confidence_score`: `VERIFIED` (≥ 0.65), `LIKELY` (≥ 0.35),
+    /// or `UNCONFIRMED` (< 0.35).
+    pub confidence_level: Option<crate::models::ConfidenceLevel>,
 }
 
 /// Parsed metadata about an input URL — the shape used by `Link.origin`.

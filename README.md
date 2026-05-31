@@ -9,15 +9,11 @@ and replies with the canonical URL(s).
 The core of AmputatorBot is a free public REST API, available at
 [amputatorbot.com/api/docs](https://www.amputatorbot.com/api/docs).
 It handles the canonical URL conversion, and powers both the
-Reddit app and [amputatorbot.com](https://www.amputatorbot.com/).
+Reddit app and [amputatorbot.com](https://www.amputatorbot.com/).  It's way overengineered with [Rust](https://rust-lang.org/) 
+(because it's fun, fast, and prevents memory leaks) and 130+ tests.
 
-Written in [Rust](https://rust-lang.org/) because it's fun, fast, and prevents memory leaks.
-`/api/v2/convert` is the primary endpoint, while `/api/v1/convert` remains available for backwards compatibility.
-
-The original Python + Flask implementation is preserved in
-[`praw-python-archive/`](praw-python-archive/) for historical reference.
-
-Since 2019.
+The original Python + Flask implementation, whose development began in 2019,
+has been preserved in [`praw-python-archive/`](praw-python-archive/) for historical reference.
 
 [**FAQ & Why**](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/) · [**Changelog**](https://www.reddit.com/r/AmputatorBot/comments/ch9fxp/changelog_of_amputatorbot/) · [**Community**](https://www.reddit.com/r/AmputatorBot/)
 
@@ -172,7 +168,7 @@ Scalar UI at [`/api/docs`](https://www.amputatorbot.com/api/docs) — try-it-now
 If you'd rather curl than click:
 
 ```bash
-URL='https://www.google.com/amp/s/news.sky.com/story/amp/gravely-concerning-claims-of-russian-interference-in-general-election-to-spread-support-for-farages-reform-13161235'
+URL='https://www.google.com/amp/s/www.psychologytoday.com/ca/blog/the-state-of-our-unions/202402/the-anatomy-of-an-apology/amp'
 
 # v2 — `jq -nc` safely injects the URL as JSON.
 curl -s -X POST -H 'Content-Type: application/json' \

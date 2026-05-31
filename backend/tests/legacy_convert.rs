@@ -198,9 +198,11 @@ async fn happy_path_unencoded_url_returns_200() {
 
 #[tokio::test]
 async fn no_canonical_found_returns_200_with_null_canonical() {
-    // AMP origin, fetch succeeds, but the page has no canonical signals.
+    // AMP origin (matched via the `amp` substring inside "champion-amp"),
+    // fetch succeeds, but no canonical signals AND no GUESS_AND_CHECK strip
+    // pattern fires on this URL — so the resolver legitimately finds nothing.
     // v7 decision: 200 + null canonical (not the legacy 560).
-    let amp = "https://www.google.com/amp/s/example.eu/empty";
+    let amp = "https://example.eu/champion-amp/article-2024";
     let fetcher = MockPageSource::new().with(amp, "<html><body>nothing here</body></html>");
     let db = RecordingDatabase::default();
 
@@ -239,7 +241,10 @@ async fn redirect_mode_303_to_canonical() {
 
 #[tokio::test]
 async fn redirect_mode_without_canonical_falls_through_to_200() {
-    let amp = "https://www.google.com/amp/s/example.eu/empty";
+    // Same "no-canonical" scenario as above — AMP-detected by substring but
+    // nothing the resolver can extract or strip. `r=true` must fall through
+    // to 200 (not 303) since there's no target to redirect to.
+    let amp = "https://example.eu/champion-amp/article-2024";
     let fetcher = MockPageSource::new().with(amp, "<html><body>nothing</body></html>");
     let db = RecordingDatabase::default();
 

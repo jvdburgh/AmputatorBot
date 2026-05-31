@@ -18,7 +18,7 @@ export const CANONICAL_METHODS: Record<string, MethodInfo> = {
     label: 'HTML canonical tag',
     summary: 'The page declared its own canonical URL.',
     explanation:
-      'Inside the AMP page\'s <head> we find a <link rel="canonical"> tag. This is the strongest signal — the publisher is telling browsers and search engines what they consider the real URL.',
+      'The AMP page\'s <head> contains a <link rel="canonical"> tag. The publisher is telling browsers and search engines directly which URL is the real one, so we use it as-is.',
     snippet: '<link rel="canonical" href="https://example.com/article" />',
     snippetLanguage: 'html',
   },
@@ -26,7 +26,7 @@ export const CANONICAL_METHODS: Record<string, MethodInfo> = {
     label: 'canurl URL parameter',
     summary: 'The AMP URL carries a canurl pointing at the real page.',
     explanation:
-      'Some CMS-generated AMP variants append a "canurl" query parameter to the AMP URL itself. If we find one, we use its value directly — the publisher already encoded the answer in the link.',
+      'Some CMSes append a "canurl" query parameter to the AMP URL pointing at the canonical. When it\'s there, the publisher has already given us the answer inside the link itself.',
     snippet: 'https://amp.example.com/article?canurl=https://example.com/article',
     snippetLanguage: 'url',
   },
@@ -34,7 +34,7 @@ export const CANONICAL_METHODS: Record<string, MethodInfo> = {
     label: 'OpenGraph URL',
     summary: "Pulled from the page's social-sharing metadata.",
     explanation:
-      'Most pages declare their canonical URL through OpenGraph too — the <meta property="og:url"> tag drives every social-media preview card. Slightly less authoritative than rel="canonical", but reliable in practice.',
+      'Most pages also declare their canonical URL through OpenGraph — the <meta property="og:url"> tag is what drives social-media preview cards. Slightly less authoritative than rel="canonical", but it almost always agrees.',
     snippet: '<meta property="og:url" content="https://example.com/article" />',
     snippetLanguage: 'html',
   },
@@ -42,7 +42,7 @@ export const CANONICAL_METHODS: Record<string, MethodInfo> = {
     label: 'Google AMP cache URL',
     summary: 'Decoded straight from the Google AMP cache URL.',
     explanation:
-      "Google's AMP cache (www.google.com/amp/s/...) embeds the publisher's domain and path right in the URL. We can decode the original URL without ever fetching the page — fast and zero-cost.",
+      "Google's AMP cache URLs (www.google.com/amp/s/...) embed the publisher's domain and path right in the URL. We decode the original URL straight from the URL string — no page fetch involved.",
     snippet: 'https://www.google.com/amp/s/example.com/article/amp/',
     snippetLanguage: 'url',
   },
@@ -50,7 +50,7 @@ export const CANONICAL_METHODS: Record<string, MethodInfo> = {
     label: 'Google AMP page JS redirect',
     summary: "Extracted from the cached AMP page's redirect handler.",
     explanation:
-      "When URL-decoding the Google AMP cache URL doesn't yield a usable canonical, we fall back to fetching the cached page itself. The AMP page exposes its source URL inside the JavaScript that drives the back-to-publisher redirect — we regex it out.",
+      "When the URL itself doesn't decode cleanly, we fetch the cached page. The AMP page exposes its source URL inside the JavaScript that handles the redirect back to the publisher — we pull it out with a regex.",
     snippet: 'const redirectUrl = "https://example.com/article";',
     snippetLanguage: 'js',
   },
@@ -58,7 +58,7 @@ export const CANONICAL_METHODS: Record<string, MethodInfo> = {
     label: 'Bing AMP cache',
     summary: 'Extracted from a Bing AMP cache marker.',
     explanation:
-      'Bing operates its own AMP cache and embeds the publisher\'s canonical URL in an inline JSON object on the cached page. We regex for the `"originalUrl"` key.',
+      'Bing runs its own AMP cache and embeds the publisher\'s canonical URL in an inline JSON object on the cached page. We regex for the `"originalUrl"` key.',
     snippet: '{"originalUrl": "https://example.com/article", ...}',
     snippetLanguage: 'json',
   },
@@ -66,7 +66,7 @@ export const CANONICAL_METHODS: Record<string, MethodInfo> = {
     label: 'Schema.org metadata',
     summary: 'From a JSON-LD <script> block on the page.',
     explanation:
-      'The page\'s schema.org metadata (in a <script type="application/ld+json"> block) identifies the main article and its canonical URL. Useful when neither rel="canonical" nor OpenGraph is present.',
+      'The page embeds schema.org metadata inside a <script type="application/ld+json"> block, which identifies the main article and its canonical URL. A useful fallback when neither rel="canonical" nor OpenGraph turn up.',
     snippet:
       '{"@context": "https://schema.org", "@type": "Article", "mainEntity": "https://example.com/article"}',
     snippetLanguage: 'json',
@@ -75,7 +75,7 @@ export const CANONICAL_METHODS: Record<string, MethodInfo> = {
     label: 't.co title heuristic',
     summary: "Read off Twitter's t.co interstitial page.",
     explanation:
-      "Twitter's t.co shortener doesn't return the destination URL directly — it serves an interstitial page where the destination URL is in the <title>. We parse that.",
+      "Twitter's t.co shortener doesn't return the destination URL in a redirect header — it serves an interstitial page that puts the destination URL in the <title>. We parse it out of there.",
     snippet: '<title>https://example.com/article — t.co</title>',
     snippetLanguage: 'html',
   },
@@ -83,24 +83,25 @@ export const CANONICAL_METHODS: Record<string, MethodInfo> = {
     label: 'Meta refresh redirect',
     summary: 'A <meta http-equiv="refresh"> on the page points at the real URL.',
     explanation:
-      'Some pages skip JS and use the old-school <meta http-equiv="refresh"> tag to redirect to the canonical. We read that tag and follow it.',
+      'Some pages skip JavaScript and use the old-school <meta http-equiv="refresh"> tag to redirect to the canonical. We read the tag and follow it.',
     snippet: '<meta http-equiv="refresh" content="0; url=https://example.com/article" />',
     snippetLanguage: 'html',
   },
   GUESS_AND_CHECK: {
-    label: 'Pattern guess + similarity check',
-    summary: 'Stripped AMP markers from the URL, then verified the result is the same article.',
+    label: 'Heuristic URL transformation',
+    summary:
+      'Strip AMP markers from the URL; the orchestrator separately verifies via article-text comparison.',
     explanation:
-      'Last-resort fallback when no explicit canonical signal was present. We strip AMP-specific URL patterns (/amp, ?amp=1, the amp. subdomain, etc.) to guess what the canonical URL might be, then fetch the resulting page and compare its article text to the AMP page\'s article text using a Mozilla-Readability-port extractor. We only accept the guess if similarity is high enough (above 60% for "valid", above 35% for "low confidence").',
+      'When no explicit canonical signal turns up, we transform the URL itself: strip `/amp/` path segments, decode `google.com/amp/s/` and `cdn.ampproject.org` cache wrappers, drop `amp.` subdomains. The "check" happens separately — every candidate URL is fetched and its article text compared to the AMP page\'s. VERIFIED means the article match succeeded; UNCONFIRMED means we couldn\'t verify (e.g. the publisher blocked our fetch).',
     snippet:
-      "https://amp.example.com/article/amp/  →  https://example.com/article\n(then verify: extracted article text matches the AMP page's)",
+      'https://news.sky.com/story/amp/article  →  https://news.sky.com/story/article\n(orchestrator then fetches + compares article text to determine confidence)',
     snippetLanguage: 'url',
   },
   DATABASE: {
     label: 'Cached from a previous run',
-    summary: 'AmputatorBot has resolved this AMP URL before.',
+    summary: 'AmputatorBot resolved this AMP URL within the past year.',
     explanation:
-      "We've seen this exact AMP URL come through the bot before. Rather than refetching the page, we return the canonical we resolved most recently.",
+      'This exact AMP URL has come through the bot in the past year. Rather than refetching the page, we return the canonical we resolved most recently. Entries older than a year are ignored (publishers move slugs and restructure paths) and fall through to a fresh resolution.',
   },
 };
 

@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "TRUNCATE links RESTART IDENTITY",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "bc311c94f699e27bfa7b57514cd87f3464c509d79ad08566e1243cb465f53510"
+}

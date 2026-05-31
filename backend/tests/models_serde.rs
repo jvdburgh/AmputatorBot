@@ -8,7 +8,7 @@
 //!
 //! See `docs/amputatorbot-devvit-migration-plan-v7.md` §"API contract".
 
-use amputatorbot_backend::models::{Canonical, CanonicalType, Link, UrlMeta};
+use amputatorbot_backend::models::{Canonical, CanonicalType, ConfidenceLevel, Link, UrlMeta};
 
 /// Canonical type names must serialize as SCREAMING_SNAKE_CASE because Python
 /// `jsons.dump` uses `enum.name` (uppercase identifier). Verified against the
@@ -59,6 +59,9 @@ fn link_matches_live_api_shape() {
                 .into(),
         ),
         url_similarity: Some(0.866_310_160_427_807_5),
+        article_similarity: Some(0.95),
+        confidence_score: Some(0.91),
+        confidence_level: Some(ConfidenceLevel::Verified),
     };
 
     let canonical_google = Canonical {
@@ -73,6 +76,9 @@ fn link_matches_live_api_shape() {
                 .into(),
         ),
         url_similarity: Some(0.890_052_356_020_942_5),
+        article_similarity: None,
+        confidence_score: Some(0.45),
+        confidence_level: Some(ConfidenceLevel::Likely),
     };
 
     let link = Link {
