@@ -26,6 +26,7 @@ jobs:
       SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
       SCW_DEFAULT_ORGANIZATION_ID: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
       SCW_DEFAULT_REGION: fr-par
+      SCW_CONTAINER_ID: ${{ secrets.SCW_CONTAINER_ID }}
       REGISTRY: rg.fr-par.scw.cloud/amputatorbot
       IMAGE_NAME: amputatorbot
     steps:
@@ -35,8 +36,11 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Scaleway Container Registry
-        # Scaleway accepts any non-empty username; the secret key is the password.
-        run: echo "$SCW_SECRET_KEY" | docker login rg.fr-par.scw.cloud -u nologin --password-stdin
+        uses: docker/login-action@v3
+        with:
+          registry: rg.fr-par.scw.cloud
+          username: nologin
+          password: ${{ secrets.SCW_SECRET_KEY }}
 
       - name: Compute image tags
         id: tags
@@ -72,20 +76,18 @@ jobs:
 
       - name: Update Scaleway container image
         run: |
-          scw container container update ${{ secrets.SCW_CONTAINER_ID }} \
-            image="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.primary }}"
+          scw container container update "$SCW_CONTAINER_ID" \
+            image="${REGISTRY}/${IMAGE_NAME}:${{ steps.tags.outputs.primary }}"
 
       - name: Trigger redeploy
-        run: |
-          scw container container redeploy ${{ secrets.SCW_CONTAINER_ID }}
+        run: scw container container redeploy "$SCW_CONTAINER_ID"
 
       - name: Poll for healthy
-        # Container statuses: pending → ready (success) | error (failure).
-        # Failing this step means the new image deployed but failed health check;
-        # the previous revision usually stays serving until a healthy one comes up.
+        # Container status: ready (success) | error (deploy failed; previous
+        # revision keeps serving) | anything else (still deploying).
         run: |
           for i in $(seq 1 30); do
-            status=$(scw container container get ${{ secrets.SCW_CONTAINER_ID }} -o json | jq -r .status)
+            status=$(scw container container get "$SCW_CONTAINER_ID" -o json | jq -r .status)
             echo "attempt $i: status=$status"
             case "$status" in
               ready)   exit 0 ;;
