@@ -247,7 +247,7 @@ export default function ConverterForm() {
                   copy-paste-ready Reddit markdown reply alongside the canonical.
                 </span>
               </label>
-              <label className="flex items-center gap-2">
+              <label className="items-center gap-2 hidden md:flex">
                 <span className="font-medium">Maximum redirects to follow:</span>
                 <select
                   value={maxDepth}
