@@ -1,34 +1,12 @@
-//! Reddit reply markdown — the single source of truth for the template the
-//! bot posts and the website's "generate Reddit comment" copy-paste box.
+//! Reddit reply markdown — single source of truth for both the bot's post
+//! and the website's "generate Reddit comment" box. Variant pick is by
+//! [`EntryType`]:
 //!
-//! Originally ported from `praw-python-archive/helpers/reddit/reddit_comment_generator.py`,
-//! refreshed during M5 to match the locked v7 template:
-//!
-//!   - Intro hedges on AMP's speed claim — "AMP is supposed to be faster" —
-//!     rather than asserting it.
-//!   - When any origin URL was cached, the qualifier ("especially cached
-//!     pages like the one you shared") is woven into the same clause as
-//!     the privacy/Open-Web link, not appended as a separate sentence.
-//!   - Footer drops the legacy "I'm a bot" opener (Reddit's App badge does
-//!     bot disclosure now) and the "Summon: u/AmputatorBot" link (doesn't
-//!     work in Devvit's per-install model). Footer becomes
-//!     `Why & About | r/AmputatorBot | Source`, with the install's
-//!     `customFooter` appended on the bot path when the mod set one.
-//!
-//! Variant selection is by [`EntryType`]:
-//!
-//! | EntryType  | Voice     | Custom footer? |
-//! |------------|-----------|----------------|
-//! | Submission | OP posted | yes            |
-//! | Comment    | you shared| yes            |
-//! | Mention    | you shared| yes            |
-//! | Online     | you shared| no             |
-//! | Api        | you shared| no             |
-//!
-//! There used to be a separate TS port at `devvit-app/src/server/core/reply.ts`
-//! that the Devvit bot used. It was removed when the API grew a
-//! `generateMarkdownComment` field so the resolver can return the markdown
-//! alongside the canonical-finding results.
+//! | EntryType                       | Voice       | Custom footer? |
+//! |---------------------------------|-------------|----------------|
+//! | Submission                      | OP posted   | yes            |
+//! | Comment / Mention               | you shared  | yes            |
+//! | Online / Api                    | you shared  | no             |
 
 use crate::models::{Canonical, ConfidenceLevel, EntryType, Link};
 
@@ -39,21 +17,14 @@ const SOURCE_LINK: &str = "https://github.com/jvdburgh/AmputatorBot";
 
 #[derive(Debug, Clone)]
 pub struct BuildReplyOptions {
-    /// Where the call originated. Picks the "OP posted" vs "you shared"
-    /// voice and decides whether `custom_footer` is allowed (bot paths only).
     pub entry_type: EntryType,
-    /// Optional per-install mod-supplied addendum, rendered inside the
-    /// superscript footer as ` | <text>`. Ignored on non-bot entry types
-    /// (`Api`, `Online`) since those don't have install settings.
+    /// Mod-supplied addendum rendered inside the superscript footer as
+    /// ` | <text>`. Ignored on non-bot entry types (no install settings).
     pub custom_footer: Option<String>,
 }
 
-/// Build the Reddit reply markdown for a set of resolved links.
-///
-/// Returns `None` when no link has a canonical (or AMP-canonical fallback)
-/// to surface — caller treats `None` as "skip / don't reply".
+/// `None` means no canonical to surface — caller should skip the reply.
 pub fn build_reply(links: &[Link], options: &BuildReplyOptions) -> Option<String> {
-    // One entry per AMP-origin link that produced any canonical (real or AMP-only).
     let mut entries: Vec<String> = Vec::new();
     let mut latest_entry = String::new();
     let mut n_cached = 0usize;
@@ -131,8 +102,6 @@ pub fn build_reply(links: &[Link], options: &BuildReplyOptions) -> Option<String
     ))
 }
 
-/// "OP posted" for submissions, "you shared" everywhere else. Mirrors the
-/// `Type.SUBMISSION` branch in the legacy `reddit_comment_generator.py`.
 fn subject(entry: EntryType) -> (&'static str, &'static str) {
     match entry {
         EntryType::Submission => ("OP", "posted"),
@@ -140,8 +109,6 @@ fn subject(entry: EntryType) -> (&'static str, &'static str) {
     }
 }
 
-/// Only bot entry types accept a custom footer — the website and direct
-/// API callers don't have per-install settings.
 fn allows_custom_footer(entry: EntryType) -> bool {
     matches!(
         entry,
@@ -149,13 +116,9 @@ fn allows_custom_footer(entry: EntryType) -> bool {
     )
 }
 
-/// Single intro sentence that absorbs the cached-pages qualifier inline.
-/// Two reasons it lives in one clause rather than two sentences:
-///
-///   1. The previous two-sentence shape repeated the same FAQ link twice.
-///   2. "Supposed to be faster" is a deliberate hedge — we never assert
-///      AMP *is* faster, just that it's marketed that way. Slipping the
-///      cached qualifier inside the same clause keeps the tone consistent.
+/// One-clause intro that weaves in the cached-pages qualifier inline.
+/// "Supposed to be faster" is deliberately hedged — we don't assert AMP IS
+/// faster, just that it's marketed that way.
 fn build_intro_why(n_amp: usize, n_cached: usize, who: &str, what: &str) -> String {
     let why =
         format!("controversial because of [concerns over privacy and the Open Web]({FAQ_LINK}).");
@@ -174,18 +137,16 @@ fn build_intro_why(n_amp: usize, n_cached: usize, who: &str, what: &str) -> Stri
     )
 }
 
-/// Pick a cross-domain alternate canonical to surface alongside the primary.
-/// Ports the legacy `c_alt` selection (`reddit_comment_generator.py:23-24`):
-/// the first non-AMP canonical whose domain differs from the chosen one.
+/// First non-AMP canonical whose domain differs from `primary` — surfaced
+/// alongside the primary as a syndicated/alt variant.
 fn alt_canonical_for<'a>(link: &'a Link, primary: &Canonical) -> Option<&'a Canonical> {
     link.canonicals
         .iter()
         .find(|c| c.is_amp == Some(false) && c.domain != primary.domain)
 }
 
-/// Inline confidence label rendered alongside each canonical URL in the
-/// Reddit comment. Empty when `level` is `None` (e.g. legacy DB rows that
-/// pre-date the confidence model).
+/// Inline label after each URL in the reply. Empty when `level` is `None`
+/// (e.g. pre-confidence-model DB rows).
 fn confidence_label(level: Option<ConfidenceLevel>) -> String {
     match level {
         Some(ConfidenceLevel::Verified) => " ^(\u{2014} verified)".to_string(),
@@ -195,9 +156,8 @@ fn confidence_label(level: Option<ConfidenceLevel>) -> String {
     }
 }
 
-/// ASCII-only capitalize. The legacy `domain.capitalize()` is Python's
-/// equivalent — uppercase first char, lowercase the rest. Domain strings
-/// in our data are ASCII-only (we extract via `psl`), so this is fine.
+/// ASCII-only `Domain` → `Domain` (uppercase first, lowercase rest). Safe
+/// because we extract domains via `psl`, which guarantees ASCII output.
 fn capitalize(s: &str) -> String {
     let mut chars = s.chars();
     match chars.next() {

@@ -1,17 +1,12 @@
-//! `<meta property="og:url" content="...">` method.
-//!
-//! Open Graph URLs published by content publishers (Facebook OG standard)
-//! often point at the canonical, non-AMP version of an article. Ports the
-//! `OG_URL` branch of `praw-python-archive/helpers/canonical_methods.py`.
+//! `OG_URL` — `<meta property="og:url" content="...">`.
 
 use scraper::Selector;
 
 use super::{MethodContext, resolve_against};
 
 pub fn find(ctx: &MethodContext<'_>) -> Vec<String> {
-    static SELECTOR: std::sync::LazyLock<Selector> = std::sync::LazyLock::new(|| {
-        Selector::parse(r#"meta[property="og:url"]"#).expect("og:url selector")
-    });
+    static SELECTOR: std::sync::LazyLock<Selector> =
+        std::sync::LazyLock::new(|| Selector::parse(r#"meta[property="og:url"]"#).unwrap());
 
     let doc = ctx.parsed_html();
     doc.select(&SELECTOR)

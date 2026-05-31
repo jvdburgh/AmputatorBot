@@ -1,10 +1,6 @@
-//! `GOOGLE_MANUAL_REDIRECT` method — Google search outbound-link interstitials.
-//!
-//! When Google sometimes redirects search-result clicks through
-//! `https://www.google.com/url?q=https://target.example/...`, the interstitial
-//! page contains plain `<a href="...">` links to the actual destination. This
-//! method scrapes those.
-//!
+//! `GOOGLE_MANUAL_REDIRECT` — scrapes `<a>` hrefs from Google's
+//! `url?q=` outbound-redirect interstitials.
+
 use scraper::Selector;
 
 use super::{MethodContext, resolve_against};
@@ -84,10 +80,8 @@ mod tests {
         assert_eq!(r, vec!["https://www.google.com/article"]);
     }
 
-    /// Locks in the fix for the PBS / google.com/amp/s issue: the resolver
-    /// asks the fetcher for the AMP-cache URL, but Google redirects to a
-    /// `google.com/url?q=` interstitial. The trigger has to check
-    /// `page.current_url` (post-redirect) rather than the URL we requested.
+    /// Trigger checks `page.current_url` (post-redirect), not the URL we
+    /// asked for, because Google AMP cache redirects to the interstitial.
     #[test]
     fn fires_when_only_redirected_url_matches_pattern() {
         let requested = "https://www.google.com/amp/s/www.pbs.org/newshour/amp/article";

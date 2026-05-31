@@ -1,11 +1,5 @@
-//! Canonical-finding methods.
-//!
-//! Each method gets its own file under `methods/`. The 12 methods correspond
-//! 1:1 to the variants of [`crate::models::CanonicalType`], in priority order.
-//!
-//! Ports `praw-python-archive/helpers/canonical_methods.py:get_canonical_with_soup` —
-//! the Python version dispatched on `meta.type` via `if/elif`; here each
-//! method is its own function and [`try_method`] dispatches.
+//! Canonical-finding methods. One file per variant of
+//! [`crate::models::CanonicalType`]; [`try_method`] dispatches.
 
 use regex::Regex;
 use scraper::{Html, Selector};
@@ -26,13 +20,9 @@ pub mod rel;
 pub mod schema_mainentity;
 pub mod tco_pagetitle;
 
-/// Per-request canonical-finding configuration. Ports the `use_db`/`use_gac`/
-/// `use_mr` flags from `praw-python-archive/helpers/utils.py:get_canonicals`.
-///
-/// These flags are progressively *disabled* during an iteration: once any
-/// method finds a non-AMP canonical, the resource-heavy methods (DB,
-/// guess-and-check, meta-refresh) get turned off for the rest of the depth
-/// loop. The legacy bot did this to bound work-per-request.
+/// Per-request gates on the resource-heavy methods (`DATABASE`,
+/// `GUESS_AND_CHECK`, `META_REDIRECT`). The resolver flips these off mid-
+/// iteration once a non-AMP canonical surfaces, to bound work per request.
 #[derive(Debug, Clone, Copy)]
 pub struct CanonicalFlags {
     pub use_db: bool,
@@ -50,11 +40,9 @@ impl Default for CanonicalFlags {
     }
 }
 
-/// Inputs every canonical method needs.
-///
-/// `page` is the freshly-fetched HTML for `url`. `original_url` is the URL
-/// the API caller sent (used for similarity scoring); during the depth-loop
-/// `url` may differ from `original_url` because we follow an AMP chain.
+/// Inputs every canonical method needs. `url` is the URL the resolver is
+/// processing at this iteration; `original_url` is the caller's input
+/// (preserved across iterations).
 pub struct MethodContext<'a> {
     pub page: &'a Page,
     pub url: &'a str,
@@ -63,23 +51,13 @@ pub struct MethodContext<'a> {
 }
 
 impl MethodContext<'_> {
-    /// Cached parse of [`Self::page`]'s HTML. Each method that needs a
-    /// document calls this once.
     pub fn parsed_html(&self) -> Html {
         self.page.parse()
     }
 }
 
-/// Try one canonical-finding method against the context.
-///
-/// Returns the candidate canonical URL(s) the method discovered, **without**
-/// the legacy bot's downstream validation pass (is-amp / similarity / domain
-/// extraction). Validation lives in the orchestration loop so each method
-/// stays focused on extraction.
-///
-/// Returns `None` (or an empty vec) if the method didn't apply (e.g. a
-/// Google-specific method on a non-Google URL, or a gated method whose flag
-/// is off).
+/// Dispatch the synchronous methods. `DATABASE` is async (sqlx) and routes
+/// through the resolver's own awaiting code path.
 pub fn try_method(method: CanonicalType, ctx: &MethodContext<'_>) -> Vec<String> {
     match method {
         CanonicalType::Rel => rel::find(ctx),
@@ -92,23 +70,15 @@ pub fn try_method(method: CanonicalType, ctx: &MethodContext<'_>) -> Vec<String>
         CanonicalType::TcoPagetitle => tco_pagetitle::find(ctx),
         CanonicalType::MetaRedirect => meta_redirect::find(ctx),
         CanonicalType::GuessAndCheck => guess_and_check::find(ctx),
-        // DATABASE lookup is async (queries sqlx) and lives in
-        // `methods/database.rs` — the orchestrator awaits it directly
-        // rather than routing through this sync dispatch.
         CanonicalType::Database => Vec::new(),
     }
 }
 
-/// Search every inline `<script>` (i.e. `<script>` without a `src` attribute,
-/// matching the Python `find_all("script", {"src": False})`) for `pattern`
-/// and return capture group 1.
-///
-/// Ports `praw-python-archive/helpers/canonical_methods.py:get_can_url_with_regex`.
-/// `\/` is unescaped to `/` — some scripts emit JSON-encoded URLs like
-/// `https:\/\/example.eu\/`.
+/// Run `pattern` against every inline `<script>` block; return capture
+/// group 1 with `\/` unescaped to `/` for JSON-encoded URLs.
 pub(crate) fn find_in_inline_scripts(html: &Html, pattern: &Regex) -> Option<String> {
     static SCRIPT: std::sync::LazyLock<Selector> =
-        std::sync::LazyLock::new(|| Selector::parse("script:not([src])").expect("script selector"));
+        std::sync::LazyLock::new(|| Selector::parse("script:not([src])").unwrap());
 
     for script in html.select(&SCRIPT) {
         let text = script.text().collect::<String>();
@@ -121,13 +91,8 @@ pub(crate) fn find_in_inline_scripts(html: &Html, pattern: &Regex) -> Option<Str
     None
 }
 
-/// Resolve a candidate URL from an HTML attribute against the base URL.
-///
-/// Ports `praw-python-archive/helpers/canonical_methods.py:get_can_urls_by_tags` —
-/// rewrites `//host/path` and `/path` references into absolute URLs using
-/// the source URL's scheme + authority. The `url` crate's `Url::join`
-/// handles every case (protocol-relative, root-relative, fully-relative,
-/// already-absolute) in one call.
+/// Resolve a candidate URL against the base. Handles protocol-relative,
+/// root-relative, fully-relative, and already-absolute inputs via `Url::join`.
 pub(crate) fn resolve_against(base: &str, candidate: &str) -> Option<String> {
     if candidate.is_empty() {
         return None;

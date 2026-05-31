@@ -27,9 +27,9 @@ expression: link
       "type": "REL",
       "url": "https://example.eu/article/amp/",
       "url_similarity": 0.7469879518072289,
-      "article_similarity": 1.0,
-      "confidence_score": 0.9746987951807228,
-      "confidence_level": "VERIFIED"
+      "article_similarity": null,
+      "confidence_score": 0.5493975903614459,
+      "confidence_level": "LIKELY"
     },
     {
       "domain": "example",

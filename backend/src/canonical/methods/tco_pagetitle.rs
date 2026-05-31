@@ -1,14 +1,5 @@
-//! `TCO_PAGETITLE` method — Twitter shortlinks with `amp=1`.
-//!
-//! Twitter's `t.co` shortlinks accept `?amp=1` to return a tiny interstitial
-//! page where the `<title>` contains the destination URL. This method reads
-//! that title.
-//!
-//! Trigger condition: the page's final URL (after redirects) contains
-//! `https://t.co` AND `amp=1`.
-//!
-//! Ports the `TCO_PAGETITLE` branch of
-//! `praw-python-archive/helpers/canonical_methods.py:66-70`.
+//! `TCO_PAGETITLE` — reads the destination URL out of the `<title>` on
+//! `https://t.co/...?amp=1` interstitials.
 
 use super::MethodContext;
 

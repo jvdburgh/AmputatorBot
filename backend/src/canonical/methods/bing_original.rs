@@ -1,14 +1,5 @@
-//! `BING_ORIGINAL_URL` method — Bing AMP cache outbound URL.
-//!
-//! Bing's AMP cache pages embed the publisher's canonical URL in an inline
-//! JS object like `"originalUrl": "https://publisher/article"`. This method
-//! regex-greps for that.
-//!
-//! Trigger condition: the page's final URL (after redirects) contains
-//! `/amp/s/` AND `www.bing.`.
-//!
-//! Ports the `BING_ORIGINAL_URL` branch of
-//! `praw-python-archive/helpers/canonical_methods.py:53-57`.
+//! `BING_ORIGINAL_URL` — pulls `"originalUrl": "..."` from inline JS on
+//! Bing AMP cache pages.
 
 use std::sync::LazyLock;
 
@@ -16,10 +7,8 @@ use regex::Regex;
 
 use super::{MethodContext, find_in_inline_scripts, resolve_against};
 
-static ORIGINAL_URL_RE: LazyLock<Regex> = LazyLock::new(|| {
-    // Pulls the URL out of a JSON-like blob: `"originalUrl": "..."`
-    Regex::new(r#"["']originalUrl["']\s?:\s?["']([^"']+)["']"#).expect("originalUrl regex")
-});
+static ORIGINAL_URL_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"["']originalUrl["']\s?:\s?["']([^"']+)["']"#).unwrap());
 
 pub fn find(ctx: &MethodContext<'_>) -> Vec<String> {
     let cur = ctx.page.current_url.to_ascii_lowercase();

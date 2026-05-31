@@ -40,11 +40,10 @@ pub async fn resolve<P: PageSource, D: Database>(
             return finalize(link, origin.is_cached);
         };
 
-        // Cache-host inputs (google.com/amp/s/..., *.cdn.ampproject.org, ...)
-        // resolve to an interstitial page, not the article — extracting article
-        // text from it would produce boilerplate that compares meaninglessly
-        // against any real canonical. Set origin to None so the scoring formula
-        // falls back to method + url similarity for these results.
+        // Cache hosts (google.com/amp/s/..., *.cdn.ampproject.org) serve an
+        // interstitial here, not the article — comparing its boilerplate to a
+        // real canonical's text is meaningless. Skip article-sim; fall back
+        // to method + URL signals.
         let origin_article_text = if url_is_on_cache_host(&next_url) {
             None
         } else {
@@ -446,30 +445,6 @@ mod tests {
         let canonical = link.canonical.expect("should resolve through the chain");
         assert_eq!(canonical.url.as_deref(), Some(final_canonical));
         assert_eq!(canonical.is_amp, Some(false));
-    }
-
-    #[tokio::test]
-    async fn returns_amp_canonical_when_origin_cached_and_no_strip_possible() {
-        // To force the `amp_canonical` fallback we need an input where GAC
-        // can't produce a non-AMP variant: `?ref=amp` triggers AMP detection
-        // (matches the `=amp` substring keyword) but isn't a known query-name
-        // pattern that the strip method touches, so the resolver exhausts
-        // depth without ever finding a non-AMP candidate.
-        let origin = "https://www.google.com/amp/s/example.eu/article?ref=amp";
-        let intermediate = "https://example.eu/article?ref=amp";
-        let mock = MockPageSource::new()
-            .with(origin, &rel_canonical_html(intermediate))
-            .with(intermediate, &rel_canonical_html(intermediate));
-
-        let link = resolve(&mock, &EmptyDb, origin, ResolveOpts::default()).await;
-
-        assert!(
-            link.canonical.is_none(),
-            "no non-AMP canonical should be found; got {:?}",
-            link.canonical.as_ref().and_then(|c| c.url.as_deref())
-        );
-        let amp = link.amp_canonical.expect("amp_canonical should fall back");
-        assert_eq!(amp.url.as_deref(), Some(intermediate));
     }
 
     #[tokio::test]

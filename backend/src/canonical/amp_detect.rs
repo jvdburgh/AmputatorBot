@@ -1,42 +1,18 @@
 //! AMP URL detection.
 //!
-//! Ports `praw-python-archive/helpers/checker_utils.py` (`check_if_amp`, `check_if_cached`)
-//! and the keyword/denylist lists from `praw-python-archive/static/static.py`.
-//!
-//! ## Improvements over the legacy implementation
-//!
-//! The Python implementation does a substring scan over the **whole URL string**
-//! with 14 short keywords. That produces false positives like
-//! `https://amputeestore.com/products/...` matching `/amp` (because of `//amp`
-//! after the scheme), even though the URL is plainly not an AMP page.
-//!
-//! Our port keeps the same 14 keywords and the same denylist, but applies the
-//! keyword scan to **parsed URL components** (host, path, query) separately.
-//! That eliminates the `amputeestore.com`-class false positives without losing
-//! any of the legitimate matches (`/amp/`, `amp.`, `amp=1`, etc.). The Python
-//! check on the whole string would match `/amp` in `https://amputeestore.com`
-//! because it sees `//a` then `mp` somewhere later — our version requires the
-//! match to land entirely within a single component.
+//! Substring scan over **parsed URL components** (host / path / query) so a
+//! whole-URL match like `https://amputeestore.com/...` doesn't false-positive
+//! on `/amp` just because of the `//amp` after the scheme.
 
 use url::Url;
 
-/// 14 substring patterns from `praw-python-archive/static/static.py:8-9`.
-///
-/// Applied against each URL component (host, path, query) by
-/// [`is_amp_url`]. The order is preserved from the legacy bot, though
-/// short-circuit evaluation means it doesn't strictly matter.
-///
-/// Visible to the rest of `canonical::` because GUESS_AND_CHECK mutates
-/// URLs by removing each keyword in turn — see `methods::guess_and_check`.
+/// Scanned against each URL component by [`is_amp_url`].
 pub(crate) const AMP_KEYWORDS: &[&str] = &[
     "/amp", "amp/", ".amp", "amp.", "?amp", "amp?", "=amp", "amp=", "&amp", "amp&", "%amp", "amp%",
     "_amp", "amp_",
 ];
 
-/// Domains hard-excluded from AMP detection regardless of URL shape.
-///
-/// Ports `praw-python-archive/static/static.py:10`. These are domains where the substring
-/// match historically misfired, so the legacy bot just bailed.
+/// Domains that the keyword scan misfires on (band+amp, etc.).
 const DENYLISTED_DOMAINS: &[&str] = &[
     "video.twimg.kim",
     "bandcamp.com",
@@ -48,15 +24,8 @@ const DENYLISTED_DOMAINS: &[&str] = &[
     "youtu.be",
 ];
 
-/// Returns `true` if the URL appears to be an AMP URL.
-///
-/// Rules:
-/// 1. The URL must parse.
-/// 2. The host is checked against [`DENYLISTED_DOMAINS`] — denied → not AMP.
-/// 3. The host, path, and query string are each scanned for any of the
-///    [`AMP_KEYWORDS`]. A match in any single component → AMP.
-///
-/// Component-scoping is the key fix vs. the legacy whole-string scan.
+/// `true` if any of [`AMP_KEYWORDS`] appears as a substring in the URL's
+/// host, path, or query — unless the host is on [`DENYLISTED_DOMAINS`].
 pub fn is_amp_url(url: &str) -> bool {
     let Ok(parsed) = Url::parse(url) else {
         return false;
@@ -165,8 +134,6 @@ mod tests {
 
     #[test]
     fn detects_ampproject_subdomain() {
-        // ampproject hosts trip `.amp` in their host string anyway, but the
-        // is_cached_amp check below handles them more specifically.
         assert!(is_amp_url(
             "https://www-cnn-com.cdn.ampproject.org/c/s/www.cnn.com/sample"
         ));
@@ -174,10 +141,8 @@ mod tests {
 
     #[test]
     fn rejects_amputeestore_false_positive() {
-        // This is the canonical false-positive case in the URLConversions
-        // fixture set — the legacy substring scan flagged these as AMP
-        // because `/amp` matches against `//amp` after the scheme. Our
-        // component-scoped scan correctly says no.
+        // Canonical false-positive case: a whole-URL substring scan flags
+        // `/amp` inside `//amputeestore.com` after the scheme.
         assert!(!is_amp_url(
             "https://amputeestore.com/collections/prosthetic-socks/products/knit-rite-liner-liner-sock?variant=4114742017"
         ));
@@ -205,8 +170,7 @@ mod tests {
 
     #[test]
     fn denylist_does_not_match_unrelated_hosts() {
-        // `notyoutube.com` ends with `youtube.com` but is not a real
-        // subdomain — must NOT be denylisted.
+        // `notyoutube.com` ends with `youtube.com` but isn't a subdomain.
         assert!(is_amp_url("https://notyoutube.com/amp/some-video"));
         assert!(is_amp_url("https://myreddit.com/article/amp"));
     }

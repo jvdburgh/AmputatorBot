@@ -1,8 +1,6 @@
-//! `<link rel="canonical" href="...">` method.
-//!
-//! The primary, highest-priority canonical signal — defined by HTML5 / WHATWG
-//! and used by ~every CMS that cares about SEO. Ports the `REL` branch of
-//! `praw-python-archive/helpers/canonical_methods.py`.
+//! `REL` — `<link rel="canonical" href="...">`. The highest-priority signal:
+//! HTML5-standard, set by ~every SEO-aware CMS, and the publisher's own
+//! declaration of which URL is canonical.
 
 use scraper::Selector;
 
@@ -10,7 +8,7 @@ use super::{MethodContext, resolve_against};
 
 pub fn find(ctx: &MethodContext<'_>) -> Vec<String> {
     static SELECTOR: std::sync::LazyLock<Selector> =
-        std::sync::LazyLock::new(|| Selector::parse("link[rel=canonical]").expect("rel selector"));
+        std::sync::LazyLock::new(|| Selector::parse("link[rel=canonical]").unwrap());
 
     let doc = ctx.parsed_html();
     doc.select(&SELECTOR)
@@ -56,7 +54,6 @@ mod tests {
     fn resolves_relative_canonical() {
         let page = page_with(r#"<html><head><link rel="canonical" href="/article"></head></html>"#);
         let result = find(&ctx(&page));
-        // Resolved against ctx.url = https://amp.example.eu/article
         assert_eq!(result, vec!["https://amp.example.eu/article"]);
     }
 
@@ -69,8 +66,6 @@ mod tests {
 
     #[test]
     fn ignores_other_rel_values() {
-        // `rel="alternate"` is what AMP pages use to point at their AMP variant;
-        // we only want `rel="canonical"`.
         let page = page_with(
             r#"<html><head>
                 <link rel="alternate" href="https://example.eu/amp/">

@@ -1,5 +1,10 @@
 use serde::{Deserialize, Serialize};
 
+/// User-facing confidence label, derived from `confidence_score` via
+/// [`Self::from_score`]:
+/// - `Verified` (≥ 0.65) — article-text comparison succeeded.
+/// - `Likely`   (≥ 0.35) — strong method + URL signals, no article match.
+/// - `Unconfirmed` (< 0.35) — heuristic-only; could be wrong.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type, utoipa::ToSchema,
 )]

@@ -1,19 +1,8 @@
-//! [`PgDatabase`] — production [`Database`] impl backed by a `sqlx::PgPool`.
+//! `PgDatabase` — production [`Database`] impl backed by a `sqlx::PgPool`.
 //!
-//! The legacy bot's lookup query (from
-//! `praw-python-archive/datahandlers/remote_datahandler.py:get_entry_by_original_url`)
-//! was an unordered `LIMIT 1`. We modernize: prefer the most-recently-
-//! resolved canonical, since the bot has been running for years and the
-//! "right" canonical for a given URL can change over time (sites move,
-//! the canonical-finding methods themselves have improved). `entry_id
-//! DESC` is a deterministic tiebreaker when two rows share `handled_utc`.
-//!
-//! The composite index `(original_url, handled_utc DESC)` makes this an
-//! index-only scan even on URLs with thousands of historical resolutions.
-//!
-//! We only read `canonical_url` — the orchestrator labels every result
-//! from this method as `CanonicalType::Database`, so the row's own
-//! `canonical_type` is ignored.
+//! Lookup picks the most-recent canonical (URLs' "right" canonical can change
+//! over years as sites move). `entry_id DESC` tiebreaks. The composite index
+//! `(original_url, handled_utc DESC)` makes this an index-only scan.
 
 use anyhow::Result;
 use sqlx::PgPool;
@@ -34,9 +23,8 @@ impl PgDatabase {
 
 impl Database for PgDatabase {
     async fn lookup_canonical(&self, original_url: &str) -> Result<Option<String>> {
-        // 1-year freshness gate: publishers move slugs, restructure paths,
-        // change their canonical strategy. A cached canonical from 2019 is
-        // not trustworthy in 2026 — fall back to re-resolving instead.
+        // 1-year freshness gate: stale cache rows are worse than re-resolving
+        // (publishers move slugs + restructure paths).
         let row = sqlx::query!(
             "SELECT canonical_url \
              FROM links \
@@ -54,8 +42,7 @@ impl Database for PgDatabase {
     }
 
     async fn record_resolution(&self, entry: Resolution<'_>) -> Result<()> {
-        // `handled_utc` is intentionally omitted — the column's `DEFAULT NOW()`
-        // owns the timestamp, keeping it in lockstep with the DB clock.
+        // `handled_utc` omitted — DB's `DEFAULT NOW()` owns the timestamp.
         sqlx::query!(
             "INSERT INTO links \
              (entry_type, original_url, canonical_url, canonical_type, api_version, \

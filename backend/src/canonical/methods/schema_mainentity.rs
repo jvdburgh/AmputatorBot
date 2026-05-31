@@ -1,9 +1,5 @@
-//! `SCHEMA_MAINENTITY` method — JSON-LD `mainEntityOfPage`.
-//!
-//! Schema.org's `mainEntityOfPage` property, embedded in `<script type=
-//! "application/ld+json">` blobs by many CMSes, points at the canonical
-//! page URL. Ports the `SCHEMA_MAINENTITY` branch of
-//! `praw-python-archive/helpers/canonical_methods.py:60-63`.
+//! `SCHEMA_MAINENTITY` — JSON-LD `"mainEntityOfPage": "..."` inside
+//! `<script type="application/ld+json">`.
 
 use std::sync::LazyLock;
 
@@ -11,10 +7,8 @@ use regex::Regex;
 
 use super::{MethodContext, find_in_inline_scripts, resolve_against};
 
-static MAIN_ENTITY_RE: LazyLock<Regex> = LazyLock::new(|| {
-    // Pulls the URL out of a JSON-LD blob: `"mainEntityOfPage": "..."`.
-    Regex::new(r#""mainEntityOfPage"\s?:\s?["']([^"']+)["']"#).expect("mainEntityOfPage regex")
-});
+static MAIN_ENTITY_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#""mainEntityOfPage"\s?:\s?["']([^"']+)["']"#).unwrap());
 
 pub fn find(ctx: &MethodContext<'_>) -> Vec<String> {
     let doc = ctx.parsed_html();

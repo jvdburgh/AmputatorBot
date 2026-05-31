@@ -1,22 +1,14 @@
-//! `<* a="amp-canurl">` method.
-//!
-//! Some publishers mark the canonical URL via a custom `a="amp-canurl"`
-//! attribute on a tag rather than (or in addition to) the standard
-//! `<link rel="canonical">`. Ports the `CANURL` branch of
-//! `praw-python-archive/helpers/canonical_methods.py`.
-//!
-//! The Python version uses BeautifulSoup's `find_all(a='amp-canurl')` which
-//! is a kwarg-as-attribute-filter on the (mis-named-by-`a`) literal
-//! attribute. We replicate via a CSS attribute selector `[a="amp-canurl"]`.
+//! `CANURL` — custom `a="amp-canurl"` attribute some publishers add to
+//! a tag (alongside or instead of `rel=canonical`) to mark the non-AMP
+//! variant. Matched via CSS attribute-selector `[a="amp-canurl"]`.
 
 use scraper::Selector;
 
 use super::{MethodContext, resolve_against};
 
 pub fn find(ctx: &MethodContext<'_>) -> Vec<String> {
-    static SELECTOR: std::sync::LazyLock<Selector> = std::sync::LazyLock::new(|| {
-        Selector::parse(r#"[a="amp-canurl"]"#).expect("canurl selector")
-    });
+    static SELECTOR: std::sync::LazyLock<Selector> =
+        std::sync::LazyLock::new(|| Selector::parse(r#"[a="amp-canurl"]"#).unwrap());
 
     let doc = ctx.parsed_html();
     doc.select(&SELECTOR)

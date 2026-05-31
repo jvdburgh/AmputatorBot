@@ -1,17 +1,5 @@
-//! `GOOGLE_JS_REDIRECT` method — Google search redirect via JS.
-//!
-//! Some Google interstitial pages don't surface the destination URL via an
-//! `<a>` link; they only set it in a JS variable `var redirectUrl = "..."`.
-//! This method regex-greps inline `<script>` blocks for that pattern.
-//!
-//! Trigger condition: the page's final URL (after redirects) contains `url?`
-//! AND `www.google.`. See the more-detailed rationale in `google_manual.rs` —
-//! Google's AMP cache silently redirects to a `google.com/url?...`
-//! interstitial, so the trigger has to check `ctx.page.current_url` (matching
-//! Python's `r.current_url`), not the URL we asked the fetcher for.
-//!
-//! Ports the `GOOGLE_JS_REDIRECT` branch of
-//! `praw-python-archive/helpers/canonical_methods.py:46-51`.
+//! `GOOGLE_JS_REDIRECT` — extracts `var redirectUrl = "..."` from inline
+//! `<script>` on Google interstitials that don't have an `<a>` destination.
 
 use std::sync::LazyLock;
 
@@ -19,10 +7,8 @@ use regex::Regex;
 
 use super::{MethodContext, find_in_inline_scripts, resolve_against};
 
-static REDIRECT_URL_RE: LazyLock<Regex> = LazyLock::new(|| {
-    // Pulls the URL out of `var redirectUrl = "...";` (or single-quoted).
-    Regex::new(r#"var\s?redirectUrl\s?=\s?["']([^"']+)["']"#).expect("redirectUrl regex")
-});
+static REDIRECT_URL_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"var\s?redirectUrl\s?=\s?["']([^"']+)["']"#).unwrap());
 
 pub fn find(ctx: &MethodContext<'_>) -> Vec<String> {
     let cur = ctx.page.current_url.to_ascii_lowercase();

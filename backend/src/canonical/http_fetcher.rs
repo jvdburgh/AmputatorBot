@@ -1,20 +1,13 @@
-//! [`HttpFetcher`] — the production [`crate::canonical::PageSource`] impl.
+//! [`HttpFetcher`] — production [`crate::canonical::PageSource`] impl.
+//! Shared `reqwest::Client` (15s timeout, 10 redirects, rustls TLS) with a
+//! per-request rotating UA.
 //!
-//! Wraps a shared `reqwest::Client` with sane defaults (timeout, redirect
-//! policy, rustls TLS), rotating user-agent per request to reduce upstream
-//! 403s. Ports `praw-python-archive/helpers/utils.py:get_page` + `get_randomized_headers`.
-//!
-//! ## Limitations (known, accepted)
-//!
-//! Plain reqwest+rustls has a TLS fingerprint that doesn't match real
-//! browsers, and big publishers (sky.com, bbc.com, anything fronted by
-//! Cloudflare with aggressive bot rules) 403 us regardless of headers.
-//! `wreq` with browser-fingerprint emulation was evaluated and abandoned —
-//! it beat passive fingerprinting but not the JS-challenge layer that the
-//! same publishers run, and the BoringSSL build cost (~50 MB of native
-//! tooling in the Docker stage, ~10× the binary size) wasn't worth the
-//! marginal coverage gain. See `GUESS_AND_DONT_CHECK` canonical method for the
-//! fallback path when the publisher blocks us.
+//! **Known limit:** plain reqwest+rustls has a non-browser TLS fingerprint
+//! so Cloudflare-fronted publishers (sky.com, bbc.com…) 403 us regardless
+//! of headers. `wreq` with browser emulation was tried and abandoned —
+//! beat passive fingerprinting but not JS challenges, and the BoringSSL
+//! build cost wasn't worth the marginal gain. The `GUESS_AND_CHECK`
+//! URL-transform method is the fallback when the publisher blocks us.
 
 use std::future::Future;
 use std::time::Duration;
@@ -24,15 +17,9 @@ use scraper::{Html, Selector};
 
 use crate::canonical::{Page, PageSource};
 
-/// User-agent strings rotated through per-request.
-///
-/// Modernized for 2026 — the legacy Python list (`praw-python-archive/static/static.py:28-38`)
-/// was 10 mobile Chrome UAs from Android 7/8/9 with Chrome 61-80, all from
-/// 2018-2019. Publishers' anti-bot heuristics flag these as suspicious now.
-///
-/// Current list: 15 Firefox UAs across platforms + 3 Firefox versions.
-/// All Firefox — Mozilla-only, matching the project's anti-AMP ideological
-/// alignment (AMP is a Google initiative; we're not pretending to be Chrome).
+/// UAs to rotate through per request. All Firefox (Mozilla-only, matching the
+/// project's anti-Google-AMP stance), spread across recent stable + ESR
+/// versions and Linux/macOS/Windows/Android so each request looks plausible.
 const USER_AGENTS: &[&str] = &[
     // Firefox 151 — Linux
     "Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0",
@@ -63,14 +50,7 @@ const ACCEPT_LANGUAGE: &str = "en-US";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 const MAX_REDIRECTS: usize = 10;
 
-/// Shared HTTP client for canonical-finding.
-///
-/// Holds a `reqwest::Client` with:
-/// - 15s overall request timeout (matches Python)
-/// - Up to 10 redirects followed
-/// - rustls TLS backend
-///
-/// Cheap to clone (the underlying `Client` is `Arc`-internally).
+/// Cheap to clone (the underlying `reqwest::Client` is `Arc`-internally).
 #[derive(Debug, Clone)]
 pub struct HttpFetcher {
     client: reqwest::Client,
@@ -87,10 +67,8 @@ impl HttpFetcher {
         Ok(Self { client })
     }
 
-    /// Fetch `url`. Returns `Ok(Page)` for any successful HTTP response
-    /// (regardless of status code — the canonical-finding logic decides what
-    /// to do with non-200s). Returns `Err` only for transport-level failures
-    /// (DNS, connection, timeout, TLS).
+    /// `Ok(Page)` on any HTTP response (status code surfaced for the caller
+    /// to decide on); `Err` only on transport failures (DNS, TCP, TLS, timeout).
     pub async fn fetch(&self, url: &str) -> Result<Page> {
         let response = self
             .client
@@ -122,24 +100,19 @@ impl HttpFetcher {
 
 impl PageSource for HttpFetcher {
     fn fetch(&self, url: &str) -> impl Future<Output = Result<Page>> + Send {
-        // Delegate to the inherent method on HttpFetcher.
         HttpFetcher::fetch(self, url)
     }
 }
 
-/// Pick a user-agent string at random from [`USER_AGENTS`].
 fn random_user_agent() -> &'static str {
-    let idx = fastrand::usize(0..USER_AGENTS.len());
-    USER_AGENTS[idx]
+    USER_AGENTS[fastrand::usize(0..USER_AGENTS.len())]
 }
 
-/// Extract the `<title>` text from raw HTML.
-///
-/// Returns `"Error: Title not found"` when the document has no `<title>` or
-/// it is empty — matches `praw-python-archive/helpers/utils.py:188`.
+/// Returns `"Error: Title not found"` when absent or empty — sentinel value
+/// matters because `TCO_PAGETITLE` reads this and we want a clear miss.
 fn extract_title(html: &str) -> String {
     static TITLE_SELECTOR: std::sync::LazyLock<Selector> =
-        std::sync::LazyLock::new(|| Selector::parse("title").expect("title selector"));
+        std::sync::LazyLock::new(|| Selector::parse("title").unwrap());
 
     let doc = Html::parse_document(html);
     doc.select(&TITLE_SELECTOR)

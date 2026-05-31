@@ -24,6 +24,9 @@ pub enum CanonicalType {
 }
 
 impl CanonicalType {
+    /// Trust score per method, fed into the confidence formula in
+    /// `canonical::resolver`. 1.0 = publisher's own declared signal,
+    /// 0.7 = cache- or heuristic-extracted, 0.3 = URL-transform guess.
     pub fn confidence_weight(self) -> f64 {
         match self {
             Self::Rel | Self::Canurl | Self::OgUrl | Self::SchemaMainentity | Self::Database => 1.0,

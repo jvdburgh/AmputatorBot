@@ -1,15 +1,6 @@
-//! `META_REDIRECT` method — `<meta http-equiv="refresh">` URL extraction.
-//!
-//! Older sites and some AMP cache pages use HTML meta-refresh to bounce
-//! visitors to the canonical URL. The `content` attribute looks like
-//! `"0; url=https://example.eu/article"` (timeout + URL).
-//!
-//! Gated by `ctx.flags.use_mr` (mirrors the Python `use_mr` flag — meta-
-//! redirect is one of the resource-heavy methods that gets disabled by the
-//! orchestration loop after a non-AMP canonical has been found).
-//!
-//! Ports the `META_REDIRECT` branch of `praw-python-archive/helpers/canonical_methods.py:73-77`
-//! and the helper `get_can_urls_with_meta_redirect:180-198`.
+//! `META_REDIRECT` — extracts the URL from `<meta http-equiv="refresh"
+//! content="0; url=...">`. Gated by `ctx.flags.use_mr` (resource-heavy:
+//! the orchestrator turns it off after a non-AMP canonical has been found).
 
 use scraper::Selector;
 
@@ -21,7 +12,7 @@ pub fn find(ctx: &MethodContext<'_>) -> Vec<String> {
     }
 
     static SELECTOR: std::sync::LazyLock<Selector> = std::sync::LazyLock::new(|| {
-        Selector::parse(r#"meta[http-equiv="refresh"][content]"#).expect("meta-refresh selector")
+        Selector::parse(r#"meta[http-equiv="refresh"][content]"#).unwrap()
     });
 
     let doc = ctx.parsed_html();
@@ -33,11 +24,6 @@ pub fn find(ctx: &MethodContext<'_>) -> Vec<String> {
 }
 
 /// Extract the URL portion of a `content="0; url=https://..."` attribute.
-///
-/// The format is loose: any prefix (typically a timeout in seconds), then a
-/// literal `url=` (case-insensitive in practice but Python only matches
-/// lowercase, so we do too), then the URL. Returns `None` if `url=` doesn't
-/// appear.
 fn extract_url_from_content(content: &str) -> Option<String> {
     let idx = content.find("url=")?;
     let url = &content[idx + "url=".len()..];
