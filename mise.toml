@@ -8,6 +8,7 @@ node = "22"
 pnpm = "11"
 just = "latest"
 lefthook = "latest"
+terraform = "1.9"
 
 [env]
 RUST_BACKTRACE = "1"

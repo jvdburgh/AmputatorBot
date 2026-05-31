@@ -125,3 +125,6 @@ node_modules/
 /.idea/
 .vscode/
 *.swp
+
+# Local handover / TODO notes (not for public repo)
+/HANDOVER.md

@@ -15,7 +15,9 @@
 # Stage 1: install website dependencies (cached on lockfile/manifest changes)
 # -----------------------------------------------------------------------------
 FROM node:26-slim AS website-deps
-RUN corepack enable && corepack prepare pnpm@11.3.0 --activate
+# node:26-slim doesn't ship corepack (slim variants strip optional tooling);
+# install pnpm directly via npm instead. Pin the same version as the workspace.
+RUN npm install -g pnpm@11.3.0
 WORKDIR /app
 
 # Workspace manifests only — keeps this layer cacheable as long as no

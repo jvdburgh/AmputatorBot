@@ -134,8 +134,12 @@ db-seed path="backend/tests/fixtures/urlconversions/10000_conversions_unfiltered
 
 # Build the production image: Astro static bundle + Rust binary in one image.
 # `STATIC_DIR=/app/static` is baked in by the Dockerfile.
+#
+# Always builds linux/amd64 because Scaleway Serverless Containers don't support
+# arm64. On Apple Silicon this uses buildx + QEMU emulation — slower than a
+# native build but produces a Scaleway-pushable image.
 image:
-    docker build -t amputatorbot:dev .
+    docker buildx build --platform=linux/amd64 -t amputatorbot:dev --load .
 
 # Run the combined image locally. Requires `just db-up` first (the container
 # talks to the Postgres on the host docker-compose). On macOS,

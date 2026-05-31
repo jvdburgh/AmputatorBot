@@ -1,0 +1,16 @@
+# Terraform working state — provider plugins, lock file is committed but the
+# rest is local-only. .tfstate contains the DB IAM API key secret; never commit.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
+crash.*.log
+
+# Local override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+*.tfvars.json

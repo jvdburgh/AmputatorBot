@@ -1,0 +1,97 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Optional override of the image tag (otherwise derived from the git SHA)"
+        required: false
+        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      SCW_DEFAULT_REGION: fr-par
+      REGISTRY: rg.fr-par.scw.cloud/amputatorbot
+      IMAGE_NAME: amputatorbot
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Scaleway Container Registry
+        # Scaleway accepts any non-empty username; the secret key is the password.
+        run: echo "$SCW_SECRET_KEY" | docker login rg.fr-par.scw.cloud -u nologin --password-stdin
+
+      - name: Compute image tags
+        id: tags
+        run: |
+          sha_short=$(git rev-parse --short HEAD)
+          override='${{ inputs.tag }}'
+          if [ -n "$override" ]; then
+            primary_tag="$override"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            primary_tag="${{ github.ref_name }}"
+          else
+            primary_tag="$sha_short"
+          fi
+          echo "sha=$sha_short"        >> "$GITHUB_OUTPUT"
+          echo "primary=$primary_tag"  >> "$GITHUB_OUTPUT"
+
+      - name: Build + push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.primary }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Install scw CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/scaleway/scaleway-cli/master/scripts/get.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Update Scaleway container image
+        # Subsequent SCW_CONTAINER_ID lookups come from a GH Actions secret set
+        # after the first `terraform apply` (M6 step 5). The `update` call below
+        # makes Scaleway pull the new tag and redeploy in place — no further
+        # human action.
+        run: |
+          scw container container update ${{ secrets.SCW_CONTAINER_ID }} \
+            registry-image="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.primary }}" \
+            redeploy=true
+
+      - name: Poll for healthy
+        # Container statuses: pending → ready (success) | error (failure).
+        # Failing this step means the new image deployed but failed health check;
+        # the previous revision usually stays serving until a healthy one comes up.
+        run: |
+          for i in $(seq 1 30); do
+            status=$(scw container container get ${{ secrets.SCW_CONTAINER_ID }} -o json | jq -r .status)
+            echo "attempt $i: status=$status"
+            case "$status" in
+              ready)   exit 0 ;;
+              error)   echo "::error::container deploy reported error"; exit 1 ;;
+            esac
+            sleep 10
+          done
+          echo "::error::container did not reach 'ready' within 5 minutes"
+          exit 1
