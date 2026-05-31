@@ -4,7 +4,11 @@
 //! `<a>` link; they only set it in a JS variable `var redirectUrl = "..."`.
 //! This method regex-greps inline `<script>` blocks for that pattern.
 //!
-//! Trigger condition: current URL contains `url?` AND `www.google.`.
+//! Trigger condition: the page's final URL (after redirects) contains `url?`
+//! AND `www.google.`. See the more-detailed rationale in `google_manual.rs` —
+//! Google's AMP cache silently redirects to a `google.com/url?...`
+//! interstitial, so the trigger has to check `ctx.page.current_url` (matching
+//! Python's `r.current_url`), not the URL we asked the fetcher for.
 //!
 //! Ports the `GOOGLE_JS_REDIRECT` branch of
 //! `praw-python-archive/helpers/canonical_methods.py:46-51`.
@@ -21,14 +25,16 @@ static REDIRECT_URL_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 pub fn find(ctx: &MethodContext<'_>) -> Vec<String> {
-    let cur = ctx.url.to_ascii_lowercase();
+    let cur = ctx.page.current_url.to_ascii_lowercase();
     if !cur.contains("url?") || !cur.contains("www.google.") {
         return Vec::new();
     }
 
     let doc = ctx.parsed_html();
     match find_in_inline_scripts(&doc, &REDIRECT_URL_RE) {
-        Some(url) => resolve_against(ctx.url, &url).into_iter().collect(),
+        Some(url) => resolve_against(&ctx.page.current_url, &url)
+            .into_iter()
+            .collect(),
         None => Vec::new(),
     }
 }

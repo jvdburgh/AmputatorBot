@@ -4,7 +4,8 @@
 //! JS object like `"originalUrl": "https://publisher/article"`. This method
 //! regex-greps for that.
 //!
-//! Trigger condition: current URL contains `/amp/s/` AND `www.bing.`.
+//! Trigger condition: the page's final URL (after redirects) contains
+//! `/amp/s/` AND `www.bing.`.
 //!
 //! Ports the `BING_ORIGINAL_URL` branch of
 //! `praw-python-archive/helpers/canonical_methods.py:53-57`.
@@ -21,14 +22,16 @@ static ORIGINAL_URL_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 pub fn find(ctx: &MethodContext<'_>) -> Vec<String> {
-    let cur = ctx.url.to_ascii_lowercase();
+    let cur = ctx.page.current_url.to_ascii_lowercase();
     if !cur.contains("/amp/s/") || !cur.contains("www.bing.") {
         return Vec::new();
     }
 
     let doc = ctx.parsed_html();
     match find_in_inline_scripts(&doc, &ORIGINAL_URL_RE) {
-        Some(url) => resolve_against(ctx.url, &url).into_iter().collect(),
+        Some(url) => resolve_against(&ctx.page.current_url, &url)
+            .into_iter()
+            .collect(),
         None => Vec::new(),
     }
 }

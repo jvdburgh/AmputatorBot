@@ -172,7 +172,7 @@ Scalar UI at [`/api/docs`](https://www.amputatorbot.com/api/docs) — try-it-now
 If you'd rather curl than click:
 
 ```bash
-URL='https://www.google.com/amp/s/electrek.co/2018/06/19/tesla-model-3-assembly-line-inside-tent-elon-musk/amp/'
+URL='https://www.google.com/amp/s/news.sky.com/story/amp/gravely-concerning-claims-of-russian-interference-in-general-election-to-spread-support-for-farages-reform-13161235'
 
 # v2 — `jq -nc` safely injects the URL as JSON.
 curl -s -X POST -H 'Content-Type: application/json' \

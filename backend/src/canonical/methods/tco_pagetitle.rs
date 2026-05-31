@@ -4,7 +4,8 @@
 //! page where the `<title>` contains the destination URL. This method reads
 //! that title.
 //!
-//! Trigger condition: current URL contains `https://t.co` AND `amp=1`.
+//! Trigger condition: the page's final URL (after redirects) contains
+//! `https://t.co` AND `amp=1`.
 //!
 //! Ports the `TCO_PAGETITLE` branch of
 //! `praw-python-archive/helpers/canonical_methods.py:66-70`.
@@ -12,7 +13,8 @@
 use super::MethodContext;
 
 pub fn find(ctx: &MethodContext<'_>) -> Vec<String> {
-    if !ctx.url.contains("https://t.co") || !ctx.url.contains("amp=1") {
+    let cur = &ctx.page.current_url;
+    if !cur.contains("https://t.co") || !cur.contains("amp=1") {
         return Vec::new();
     }
 

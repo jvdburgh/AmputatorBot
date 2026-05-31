@@ -5,18 +5,12 @@
 //! page contains plain `<a href="...">` links to the actual destination. This
 //! method scrapes those.
 //!
-//! Trigger condition (ported from Python): the **current URL** contains
-//! `url?q=` AND `www.google.`. Returns nothing otherwise.
-//!
-//! Ports the `GOOGLE_MANUAL_REDIRECT` branch of
-//! `praw-python-archive/helpers/canonical_methods.py`.
-
 use scraper::Selector;
 
 use super::{MethodContext, resolve_against};
 
 pub fn find(ctx: &MethodContext<'_>) -> Vec<String> {
-    let cur = ctx.url.to_ascii_lowercase();
+    let cur = ctx.page.current_url.to_ascii_lowercase();
     if !cur.contains("url?q=") || !cur.contains("www.google.") {
         return Vec::new();
     }
@@ -27,7 +21,7 @@ pub fn find(ctx: &MethodContext<'_>) -> Vec<String> {
     let doc = ctx.parsed_html();
     doc.select(&A_HREF)
         .filter_map(|el| el.value().attr("href"))
-        .filter_map(|href| resolve_against(ctx.url, href))
+        .filter_map(|href| resolve_against(&ctx.page.current_url, href))
         .collect()
 }
 
@@ -88,5 +82,23 @@ mod tests {
         let page = page_with(r#"<html><body><a href="/article">x</a></body></html>"#, url);
         let r = find(&ctx(&page, url));
         assert_eq!(r, vec!["https://www.google.com/article"]);
+    }
+
+    /// Locks in the fix for the PBS / google.com/amp/s issue: the resolver
+    /// asks the fetcher for the AMP-cache URL, but Google redirects to a
+    /// `google.com/url?q=` interstitial. The trigger has to check
+    /// `page.current_url` (post-redirect) rather than the URL we requested.
+    #[test]
+    fn fires_when_only_redirected_url_matches_pattern() {
+        let requested = "https://www.google.com/amp/s/www.pbs.org/newshour/amp/article";
+        let redirected = "https://www.google.com/url?q=https://www.pbs.org/newshour/article";
+        let page = page_with(
+            r#"<html><body>
+                <a href="https://www.pbs.org/newshour/article">go</a>
+            </body></html>"#,
+            redirected,
+        );
+        let r = find(&ctx(&page, requested));
+        assert_eq!(r, vec!["https://www.pbs.org/newshour/article"]);
     }
 }

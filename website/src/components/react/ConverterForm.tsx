@@ -16,7 +16,7 @@ import type {
 } from './converter-types';
 
 const EXAMPLE_URL =
-  'https://www.google.com/amp/s/electrek.co/2018/06/19/tesla-model-3-assembly-line-inside-tent-elon-musk/amp/';
+  'https://www.google.com/amp/s/news.sky.com/story/amp/gravely-concerning-claims-of-russian-interference-in-general-election-to-spread-support-for-farages-reform-13161235';
 
 // v2 schema defaults — kept in sync with `convert_v2.rs::default_*`. Source
 // of truth is the backend; we mirror them here so the form can pre-populate
