@@ -15,9 +15,6 @@ import type {
   Link,
 } from './converter-types';
 
-// One example URL Joris shipped on the legacy site's "Try with an example"
-// button. Keeping it identical so the new form's "try example" experience is
-// instantly recognizable to existing users.
 const EXAMPLE_URL =
   'https://www.google.com/amp/s/electrek.co/2018/06/19/tesla-model-3-assembly-line-inside-tent-elon-musk/amp/';
 

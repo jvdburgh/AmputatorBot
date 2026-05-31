@@ -13,7 +13,7 @@ description: AmputatorBot migration plan v7 — locked decisions, milestones M1�
 
 ## Working style — READ THIS FIRST
 
-Joris likes to be consulted on architectural decisions before code is written. For any choice that's:
+Dev likes to be consulted on architectural decisions before code is written. For any choice that's:
 
 - About which library, framework, or pattern to use
 - About data model design or schema decisions
@@ -23,23 +23,23 @@ Joris likes to be consulted on architectural decisions before code is written. F
 
 …stop and ask before proceeding. Surface the options, explain the tradeoffs honestly (including pushback if you disagree), and wait for a decision. Mechanical implementation work doesn't need consultation; architectural shape does.
 
-**External actions Joris does manually, not Claude:**
+**External actions Dev does manually, not Claude:**
 
-- Running queries against the production MySQL / Postgres databases (Claude can write the SQL; Joris executes it)
+- Running queries against the production MySQL / Postgres databases (Claude can write the SQL; Dev executes it)
 - Signing up for services (Scaleway, Reddit developer account, App Directory submission, bounty program registration)
-- Anything that hits an external account with Joris's identity (OAuth logins, `devvit login`, `scw init`, billing changes)
+- Anything that hits an external account with Dev's identity (OAuth logins, `devvit login`, `scw init`, billing changes)
 - DNS changes in Cloudflare
 - Stopping/starting the production PythonAnywhere bot
 - `git push` to production-affecting remotes
 - Publishing the Devvit app (`devvit upload --publish`)
 
-Claude prepares the exact commands and tells Joris when to run them. Reading code, writing code, running local tests, local Docker builds, local `cargo`/`npm` — Claude does those.
+Claude prepares the exact commands and tells Dev when to run them. Reading code, writing code, running local tests, local Docker builds, local `cargo`/`npm` — Claude does those.
 
 ---
 
 ## Project context
 
-**What AmputatorBot is:** A Reddit bot that detects AMP URLs in comments/posts/PMs and replies with the canonical (non-AMP) link. Maintained by Joris (`u/Killed_Mufasa`). Live at https://github.com/jvdburgh/AmputatorBot. ~181 GitHub stars. Runs at scale. Reddit's Developer Platform migration program offers $1,000 to bots that migrate from the Data API to Devvit by Dec 31, 2026.
+**What AmputatorBot is:** A Reddit bot that detects AMP URLs in comments/posts/PMs and replies with the canonical (non-AMP) link. Maintained by Dev (`u/Killed_Mufasa`). Live at https://github.com/jvdburgh/AmputatorBot. ~181 GitHub stars. Runs at scale. Reddit's Developer Platform migration program offers $1,000 to bots that migrate from the Data API to Devvit by Dec 31, 2026.
 
 **What's being migrated:**
 - Reddit bot (Python + PRAW) → Devvit app (TypeScript, `@devvit/web`)
@@ -474,7 +474,7 @@ Anchoring the registration date probably helps bounty selection.
 
 ### Pre-M1 data sizing
 
-Known (measured 2026-05-25 by Joris): `URLConversions` table is **~1.7M rows at 42.56 MB total**. That's ~26 bytes/row on disk (MySQL InnoDB compression on the URL strings is doing real work). Plenty of headroom in any managed PG plan — the smallest Scaleway tier (DB DEV-S, ~€13–15/mo) handles this with **100x growth headroom** before we'd need to size up. Joris provisions it during M1; no further sizing analysis needed.
+Known (measured 2026-05-25 by Dev): `URLConversions` table is **~1.7M rows at 42.56 MB total**. That's ~26 bytes/row on disk (MySQL InnoDB compression on the URL strings is doing real work). Plenty of headroom in any managed PG plan — the smallest Scaleway tier (DB DEV-S, ~€13–15/mo) handles this with **100x growth headroom** before we'd need to size up. Dev provisions it during M1; no further sizing analysis needed.
 
 ---
 
@@ -642,7 +642,7 @@ Schema decisions (these supersede earlier "drop dead columns" / "modernize" word
 
 #### Migration approach (locked)
 
-**CSV ingest via `psql \copy`** — no Rust binary. M2 already exports the table to CSV (`backend/tests/fixtures/urlconversions/*.csv`); for M3 Joris exports the full ~1.7M rows the same way. Production cutover (M6) reuses the same command against the Scaleway endpoint.
+**CSV ingest via `psql \copy`** — no Rust binary. M2 already exports the table to CSV (`backend/tests/fixtures/urlconversions/*.csv`); for M3 Dev exports the full ~1.7M rows the same way. Production cutover (M6) reuses the same command against the Scaleway endpoint.
 
 ```bash
 psql "$DATABASE_URL" -c "\
@@ -693,7 +693,7 @@ Locked deviations from the original M4 task list:
 - **`/about` page dropped.** Long-form AMP write-up lives on the Reddit "why I built it" thread (`r/AmputatorBot/comments/ehrq3z/...`), linked from the header nav and from the WhyAmpSection card.
 - **`/faq` page dropped.** Content folded back to the same Reddit thread; `@astrojs/mdx` and `MdxLayout.astro` removed since nothing else used MDX.
 - **`SiteFooter` dropped.** All navigation lives in the header. Mobile nav uses a native `<details>`/`<summary>` collapsing menu — keyboard- and screen-reader-accessible by default, zero JS, near-full-width on mobile.
-- **`/amputatorbot` legacy route NOT preserved** (Joris confirmed it was never used in practice). The `?q=<url>` pre-fill on `/` is preserved (legacy bot DM templates deep-link with that pattern).
+- **`/amputatorbot` legacy route NOT preserved** (Dev confirmed it was never used in practice). The `?q=<url>` pre-fill on `/` is preserved (legacy bot DM templates deep-link with that pattern).
 - **`GET /api/v2/stats` added** (not in original plan; later moved from `/api/v1/stats` since it's a new endpoint, not part of the legacy contract). Returns `{"convertedTotal": N}` from `SELECT COUNT(*) FROM links`, cached 1h via `Arc<RwLock<...>>` in `src/stats.rs`. Powers the homepage's live count via the `ConvertedCount` React island.
 - **Tiny zero-dep token-based highlighter** at `website/src/lib/highlight.ts` covers html/json/js/url. Both Astro `CodeSnippet.astro` and the React `Snippet` in `ConverterForm.tsx` render the same tokens (no `dangerouslySetInnerHTML`). Token CSS in `global.css`.
 - **`gc=true` and the bot reply markdown stay deferred to M5** (already noted in M3 lock). The "Generate comment" option was deliberately *not* added to the converter form to avoid building UI against a template that's about to change.
@@ -798,10 +798,10 @@ Pre-deploy audit (do BEFORE any Scaleway provisioning — finding stale deps or 
 
 Done criteria for the audit: zero open advisories, zero unrotated secrets in current `HEAD`, all CI checks green on a fresh push, parity report at or above the last locked rate.
 
-Cloud setup (Joris does the signups; Claude prepares exact commands):
+Cloud setup (Dev does the signups; Claude prepares exact commands):
 - Provision Scaleway Managed Database for PostgreSQL (DB DEV-S tier; the live MySQL is 42.56 MB so smallest tier is plenty)
 - Provision Scaleway Container Registry namespace
-- Note connection strings + registry URL; Joris sets the env vars on the Serverless Container
+- Note connection strings + registry URL; Dev sets the env vars on the Serverless Container
 
 Production data migration:
 - Export the full `URLConversions` table to CSV from PythonAnywhere MySQL (same export workflow as the M2 fixture CSVs).

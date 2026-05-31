@@ -6,10 +6,10 @@ The migration plan lives at `.claude/skills/amputatorbot-migration/SKILL.md` (pr
 
 ## Working style
 
-- **Consult Joris before any architectural decision** — library/framework choice, schema design, module structure, cost/complexity tradeoffs, plan deviations. Mechanical implementation work doesn't need consultation.
+- **Consult the dev before any architectural decision** — library/framework choice, schema design, module structure, cost/complexity tradeoffs, plan deviations. Mechanical implementation work doesn't need consultation.
 - Push back honestly if you disagree with his instinct. The plan went through many revisions specifically because pushback produced better answers.
 
-### External actions Joris does manually, not Claude
+### External actions the dev does manually, not Claude
 
 - Queries against production databases (write the SQL, hand it over)
 - Signing up for services / OAuth logins (`devvit login`, `scw init`, billing changes)
@@ -18,7 +18,7 @@ The migration plan lives at `.claude/skills/amputatorbot-migration/SKILL.md` (pr
 - `git push` to production-affecting remotes
 - Publishing the Devvit app (`devvit upload --publish`)
 
-Claude prepares exact commands and tells Joris when to run them.
+Claude prepares exact commands and tells the dev when to run them.
 
 ## Repo layout (post-M1)
 

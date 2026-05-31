@@ -14,7 +14,7 @@ importers:
   devvit-app:
     dependencies:
       '@devvit/web':
-        specifier: 0.13.0
+        specifier: ^0.13.0
         version: 0.13.0(twirp-ts@2.5.0)
       '@hono/node-server':
         specifier: ^2.0.4
@@ -27,7 +27,7 @@ importers:
         specifier: ^2.4.16
         version: 2.4.16
       '@devvit/start':
-        specifier: 0.13.0
+        specifier: ^0.13.0
         version: 0.13.0(twirp-ts@2.5.0)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.27.7)(jiti@2.7.0)(yaml@2.9.0))
       '@types/node':
         specifier: ^25.9.1

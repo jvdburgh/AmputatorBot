@@ -5,13 +5,5 @@ allowBuilds:
   esbuild: true
   protobufjs: true
   sharp: true
-minimumReleaseAgeExclude:
-  - hono@4.12.23
-  - astro@6.4.2
-# Force protobufjs to the latest 7.5.x patch to clear 9 advisories (1 critical,
-# 4 high, 4 moderate) pulled in transitively via @devvit/protos@0.13.0 →
-# protobufjs@7.5.4. The `~` cap keeps us in the same minor line Devvit tested
-# against (7.5.x), so the override is patch-level only. Revisit once Devvit
-# ships a release that pins protobufjs >=7.5.8 upstream.
 overrides:
-  protobufjs: '~7.5.8'
+  protobufjs: '~7.5.8' # Remove once Devvit ships a release that pins protobufjs >=7.5.8 upstream.

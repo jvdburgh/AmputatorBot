@@ -1,24 +1,31 @@
-![#AmputatorBot](praw-python-archive/img/amputatorbot_logo_banner.png)
+![#AmputatorBot](website/public/amputatorbot_logo_banner.png)
 
-TL;DR: Remove AMP from your URLs — to push back on Google's power over independent publishers, protect user privacy, and support the Open Web. [AmputatorBot](https://github.com/jvdburgh/AmputatorBot) is a [Reddit](https://www.reddit.com/user/AmputatorBot) bot that automatically replies to comments and submissions containing AMP URLs with the canonical link(s). It's also available as a [website](https://www.amputatorbot.com/) and a [free REST API](https://www.amputatorbot.com/api/docs).
+TL;DR: Remove AMP from your URLs to reduce Google's control over independent publishers, improve privacy, and support the Open Web.
+
+[AmputatorBot](https://github.com/jvdburgh/AmputatorBot) is a [Reddit](https://www.reddit.com/user/AmputatorBot)
+Devvit app that automatically detects AMP links in submissions and comments
+and replies with the canonical URL(s).
+
+The core of AmputatorBot is a free public REST API, available at
+[amputatorbot.com/api/docs](https://www.amputatorbot.com/api/docs).
+It handles the canonical URL conversion, and powers both the
+Reddit app and [amputatorbot.com](https://www.amputatorbot.com/).
+
+Written in [Rust](https://rust-lang.org/) because it's fun, fast, and prevents memory leaks.
+`/api/v2/convert` is the primary endpoint, while `/api/v1/convert` remains available for backwards compatibility.
+
+The original Python + Flask implementation is preserved in
+[`praw-python-archive/`](praw-python-archive/) for historical reference.
+
+Since 2019.
 
 [**FAQ & Why**](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/) · [**Changelog**](https://www.reddit.com/r/AmputatorBot/comments/ch9fxp/changelog_of_amputatorbot/) · [**Community**](https://www.reddit.com/r/AmputatorBot/)
-
-## What it is
-
-AmputatorBot has been running on Reddit since 2019. Three surfaces, same engine:
-
-- **The Reddit app** — replies to AMP comments/submissions on subreddits where mods have installed it.
-- **The website** — paste a URL at [www.amputatorbot.com](https://www.amputatorbot.com/), get the canonical back.
-- **The REST API** — `/api/v2/convert` is the core engine, used by the bot and website; `/api/v1/convert` is kept around for backwards compatibility. Docs at [www.amputatorbot.com/api/docs](https://www.amputatorbot.com/api/docs).
-
-As of v5, the bot is a [Devvit](https://developers.reddit.com/) app (Reddit's official app platform) and the backend is rewritten in Rust. The old Python + Flask version is preserved in [`praw-python-archive/`](praw-python-archive/) for reference.
 
 ## Features
 
 ![#AmputatorBot demo](praw-python-archive/img/amputatorbot_demo.png)
 
-- **11 specialised canonical-finding methods, +99% accuracy.** Tried in priority order:
+- **11 specialised canonical-finding methods, +98% accuracy.** Tried in priority order:
   - `REL` — `<link rel="canonical">`, the HTML5 standard signal used by ~every SEO-aware CMS.
   - `CANURL` — custom `a="amp-canurl"` attribute some publishers set alongside (or instead of) `rel=canonical`.
   - `OG_URL` — Open Graph `<meta property="og:url">`.
@@ -37,25 +44,25 @@ As of v5, the bot is a [Devvit](https://developers.reddit.com/) app (Reddit's of
 
 ## Repo structure
 
-This is a monorepo. Each part can be developed independently:
+All parts of AmputatorBot are open-sourced in this monorepo:
 
 - **[`backend/`](backend/)** — Rust + Axum service. Hosts the `/api/v2/convert` endpoint (plus the legacy `/api/v1/convert`), the canonical-finding engine, the Scalar API docs at `/api/docs`, and serves the website's static files from the same binary.
-- **[`devvit-app/`](devvit-app/)** — TypeScript Devvit app. Listens to comment and post triggers and replies per opt-in subreddit.
+- **[`devvit-app/`](devvit-app/)** — TypeScript Devvit app. Listens to comment and submission triggers and replies per opt-in subreddit.
 - **[`website/`](website/)** — Astro 6 + Tailwind 4 + shadcn/ui frontend.
-- **[`praw-python-archive/`](praw-python-archive/)** — the original Python bot (PRAW + Flask). Read-only reference. See [`praw-python-archive/README-legacy.md`](praw-python-archive/README-legacy.md) for the original project README.
-- **[`.claude/skills/amputatorbot-migration/`](.claude/skills/amputatorbot-migration/)** — the migration plan v7, with locked decisions and milestones M1–M6.
+- **[`praw-python-archive/`](praw-python-archive/)** — the original Python bot (PRAW + Flask). Read-only reference.
+- **[`.claude/skills/amputatorbot-migration/`](.claude/skills/amputatorbot-migration/)** — I used Claude to modernize our bot a bit. Kept as it contains architecture and historical context.
 
-## Tools we use
+## Tools
 
-A small, specific toolchain. None of it is exotic — `mise` and `just` together replace what'd otherwise be ten one-off install steps:
+Before we dive in, here's a quick overview of the tools we use.
 
 - **[mise](https://mise.jdx.dev)** — pins Rust stable, Node 22, pnpm 11, just, and lefthook for this repo. `mise install` reproduces the whole toolchain from `mise.toml`.
 - **[just](https://github.com/casey/just)** — task runner. Every subproject has its own `justfile`. `just <recipe>` from the repo root fans out to all three projects where it makes sense. Try `just --list`.
 - **[pnpm](https://pnpm.io)** — workspace package manager for `devvit-app/` and `website/`. `pnpm install` from the repo root sets both up.
 - **[cargo](https://doc.rust-lang.org/cargo/)** — Rust's build + test runner. We add **[cargo-nextest](https://nexte.st)** (faster tests + per-test isolation) and **[cargo-deny](https://embarkstudios.github.io/cargo-deny/)** (license + vuln audit).
-- **[biome](https://biomejs.dev)** — TypeScript/JavaScript formatter + linter, in one fast Rust binary. Replaces ESLint + Prettier.
+- **[biome](https://biomejs.dev)** — TypeScript/JavaScript formatter + linter, in one fast Rust binary. Alternative to ESLint + Prettier.
 - **[lefthook](https://lefthook.dev)** — git hook manager. `just setup` registers it so `biome` and `rustfmt`+`clippy` run on staged files at commit time.
-- **Docker** — only needed for the local Postgres 17 that `just db-up` boots.
+- **[Docker](https://www.docker.com/)** — only needed for the local Postgres 17 that `just db-up` boots.
 
 ## Getting started
 
@@ -84,7 +91,9 @@ Then click around the Scalar UI to call `POST /api/v2/convert`, or curl directly
 
 ## The Reddit app
 
-The Devvit app lives in [`devvit-app/`](devvit-app/) (TypeScript, `@devvit/web`). It's a per-subreddit Reddit app: mods install it on subs they moderate, and the bot replies to AMP URLs in comments and posts on those subs only.
+The TypeScript Devvit app lives in [`devvit-app/`](devvit-app/). 
+It's a per-subreddit Reddit app: mods install it on subs they moderate, 
+and the bot replies to AMP URLs in comments and submissions on those subs only.
 
 ### How it works
 
@@ -102,18 +111,6 @@ Mods see these on the install settings page in Reddit's developer-platform UI:
 
 - **Reply to AMP links** (`autoReply`, default on) — single on/off toggle.
 - **Custom footer** (`customFooter`, optional) — appended to the bot's reply footer, e.g. a link to your subreddit's modmail.
-
-### Why the bot calls a public API instead of doing it inside Devvit
-
-The resolver runs 11 specialised canonical-finding methods (rel=canonical, og:url, schema.org, Google/Bing AMP cache parsing, meta-refresh, article-similarity scoring via a Mozilla Readability port, etc.), backed by a 1.7M-row Postgres cache. It depends on Rust crates (`dom_smoothie`, `scraper`, `psl`, `sqlx`) without practical TypeScript equivalents, and the cache reduces re-fetching the same URLs repeatedly — both of which would be impractical inside the Devvit runtime. The API has been publicly documented and available without authentication since 2020; existing third-party integrations (browser extensions, Discord bots, IFTTT scripts) rely on it.
-
-### Custom domain (heads-up for other Devvit devs)
-
-Devvit apps can only fetch from domains they've gotten allow-listed by Reddit. See Reddit's [HTTP-Fetch docs](https://developers.reddit.com/docs/capabilities/server/http-fetch#requesting-a-domain-to-be-allow-listed) — short version: you declare the exact hostname in `devvit.json`, and an admin approves or denies on review. The bot fetches from `www.amputatorbot.com` (our own backend on Scaleway).
-
-### Per-install identity
-
-In Devvit's model, each install posts under a per-install app identity rather than `u/AmputatorBot`. That's how Devvit works. Functionally, the bot replies the same way; the username next to the reply is just per-subreddit now.
 
 ### Local playtest
 
@@ -137,9 +134,9 @@ Override the playtest subreddit with `SUB=foo just playtest`.
 
 ## The website
 
-Astro 6 + Tailwind 4 + shadcn/ui at [www.amputatorbot.com](https://www.amputatorbot.com/). Includes the URL converter form (paste a URL, get the canonical or a copy-paste-ready Reddit comment), a live "X converted so far" badge backed by `/api/v2/stats`, and explainer sections sourced from the FAQ Reddit thread. Lives in [`website/`](website/).
+Astro 6 + Tailwind 4 + shadcn/ui at [www.amputatorbot.com](https://www.amputatorbot.com/). Includes the URL converter form (paste a URL, get the canonical, or a copy-paste-ready Reddit comment), a live "X converted so far" badge backed by `/api/v2/stats`, and explainer sections sourced from the FAQ Reddit thread. Lives in [`website/`](website/).
 
-The Astro static bundle is built into the Rust backend's container image (see [`backend/Dockerfile`](backend/Dockerfile)) and served from the same binary via `tower-http::ServeDir`. One service, one deploy.
+The Astro static bundle is built into the Rust backend's container image (see [`backend/Dockerfile`](backend/Dockerfile)) and served from the same binary via `tower-http::ServeDir`. Maybe not nicely separated, but it saves me some time.
 
 ### Local dev
 
@@ -217,20 +214,24 @@ Three layers in the backend:
 
 - **Unit tests** — per-module tests for AMP detection, URL extraction, the 11 canonical methods, and the orchestration loop. Mock-driven, no network, sub-second. `cd backend && just test`.
 - **Snapshot tests** (`insta`) — pin the JSON shape of `resolve()` for ~10 representative scenarios. Catches accidental response-shape drift. Regenerate after an intentional shape change with `INSTA_UPDATE=always cargo nextest run --test snapshots` then `cargo insta review`.
-- **Parity tests** — replay a 10k-row legacy `URLConversions` sample against the new resolver and compare each result to what the legacy Python bot recorded. Records HTML fixtures once (`just record-fixtures`, ~1 hour), then `just parity-full` runs ~minute per run and writes `tests/parity-report.md`.
+- **Parity tests** — replay a 10k-row legacy sample against the new resolver and compare each result to what the legacy Python bot recorded. Records HTML fixtures once (`just record-fixtures`, ~1 hour), then `just parity-full` runs ~minute per run, and writes `tests/parity-report.md`.
 
 ## Support the project
 
 - **Give feedback** — most new features come straight from user feedback. [Contact me on Reddit](https://www.reddit.com/message/compose/?to=Killed_Mufasa) or [file an issue](https://github.com/jvdburgh/AmputatorBot/issues).
 - **Star** — by starring on GitHub, more folks find it. Also gives me something to brag about :p
 - **Contribute** — [PRs welcome](https://github.com/jvdburgh/AmputatorBot/issues), big or small.
-- **Spread the word** — the only goal here is to give people the canonical link to read instead of the AMP one. Sharing the bot, the API, or the site helps.
+- **Spread the word** — the only goal here is to give people the canonical link to read instead of the AMP one. Sharing the bot, the API, or the website helps.
 
 ### Sponsor
 
-Hosting the bot, website, and API runs about €12–15 ($14–17) per month between the Scaleway container and the managed Postgres. If you support what AmputatorBot does and want to chip in, any donation is a huge help! Thanks a bunch.
+Running the app, website, and API costs roughly €15 ($17) per month,
+covering a Scaleway container and managed Postgres.
 
-> Donate to our friends in Ukraine: [u24.gov.ua](https://u24.gov.ua/)  
-> Donate to AmputatorBot PayPal (used for server cost only): [paypal.com/.../EU6ZFKTVT9VH2](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2)
+If you find AmputatorBot useful and want to support it, donations help cover
+infrastructure costs directly.
 
-**From the bottom of my heart, huge thanks for the tremendous support! <3**
+> Donate to Ukraine relief: [u24.gov.ua](https://u24.gov.ua/)  
+> Donate via PayPal (server costs only): [paypal.com/.../EU6ZFKTVT9VH2](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=EU6ZFKTVT9VH2)
+
+**Thanks for the support <3**

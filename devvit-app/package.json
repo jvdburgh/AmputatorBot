@@ -1,6 +1,6 @@
 {
   "name": "amputatorbot-app",
-  "version": "0.0.0",
+  "version": "5.0.0",
   "private": true,
   "description": "Detects AMP URLs in comments and posts, replies with the canonical non-AMP link.",
   "type": "module",
@@ -15,13 +15,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@devvit/web": "0.13.0",
+    "@devvit/web": "^0.13.0",
     "@hono/node-server": "^2.0.4",
     "hono": "^4.12.23"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
-    "@devvit/start": "0.13.0",
+    "@devvit/start": "^0.13.0",
     "@types/node": "^25.9.1",
     "@typescript/native-preview": "latest",
     "devvit": "0.13.0",
