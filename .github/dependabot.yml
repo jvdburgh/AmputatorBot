@@ -1,45 +1,92 @@
 version: 2
+
+# Maintenance policy for AmputatorBot
+# ------------------------------------
+# - Routine dependency updates: monthly, grouped into one PR per ecosystem per month.
+#   Minor + patch bumps land in a single PR per ecosystem; majors stay separate.
+# - Security updates: come through automatically, on Dependabot's own cadence (not
+#   bound by the `interval` below). Verify "Dependabot security updates" is enabled
+#   in Settings → Code security.
+# - PR caps keep the inbox quiet; if the limit is hit, older PRs block newer ones.
+# - Consistent commit prefix (`chore(deps)`) keeps history easy to skim and easy to
+#   filter from changelog-style git logs.
+
 updates:
-  - package-ecosystem: "cargo"
-    directory: "/backend"
+  # Rust backend
+  - package-ecosystem: cargo
+    directory: /backend
     schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
+      interval: monthly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
     groups:
-      cargo-deps:
+      cargo-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+      cargo-major:
+        patterns: ["*"]
+        update-types: [major]
+
+  # Devvit TypeScript app
+  - package-ecosystem: npm
+    directory: /devvit-app
+    schedule:
+      interval: monthly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      npm-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+      npm-major:
+        patterns: ["*"]
+        update-types: [major]
+
+  # Astro website
+  - package-ecosystem: npm
+    directory: /website
+    schedule:
+      interval: monthly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      npm-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+      npm-major:
+        patterns: ["*"]
+        update-types: [major]
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      day: monday
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      actions:
         patterns: ["*"]
 
-  - package-ecosystem: "npm"
-    directory: "/devvit-app"
+  # Dockerfile base images (combined Astro + Rust build at the repo root)
+  - package-ecosystem: docker
+    directory: /
     schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
-    groups:
-      npm-deps:
-        patterns: ["*"]
-
-  - package-ecosystem: "npm"
-    directory: "/website"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
-    groups:
-      npm-deps:
-        patterns: ["*"]
-
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-
-  - package-ecosystem: "docker"
-    # The Dockerfile lives at the repo root (combined Astro + Rust image),
-    # not under backend/. Pointing at "/backend" makes Dependabot miss it.
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: monthly
+      day: monday
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"

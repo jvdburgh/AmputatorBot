@@ -7,3 +7,6 @@ allowBuilds:
   sharp: true
 overrides:
   protobufjs: '~7.5.8' # Remove once Devvit ships a release that pins protobufjs >=7.5.8 upstream.
+  tmp: '^0.2.5'        # Dependabot #1 + #4: path traversal + symlink-dir. Transitive via @devvit/cli > inquirer > external-editor (tmp@0.0.33).
+  ws: '^8.20.1'        # Dependabot #3 / CVE-2026-45736: uninitialized memory disclosure. Patched in 8.20.1. Transitive via @devvit/cli + jsdom.
+  yaml@2: '^2.8.3'     # Dependabot #2 / CVE-2026-33532: stack overflow on nested YAML. Patched in 2.8.3. Transitive in @astrojs/check via yaml-language-server (was 2.7.1). Scoped to yaml@2 so the unrelated yaml@1.10.3 sub-tree is left alone.
