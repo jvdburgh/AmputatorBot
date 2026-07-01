@@ -22,7 +22,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.2",
     "@devvit/start": "^0.13.6",
-    "@types/node": "^25.9.2",
+    "@types/node": "^26.1.0",
     "@typescript/native-preview": "latest",
     "devvit": "0.13.6",
     "typescript": "^6.0.3",
