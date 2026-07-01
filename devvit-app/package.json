@@ -15,19 +15,19 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@devvit/web": "^0.13.2",
-    "@hono/node-server": "^2.0.4",
-    "hono": "^4.12.23"
+    "@devvit/web": "^0.13.6",
+    "@hono/node-server": "^2.0.6",
+    "hono": "^4.12.27"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.16",
-    "@devvit/start": "^0.13.2",
+    "@biomejs/biome": "^2.5.2",
+    "@devvit/start": "^0.13.6",
     "@types/node": "^25.9.2",
     "@typescript/native-preview": "latest",
-    "devvit": "0.13.2",
+    "devvit": "0.13.6",
     "typescript": "^6.0.3",
-    "vite": "^8.0.16",
-    "vitest": "^4.1.8"
+    "vite": "^8.1.2",
+    "vitest": "^4.1.9"
   },
   "license": "GPL-3.0-or-later"
 }
