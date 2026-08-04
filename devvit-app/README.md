@@ -5,20 +5,15 @@ canonical, non-AMP link.
 
 ## Why?
 
-Not all AMP links are equal. The worst offenders are **cached AMP links**
-(the `google.com/amp/...` and `bing.com/amp/...` kind): the article is served
-from Google's or Bing's servers, the publisher's domain is hidden behind
-someone else's URL, and — per Google's own documentation — both Google *and*
-the publisher may collect data about your visit.
+AMP was Google's attempt at "speeding up the mobile web". In practice the
+speed gains were mixed at best, publishers surrendered control over their
+own pages (and earned about 40% less on them, per Google's own internal
+documents), and cached AMP pages keep you inside Google's ecosystem, with
+the publisher's domain hidden behind a `google.com/amp` prefix. AMP's flaws
+threaten the Open Web — and user privacy along with it. AmputatorBot exists
+to empower individuals to push back.
 
-**Publisher-hosted AMP pages** at least live on the publisher's own domain,
-but they're stripped-down pages built to Google's component rules, with
-speed benefits that real-world benchmarks found mixed at best — while
-internal Google documents put publisher revenue on AMP at roughly 40% less.
-
-Either way, the canonical link gives you the same article, full-fat,
-straight from the source. That's what the bot serves.
-[Read the full why here.](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/)
+[Read the full why, with sources →](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/)
 
 ## What it does
 
