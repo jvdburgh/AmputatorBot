@@ -34,7 +34,7 @@ has been preserved in [`praw-python-archive/`](praw-python-archive/) for histori
   - `GUESS_AND_CHECK` — strip AMP keywords from the URL, fetch the result, and accept it if the article text is similar enough to the AMP page (similarity via Mozilla Readability port `dom_smoothie`).
   - `DATABASE` — cache lookup against the ~1.7M previously-resolved canonicals in Postgres.
 - **14 AMP-detection patterns**, applied with word boundaries and URL-component scoping to keep false positives down.
-- Reads Reddit comments and posts via Devvit triggers, per opt-in subreddit.
+- Reads Reddit comments and posts via Devvit triggers, per opt-in subreddit. Summonable by mentioning the bot in a reply to a comment/post with an AMP link.
 - ~1.7M historical conversions cached in Postgres for instant lookups.
 - Free, open, no-auth REST API at `/api/v2/convert` (camelCase JSON in/out). Both encoded and unencoded URLs work. Docs at [`/api/docs`](https://www.amputatorbot.com/api/docs) (Scalar).
 
@@ -100,6 +100,8 @@ On `onCommentSubmit` or `onPostSubmit` in a subreddit that has installed the app
 3. If any survive, calls `POST https://www.amputatorbot.com/api/v2/convert` to resolve the canonical.
 4. Builds the reply markdown and posts it via `reddit.submitComment`.
 5. Marks the comment/post handled in Devvit Redis for 1 hour to prevent double-replies on trigger retries.
+
+There's also an `onMentionInCommentCreate` handler — the summon feature: reply to a comment or post containing an AMP link, mention the bot, and it resolves the links in that parent and answers you.
 
 ### Per-install settings
 
