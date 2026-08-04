@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+    <!-- AmputatorBot app/user icon — robot head in the site's brand language.
+         Palette mirrors website/public/favicon.svg: #005af0 circle, white mark,
+         bolt halves at .9/.4 fill-opacity. -->
+    <circle cx="512" cy="512" r="512" fill="#005af0"/>
+
+    <!-- antenna -->
+    <rect x="492" y="252" width="40" height="110" rx="20" fill="#fff"/>
+    <circle cx="512" cy="228" r="52" fill="#fff"/>
+
+    <!-- ears -->
+    <rect x="196" y="482" width="56" height="150" rx="28" fill="#fff"/>
+    <rect x="772" y="482" width="56" height="150" rx="28" fill="#fff"/>
+
+    <!-- head -->
+    <rect x="272" y="362" width="480" height="390" rx="96" fill="#fff"/>
+
+    <!-- eyes: two-tone like the split AMP bolt -->
+    <circle cx="408" cy="512" r="52" fill="#005af0" fill-opacity="0.9"/>
+    <circle cx="616" cy="512" r="52" fill="#005af0" fill-opacity="0.9"/>
+
+    <!-- mouth -->
+    <rect x="420" y="628" width="184" height="34" rx="17" fill="#005af0" fill-opacity="0.4"/>
+</svg>
