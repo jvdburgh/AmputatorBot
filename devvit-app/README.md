@@ -3,9 +3,21 @@
 AmputatorBot detects AMP links in comments and posts, and replies with the
 canonical, non-AMP link.
 
-**Why?** AMP pages are hosted by Google, not the original publisher. They hurt
-publisher independence, your privacy, and the Open Web. The canonical link
-gives you the same article, straight from the source.
+## Why?
+
+Not all AMP links are equal. The worst offenders are **cached AMP links**
+(the `google.com/amp/...` and `bing.com/amp/...` kind): the article is served
+from Google's or Bing's servers, the publisher's domain is hidden behind
+someone else's URL, and — per Google's own documentation — both Google *and*
+the publisher may collect data about your visit.
+
+**Publisher-hosted AMP pages** at least live on the publisher's own domain,
+but they're stripped-down pages built to Google's component rules, with
+speed benefits that real-world benchmarks found mixed at best — while
+internal Google documents put publisher revenue on AMP at roughly 40% less.
+
+Either way, the canonical link gives you the same article, full-fat,
+straight from the source. That's what the bot serves.
 [Read the full why here.](https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot/)
 
 ## What it does
