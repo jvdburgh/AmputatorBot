@@ -15,17 +15,17 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@devvit/web": "^0.13.6",
+    "@devvit/web": "^0.13.11",
     "@hono/node-server": "^2.0.6",
     "hono": "^4.12.27"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.2",
-    "@devvit/start": "^0.13.6",
-    "@types/node": "^25.9.2",
+    "@devvit/start": "^0.13.11",
+    "@types/node": "^26.1.2",
     "@typescript/native-preview": "latest",
-    "devvit": "0.13.6",
-    "typescript": "^6.0.3",
+    "devvit": "0.13.11",
+    "typescript": "^7.0.2",
     "vite": "^8.1.2",
     "vitest": "^4.1.9"
   },
