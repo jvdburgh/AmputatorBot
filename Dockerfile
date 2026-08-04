@@ -43,7 +43,7 @@ RUN pnpm --filter amputatorbot-website build
 # -----------------------------------------------------------------------------
 # Stage 3: cargo-chef base
 # -----------------------------------------------------------------------------
-FROM rust:1.96-slim AS rust-chef
+FROM rust:1.97-slim AS rust-chef
 RUN cargo install cargo-chef --locked
 WORKDIR /app
 

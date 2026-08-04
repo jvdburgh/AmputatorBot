@@ -26,10 +26,10 @@ jobs:
         language: [javascript-typescript]
     steps:
       - uses: actions/checkout@v7
-      - uses: github/codeql-action/init@v4
+      - uses: github/codeql-action/init@v4.37.3
         with:
           languages: ${{ matrix.language }}
-      - uses: github/codeql-action/analyze@v4
+      - uses: github/codeql-action/analyze@v4.37.3
 
   cargo-deny:
     name: cargo deny (advisories)
@@ -39,7 +39,7 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v7
-      - uses: jdx/mise-action@v4
+      - uses: jdx/mise-action@v4.2.3
         with:
           install: true
           cache: true
