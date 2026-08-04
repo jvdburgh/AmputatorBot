@@ -28,7 +28,7 @@ import { Hono } from 'hono';
 import { BackendClient } from './backend/client.ts';
 import { loadInstallSettings } from './settings.ts';
 import { handleAmpTrigger } from './triggers/handler.ts';
-import { fetchMentionParentText } from './triggers/mention.ts';
+import { fetchMentionParent, type MentionParent } from './triggers/mention.ts';
 
 // Backend base URL. Hardcoded so the published bundle has zero env coupling
 // — Devvit's server runtime exposes a sandboxed `process.env` whose support
@@ -112,22 +112,29 @@ app.post('/internal/triggers/mention', async (c) => {
   if (!comment?.id || !comment.parentId) return c.json<TriggerResponse>({});
 
   // The summoner replies to the AMP-carrying comment/post and tags the bot,
-  // so the links to resolve live in the parent. A deleted or unreachable
-  // parent ends the summon quietly — there's nothing to resolve and the
-  // trigger retry wouldn't fare better.
-  let parentText: string | null = null;
+  // so the links to resolve — and the reply target — live in the parent.
+  // A deleted or unreachable parent ends the summon quietly: there's
+  // nothing to resolve and the trigger retry wouldn't fare better.
+  let parent: MentionParent | null = null;
   try {
-    parentText = await fetchMentionParentText(reddit, comment.parentId);
+    parent = await fetchMentionParent(reddit, comment.parentId);
   } catch (err) {
     console.error(`mention ${comment.id}: parent fetch failed: ${err}`);
   }
-  if (parentText === null) return c.json<TriggerResponse>({});
+  if (parent === null) return c.json<TriggerResponse>({});
 
   const [settings, botUsername] = await Promise.all([loadInstallSettings(), getBotUsername()]);
   const outcome = await handleAmpTrigger(
-    // id = the mentioning comment, so the reply lands under the summoner;
-    // body = the parent's text; author = the summoner (self-reply guard).
-    { kind: 'mention', id: T1(comment.id), body: parentText, author: body.author?.name },
+    // Legacy parity: the reply goes under the parent (where the AMP link
+    // is), and the summoner is credited/notified via the u/-mention in the
+    // reply — or DM'd the canonicals if the reply can't be posted.
+    {
+      kind: 'mention',
+      id: parent.id,
+      body: parent.text,
+      author: parent.authorName,
+      summoner: body.author?.name,
+    },
     { redis, reddit, backend, settings, botUsername },
   );
   console.log(`mention ${comment.id}: ${JSON.stringify(outcome)}`);

@@ -101,7 +101,7 @@ On `onCommentSubmit` or `onPostSubmit` in a subreddit that has installed the app
 4. Builds the reply markdown and posts it via `reddit.submitComment`.
 5. Marks the comment/post handled in Devvit Redis for 1 hour to prevent double-replies on trigger retries.
 
-There's also an `onMentionInCommentCreate` handler — the summon feature: reply to a comment or post containing an AMP link, mention the bot, and it resolves the links in that parent and answers you.
+There's also an `onMentionInCommentCreate` handler — the summon feature: reply to a comment or post containing an AMP link, mention the bot, and it resolves the links in that parent and replies under it, crediting the summoner via u/-mention (their notification). If the reply can't be posted, the summoner gets the canonicals by DM.
 
 ### Per-install settings
 

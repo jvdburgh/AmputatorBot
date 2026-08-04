@@ -20,7 +20,10 @@ import type { RedisClient } from '@devvit/web/server';
 // stub a small object without satisfying the full ~50-method interface.
 export type DedupRedis = Pick<RedisClient, 'set' | 'expire' | 'exists'>;
 
-export type DedupScope = 'comment' | 'post' | 'mention';
+// No separate scope for mentions: a summon answers the same unit of work as
+// an auto-reply (this comment/post got its canonical answer), so both flows
+// share a key and can't double-answer the same target within the TTL.
+export type DedupScope = 'comment' | 'post';
 
 // Default 1-hour TTL on every mark. Adjust here, not at call sites.
 export const DEDUP_TTL_SECONDS = 60 * 60;

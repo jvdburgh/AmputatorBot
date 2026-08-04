@@ -23,7 +23,8 @@ to empower individuals to push back.
   backed by a cache of ~1.7M previously-resolved links.
 - Replies once, with the canonical link(s). No spam, no double replies.
 - Can be summoned: reply to a comment or post containing an AMP link and
-  mention the bot — it answers you with the canonical link.
+  mention the bot — it posts the canonical link under that comment/post and
+  pings you. If the reply can't be posted, you get the links by DM instead.
 
 ## For mods
 

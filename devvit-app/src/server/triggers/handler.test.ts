@@ -37,10 +37,17 @@ function stubBackend(result: ConvertResult): BackendClient {
   } as unknown as BackendClient;
 }
 
-function stubReddit(): ReplyReddit & { submitComment: ReturnType<typeof vi.fn> } {
-  return { submitComment: vi.fn(() => Promise.resolve()) } as unknown as ReplyReddit & {
-    submitComment: ReturnType<typeof vi.fn>;
-  };
+type StubReddit = ReplyReddit & {
+  submitComment: ReturnType<typeof vi.fn>;
+  sendPrivateMessage: ReturnType<typeof vi.fn>;
+};
+
+function stubReddit(overrides: Partial<StubReddit> = {}): StubReddit {
+  return {
+    submitComment: vi.fn(() => Promise.resolve()),
+    sendPrivateMessage: vi.fn(() => Promise.resolve()),
+    ...overrides,
+  } as unknown as StubReddit;
 }
 
 const settings = (overrides: Partial<InstallSettings> = {}): InstallSettings => ({
@@ -224,30 +231,66 @@ describe('handleAmpTrigger', () => {
     expect(again).toEqual({ status: 'skipped', reason: 'already_handled' });
   });
 
-  it('sends entryType MENTION and replies to the mentioning comment for mention triggers', async () => {
+  it('replies under the parent with a summoner credit line for mention triggers', async () => {
     const reddit = stubReddit();
     const backend = stubBackend(okResult());
     const outcome = await handleAmpTrigger(
-      // id = the summoner's comment; body = the parent's text (resolved by
-      // the mention endpoint before this is called).
-      { ...ampInput, kind: 'mention', id: 't1_summon' as const },
+      // id/body = the PARENT of the summon (resolved by the mention endpoint
+      // before this is called); summoner = who tagged the bot.
+      { ...ampInput, kind: 'mention', id: 't1_parent' as const, summoner: 'summoner-user' },
       deps({ reddit, backend }),
     );
 
     expect(outcome).toEqual({ status: 'replied' });
-    expect(reddit.submitComment.mock.calls[0]?.[0].id).toBe('t1_summon');
+    const call = reddit.submitComment.mock.calls[0]?.[0];
+    expect(call?.id).toBe('t1_parent');
+    // The u/-mention is what notifies the summoner — the reply notification
+    // itself goes to the parent's author.
+    expect(call?.text).toMatch(/\^\(Summoned by u\/summoner-user\)$/);
     const convertArgs = (backend.convert as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
     expect(convertArgs.entryType).toBe('MENTION');
   });
 
-  it('dedups mention triggers separately from comment triggers', async () => {
-    // The same comment id can legitimately be seen by both the comment-submit
-    // trigger (the summon comment itself) and the mention trigger (as reply
-    // target). Scoped dedup keys keep the two flows from starving each other.
+  it('skips a summon whose parent the auto-reply flow already answered', async () => {
+    // Dedup is keyed on the target fullname across trigger kinds, so a
+    // summon on an already-answered comment doesn't double-post.
     const shared = deps();
     await handleAmpTrigger(ampInput, shared);
-    const mention = await handleAmpTrigger({ ...ampInput, kind: 'mention' }, shared);
-    expect(mention).toEqual({ status: 'replied' });
+    const mention = await handleAmpTrigger(
+      { ...ampInput, kind: 'mention', summoner: 'summoner-user' },
+      shared,
+    );
+    expect(mention).toEqual({ status: 'skipped', reason: 'already_handled' });
+  });
+
+  it('falls back to DMing the summoner when the summoned reply cannot be posted', async () => {
+    const reddit = stubReddit({
+      submitComment: vi.fn(() => Promise.reject(new Error('THREAD_LOCKED'))),
+    });
+    const shared = deps({ reddit });
+    const outcome = await handleAmpTrigger(
+      { ...ampInput, kind: 'mention', id: 't1_parent' as const, summoner: 'summoner-user' },
+      shared,
+    );
+
+    expect(outcome).toEqual({ status: 'dm_fallback', reason: 'Error: THREAD_LOCKED' });
+    const dm = reddit.sendPrivateMessage.mock.calls[0]?.[0];
+    expect(dm?.to).toBe('summoner-user');
+    expect(dm?.text).toContain('**[https://example.eu/article](https://example.eu/article)**');
+    // The summoner got the answer — the summon counts as handled.
+    const again = await handleAmpTrigger(
+      { ...ampInput, kind: 'mention', id: 't1_parent' as const, summoner: 'summoner-user' },
+      shared,
+    );
+    expect(again).toEqual({ status: 'skipped', reason: 'already_handled' });
+  });
+
+  it('propagates reply failures for non-mention triggers (no DM, retry takes over)', async () => {
+    const reddit = stubReddit({
+      submitComment: vi.fn(() => Promise.reject(new Error('THREAD_LOCKED'))),
+    });
+    await expect(handleAmpTrigger(ampInput, deps({ reddit }))).rejects.toThrow('THREAD_LOCKED');
+    expect(reddit.sendPrivateMessage).not.toHaveBeenCalled();
   });
 
   it('returns error WITHOUT marking handled on a transient backend failure', async () => {

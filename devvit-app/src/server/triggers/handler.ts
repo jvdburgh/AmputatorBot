@@ -15,18 +15,20 @@ import { extractUrls } from '../core/urlExtract.ts';
 import type { InstallSettings } from '../settings.ts';
 import { type DedupRedis, isHandled, markHandled } from '../storage/dedup.ts';
 
-// Just the `submitComment` method off the real `RedditClient` — keeps the
+// Just the two write methods off the real `RedditClient` — keeps the
 // handler decoupled from the full client surface and trivial to stub in
 // tests, while still picking up signature drift from Devvit upstream.
-export type ReplyReddit = Pick<RedditClient, 'submitComment'>;
+// `sendPrivateMessage` is only used by the mention flow's error fallback.
+export type ReplyReddit = Pick<RedditClient, 'submitComment' | 'sendPrivateMessage'>;
 
 // `comment` → comment-submit, parent is the comment itself (`t1_<id>`).
 // `post` → post-submit, parent is the post (`t3_<id>`); reply is posted as
 // a top-level comment on the post.
-// `mention` → mention-in-comment (summon): `id` is the mentioning comment
-// (the reply target, so the summoner gets the answer) while `body` carries
-// the text of that comment's PARENT — the mention flow resolves the links
-// the summoner is pointing at, not the summon itself. See
+// `mention` → mention-in-comment (summon): mirrors the legacy bot — `id` and
+// `body` are the mentioning comment's PARENT (the AMP-carrying comment or
+// post), so the reply lands under the link it corrects, and `summoner`
+// carries who tagged the bot. The summoner is notified via the u/-mention
+// in the reply's credit line, or by DM when the reply can't be posted. See
 // `triggers/mention.ts` for the parent fetch.
 export type TriggerType = 'comment' | 'post' | 'mention';
 
@@ -55,14 +57,21 @@ export type TriggerInput = {
   // For comments: the comment body. For posts: title + (link URL) + selftext
   // joined with whitespace so all three are URL-extracted in one pass.
   body: string;
-  // The username of whoever submitted the comment/post (`event.author?.name`).
-  // Used for the self-reply guard. `undefined` when Devvit didn't include an
-  // author (rare; system / deleted users).
+  // The author of whatever `body` came from: the comment/post submitter for
+  // the auto-reply flows, the PARENT's author for mentions. Used for the
+  // self-reply guard. `undefined` when unavailable (system / deleted users).
   author: string | undefined;
+  // Mention flow only: who tagged the bot. Drives the reply's
+  // "Summoned by u/..." credit line (whose u/-mention is what notifies the
+  // summoner) and the error-DM fallback. Leave unset for the other flows.
+  summoner?: string;
 };
 
 export type TriggerOutcome =
   | { status: 'replied' }
+  // Mention flow only: the reply couldn't be posted (locked thread, removed
+  // parent, bot banned), so the summoner got the canonicals by DM instead.
+  | { status: 'dm_fallback'; reason: string }
   | { status: 'skipped'; reason: SkipReason }
   | { status: 'error'; reason: string };
 
@@ -93,7 +102,11 @@ export async function handleAmpTrigger(
     return { status: 'skipped', reason: 'auto_reply_off' };
   }
 
-  if (await isHandled(deps.redis, input.kind, input.id)) {
+  // Dedup scope follows the target's fullname, not the trigger kind, so a
+  // summon on a comment the auto-reply flow already answered (or vice versa)
+  // short-circuits here instead of double-posting the same canonicals.
+  const scope = input.id.startsWith('t3_') ? 'post' : 'comment';
+  if (await isHandled(deps.redis, scope, input.id)) {
     return { status: 'skipped', reason: 'already_handled' };
   }
 
@@ -107,7 +120,7 @@ export async function handleAmpTrigger(
     // Almost all comments hit this path. Mark handled so a re-fire of the
     // same trigger doesn't re-run the extraction; cheap and bounds Redis
     // growth to the same 1h window we'd hit on real replies.
-    await markHandled(deps.redis, input.kind, input.id);
+    await markHandled(deps.redis, scope, input.id);
     return { status: 'skipped', reason: 'no_amp_urls' };
   }
 
@@ -126,7 +139,7 @@ export async function handleAmpTrigger(
     if (result.kind === 'no_amp') {
       // Local heuristic flagged the URL but the backend's stricter resolver
       // disagreed. Mark handled so we don't keep re-asking on retries.
-      await markHandled(deps.redis, input.kind, input.id);
+      await markHandled(deps.redis, scope, input.id);
       return { status: 'skipped', reason: 'backend_no_amp' };
     }
     // Real failure (network, server error, invalid input). Do NOT mark
@@ -138,13 +151,36 @@ export async function handleAmpTrigger(
     // Backend resolved everything but found no canonical worth replying
     // about (e.g. all candidates were themselves AMP with no fallback).
     // Treat as handled — re-resolving won't help.
-    await markHandled(deps.redis, input.kind, input.id);
+    await markHandled(deps.redis, scope, input.id);
     return { status: 'skipped', reason: 'no_canonical_to_share' };
   }
 
+  // Summons credit the summoner under the backend-generated comment. The
+  // u/-mention doubles as their notification: the reply goes to the parent,
+  // so Reddit's reply notification reaches the parent's author, not them.
+  const text =
+    input.kind === 'mention' && input.summoner
+      ? `${result.comment}\n\n^(Summoned by u/${input.summoner})`
+      : result.comment;
+
   // `submitComment` accepts both t1_ and t3_ fullnames on `id` — see
   // `node_modules/.../@devvit/reddit/RedditClient.d.ts#submitComment`.
-  await deps.reddit.submitComment({ id: input.id, text: result.comment });
-  await markHandled(deps.redis, input.kind, input.id);
+  try {
+    await deps.reddit.submitComment({ id: input.id, text });
+  } catch (err) {
+    // Legacy parity: when a summoned reply can't be posted (locked thread,
+    // removed parent, bot banned), the summoner still gets the answer — by
+    // DM. Auto-reply flows have no one waiting, so for them the error
+    // propagates and the trigger retry takes another swing.
+    if (input.kind !== 'mention' || !input.summoner) throw err;
+    await deps.reddit.sendPrivateMessage({
+      to: input.summoner,
+      subject: "AmputatorBot couldn't reply to your summon",
+      text: `You summoned AmputatorBot, but posting a reply failed — the thread may be locked or the parent removed. Here's what it would have said:\n\n---\n\n${result.comment}`,
+    });
+    await markHandled(deps.redis, scope, input.id);
+    return { status: 'dm_fallback', reason: String(err) };
+  }
+  await markHandled(deps.redis, scope, input.id);
   return { status: 'replied' };
 }
