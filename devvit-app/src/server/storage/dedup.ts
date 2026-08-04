@@ -20,7 +20,7 @@ import type { RedisClient } from '@devvit/web/server';
 // stub a small object without satisfying the full ~50-method interface.
 export type DedupRedis = Pick<RedisClient, 'set' | 'expire' | 'exists'>;
 
-export type DedupScope = 'comment' | 'post';
+export type DedupScope = 'comment' | 'post' | 'mention';
 
 // Default 1-hour TTL on every mark. Adjust here, not at call sites.
 export const DEDUP_TTL_SECONDS = 60 * 60;

@@ -224,6 +224,32 @@ describe('handleAmpTrigger', () => {
     expect(again).toEqual({ status: 'skipped', reason: 'already_handled' });
   });
 
+  it('sends entryType MENTION and replies to the mentioning comment for mention triggers', async () => {
+    const reddit = stubReddit();
+    const backend = stubBackend(okResult());
+    const outcome = await handleAmpTrigger(
+      // id = the summoner's comment; body = the parent's text (resolved by
+      // the mention endpoint before this is called).
+      { ...ampInput, kind: 'mention', id: 't1_summon' as const },
+      deps({ reddit, backend }),
+    );
+
+    expect(outcome).toEqual({ status: 'replied' });
+    expect(reddit.submitComment.mock.calls[0]?.[0].id).toBe('t1_summon');
+    const convertArgs = (backend.convert as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    expect(convertArgs.entryType).toBe('MENTION');
+  });
+
+  it('dedups mention triggers separately from comment triggers', async () => {
+    // The same comment id can legitimately be seen by both the comment-submit
+    // trigger (the summon comment itself) and the mention trigger (as reply
+    // target). Scoped dedup keys keep the two flows from starving each other.
+    const shared = deps();
+    await handleAmpTrigger(ampInput, shared);
+    const mention = await handleAmpTrigger({ ...ampInput, kind: 'mention' }, shared);
+    expect(mention).toEqual({ status: 'replied' });
+  });
+
   it('returns error WITHOUT marking handled on a transient backend failure', async () => {
     const shared = deps({
       backend: stubBackend({ ok: false, kind: 'network_error', message: 'ECONNREFUSED' }),

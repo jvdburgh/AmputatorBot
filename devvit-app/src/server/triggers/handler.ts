@@ -23,7 +23,12 @@ export type ReplyReddit = Pick<RedditClient, 'submitComment'>;
 // `comment` → comment-submit, parent is the comment itself (`t1_<id>`).
 // `post` → post-submit, parent is the post (`t3_<id>`); reply is posted as
 // a top-level comment on the post.
-export type TriggerType = 'comment' | 'post';
+// `mention` → mention-in-comment (summon): `id` is the mentioning comment
+// (the reply target, so the summoner gets the answer) while `body` carries
+// the text of that comment's PARENT — the mention flow resolves the links
+// the summoner is pointing at, not the summon itself. See
+// `triggers/mention.ts` for the parent fetch.
+export type TriggerType = 'comment' | 'post' | 'mention';
 
 export type TriggerDeps = {
   redis: DedupRedis;
@@ -109,7 +114,8 @@ export async function handleAmpTrigger(
   // Send only the AMP URLs the local check flagged. The backend re-extracts
   // and re-checks anyway, but a focused query saves it work.
   const query = ampUrls.join(' ');
-  const entryType = input.kind === 'comment' ? 'COMMENT' : 'SUBMISSION';
+  const entryType =
+    input.kind === 'comment' ? 'COMMENT' : input.kind === 'post' ? 'SUBMISSION' : 'MENTION';
 
   const result = await deps.backend.convert({
     query,

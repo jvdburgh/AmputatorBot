@@ -31,7 +31,8 @@
   },
   "triggers": {
     "onCommentSubmit": "/internal/triggers/comment-submit",
-    "onPostSubmit": "/internal/triggers/post-submit"
+    "onPostSubmit": "/internal/triggers/post-submit",
+    "onMentionInCommentCreate": "/internal/triggers/mention"
   },
   "marketingAssets": {
     "icon": "assets/icon.png"

@@ -1,10 +1,11 @@
 // AmputatorBot Devvit server — Hono.
 //
-// Wires two Devvit trigger endpoints to the shared orchestration in
+// Wires three Devvit trigger endpoints to the shared orchestration in
 // `triggers/handler.ts`:
 //
 //   POST /internal/triggers/comment-submit  ← onCommentSubmit
 //   POST /internal/triggers/post-submit     ← onPostSubmit
+//   POST /internal/triggers/mention         ← onMentionInCommentCreate
 //
 // Plus a trivial /api/health for liveness probes during local Docker runs.
 // Everything declarative — trigger registrations, settings schema, allow-
@@ -15,6 +16,7 @@
 import { createServer, getServerPort, reddit, redis } from '@devvit/web/server';
 import {
   type OnCommentSubmitRequest,
+  type OnMentionInCommentCreateRequest,
   type OnPostSubmitRequest,
   T1,
   T3,
@@ -26,6 +28,7 @@ import { Hono } from 'hono';
 import { BackendClient } from './backend/client.ts';
 import { loadInstallSettings } from './settings.ts';
 import { handleAmpTrigger } from './triggers/handler.ts';
+import { fetchMentionParentText } from './triggers/mention.ts';
 
 // Backend base URL. Hardcoded so the published bundle has zero env coupling
 // — Devvit's server runtime exposes a sandboxed `process.env` whose support
@@ -100,6 +103,34 @@ app.post('/internal/triggers/post-submit', async (c) => {
     { redis, reddit, backend, settings, botUsername },
   );
   console.log(`post-submit ${post.id}: ${JSON.stringify(outcome)}`);
+  return c.json<TriggerResponse>({});
+});
+
+app.post('/internal/triggers/mention', async (c) => {
+  const body = await c.req.json<OnMentionInCommentCreateRequest>();
+  const comment = body.comment;
+  if (!comment?.id || !comment.parentId) return c.json<TriggerResponse>({});
+
+  // The summoner replies to the AMP-carrying comment/post and tags the bot,
+  // so the links to resolve live in the parent. A deleted or unreachable
+  // parent ends the summon quietly — there's nothing to resolve and the
+  // trigger retry wouldn't fare better.
+  let parentText: string | null = null;
+  try {
+    parentText = await fetchMentionParentText(reddit, comment.parentId);
+  } catch (err) {
+    console.error(`mention ${comment.id}: parent fetch failed: ${err}`);
+  }
+  if (parentText === null) return c.json<TriggerResponse>({});
+
+  const [settings, botUsername] = await Promise.all([loadInstallSettings(), getBotUsername()]);
+  const outcome = await handleAmpTrigger(
+    // id = the mentioning comment, so the reply lands under the summoner;
+    // body = the parent's text; author = the summoner (self-reply guard).
+    { kind: 'mention', id: T1(comment.id), body: parentText, author: body.author?.name },
+    { redis, reddit, backend, settings, botUsername },
+  );
+  console.log(`mention ${comment.id}: ${JSON.stringify(outcome)}`);
   return c.json<TriggerResponse>({});
 });
 
