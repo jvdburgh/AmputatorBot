@@ -30,27 +30,15 @@ updates:
         patterns: ["*"]
         update-types: [major]
 
-  # Devvit TypeScript app
+  # pnpm workspace: devvit-app + website.
+  # One config at the repo root, NOT one per subdirectory — per-directory npm
+  # configs edit only that directory's package.json and can't see the shared
+  # root pnpm-lock.yaml, so every merged PR left main failing
+  # `pnpm install --frozen-lockfile` (ERR_PNPM_OUTDATED_LOCKFILE; see PRs
+  # #36/#38). Rooted at the workspace, dependabot updates member manifests
+  # and the lockfile together.
   - package-ecosystem: npm
-    directory: /devvit-app
-    schedule:
-      interval: monthly
-      day: monday
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "chore(deps)"
-      include: "scope"
-    groups:
-      npm-minor-patch:
-        patterns: ["*"]
-        update-types: [minor, patch]
-      npm-major:
-        patterns: ["*"]
-        update-types: [major]
-
-  # Astro website
-  - package-ecosystem: npm
-    directory: /website
+    directory: /
     schedule:
       interval: monthly
       day: monday
@@ -59,8 +47,10 @@ updates:
       prefix: "chore(deps)"
       include: "scope"
     ignore:
-      # @astrojs/check peer-requires typescript ^5 || ^6 — `astro check` breaks
-      # on TS 7. Drop this once @astrojs/check widens its peer range.
+      # @astrojs/check peer-requires typescript ^5 || ^6 — `astro check` (the
+      # website) breaks on TS 7. Drop this once @astrojs/check widens its peer
+      # range. Root-level scope means it also freezes devvit-app's typescript
+      # major (already on 7; next major is far off).
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
     groups:
