@@ -1,24 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-    <!-- AmputatorBot app/user icon — robot head in the site's brand language.
-         Palette mirrors website/public/favicon.svg: #005af0 circle, white mark,
-         bolt halves at .9/.4 fill-opacity. -->
-    <circle cx="512" cy="512" r="512" fill="#005af0"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 90 540 540">
+    <!-- AmputatorBot app icon for the Devvit portal / app account: the same
+         shield + split-bolt mark as website/public/favicon.svg, but on a
+         full-bleed square background instead of a circle (square canvas,
+         no rounding — Reddit's portal applies its own corner treatment). -->
+    <rect x="0" y="90" width="540" height="540" fill="#005af0"/>
 
-    <!-- antenna -->
-    <rect x="492" y="252" width="40" height="110" rx="20" fill="#fff"/>
-    <circle cx="512" cy="228" r="52" fill="#fff"/>
+    <path
+        fill="#fff"
+        d="M278.12,208.43,386.3,239.62a27,27,0,0,1,19.56,26l0,123.92a26.57,26.57,0,0,1-.64,5.83,131.68,131.68,0,0,1-9.77,28.4c-16.91,35.31-45.29,53.47-61.71,63.69a196.91,196.91,0,0,1-59.36,24.47,27.11,27.11,0,0,1-14.24-.54,219.41,219.41,0,0,1-60.52-29.71c-16.59-11.65-39-27.39-53.81-57.07a128.68,128.68,0,0,1-11.13-32.88,26.85,26.85,0,0,1-.51-5.22V265.73a27.05,27.05,0,0,1,19.61-26l109.43-31.31A27.1,27.1,0,0,1,278.12,208.43Z"
+    />
 
-    <!-- ears -->
-    <rect x="196" y="482" width="56" height="150" rx="28" fill="#fff"/>
-    <rect x="772" y="482" width="56" height="150" rx="28" fill="#fff"/>
+    <path
+        fill="#005af0"
+        fill-opacity="0.9"
+        d="M256.76,383.67l18.11-108.22-11,0-59.41,99.07a10,10,0,0,0-1.19,3.44,5.4,5.4,0,0,0,5.39,5.39h.47"
+    />
 
-    <!-- head -->
-    <rect x="272" y="362" width="480" height="390" rx="96" fill="#fff"/>
-
-    <!-- eyes: two-tone like the split AMP bolt -->
-    <circle cx="408" cy="512" r="52" fill="#005af0" fill-opacity="0.9"/>
-    <circle cx="616" cy="512" r="52" fill="#005af0" fill-opacity="0.9"/>
-
-    <!-- mouth -->
-    <rect x="420" y="628" width="184" height="34" rx="17" fill="#005af0" fill-opacity="0.4"/>
+    <path
+        fill="#005af0"
+        fill-opacity="0.4"
+        d="M283.24,336.33,265.12,444.55l11,0,59.41-99.07a10,10,0,0,0,1.19-3.44,5.4,5.4,0,0,0-5.39-5.39h-.47"
+    />
 </svg>

@@ -74,5 +74,8 @@ publish: build
 # Submit for review as a public listing (visible in the App Directory
 # to all mods + admins). Only run this after the unlisted version is
 # approved and you've verified the bot works in production.
-publish-public: build
-    pnpm exec devvit publish --public
+# Pin the version explicitly (`just publish-public 5.1.2`) to keep app
+# versions aligned with the repo's release tags; devvit bumps patch when
+# no version is given. Publish uploads itself — no separate `just upload`.
+publish-public VERSION="": build
+    pnpm exec devvit publish --public {{ if VERSION == "" { "" } else { "--version " + VERSION } }}
