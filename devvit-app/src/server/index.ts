@@ -134,6 +134,7 @@ app.post('/internal/triggers/mention', async (c) => {
       body: parent.text,
       author: parent.authorName,
       summoner: body.author?.name,
+      summonPermalink: comment.permalink,
     },
     { redis, reddit, backend, settings, botUsername },
   );

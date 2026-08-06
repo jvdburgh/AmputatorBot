@@ -231,24 +231,55 @@ describe('handleAmpTrigger', () => {
     expect(again).toEqual({ status: 'skipped', reason: 'already_handled' });
   });
 
-  it('replies under the parent with a summoner credit line for mention triggers', async () => {
+  it('replies under the parent with a linked summoner credit line for mention triggers', async () => {
     const reddit = stubReddit();
     const backend = stubBackend(okResult());
     const outcome = await handleAmpTrigger(
       // id/body = the PARENT of the summon (resolved by the mention endpoint
       // before this is called); summoner = who tagged the bot.
-      { ...ampInput, kind: 'mention', id: 't1_parent' as const, summoner: 'summoner-user' },
+      {
+        ...ampInput,
+        kind: 'mention',
+        id: 't1_parent' as const,
+        summoner: 'summoner-user',
+        summonPermalink: '/r/test/comments/abc/foo/def/',
+      },
       deps({ reddit, backend }),
     );
 
     expect(outcome).toEqual({ status: 'replied' });
     const call = reddit.submitComment.mock.calls[0]?.[0];
     expect(call?.id).toBe('t1_parent');
-    // The u/-mention is what notifies the summoner — the reply notification
-    // itself goes to the parent's author.
-    expect(call?.text).toMatch(/\^\(Summoned by u\/summoner-user\)$/);
+    // "Summoned" links to the summoning comment; the u/-mention stays plain
+    // text because that's what notifies the summoner — the reply
+    // notification itself goes to the parent's author.
+    expect(call?.text).toMatch(
+      /\[Summoned\]\(https:\/\/www\.reddit\.com\/r\/test\/comments\/abc\/foo\/def\/\) by u\/summoner-user$/,
+    );
     const convertArgs = (backend.convert as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
     expect(convertArgs.entryType).toBe('MENTION');
+  });
+
+  it('drops the credit link when the summon payload has no permalink', async () => {
+    const reddit = stubReddit();
+    await handleAmpTrigger(
+      { ...ampInput, kind: 'mention', id: 't1_parent' as const, summoner: 'summoner-user' },
+      deps({ reddit }),
+    );
+    expect(reddit.submitComment.mock.calls[0]?.[0].text).toMatch(/Summoned by u\/summoner-user$/);
+  });
+
+  it('skips when the bot itself is the summoner', async () => {
+    // Every reply footer advertises "Summon: u/AmputatorBot" — if Reddit
+    // ever fired a mention event for the bot's own comment, this guard is
+    // what breaks the loop.
+    const reddit = stubReddit();
+    const outcome = await handleAmpTrigger(
+      { ...ampInput, kind: 'mention', summoner: BOT_USERNAME.toUpperCase() },
+      deps({ reddit }),
+    );
+    expect(outcome).toEqual({ status: 'skipped', reason: 'bot_self_reply' });
+    expect(reddit.submitComment).not.toHaveBeenCalled();
   });
 
   it('skips a summon whose parent the auto-reply flow already answered', async () => {

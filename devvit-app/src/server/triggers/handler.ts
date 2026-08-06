@@ -65,6 +65,10 @@ export type TriggerInput = {
   // "Summoned by u/..." credit line (whose u/-mention is what notifies the
   // summoner) and the error-DM fallback. Leave unset for the other flows.
   summoner?: string;
+  // Mention flow only: site-relative permalink of the summoning comment
+  // (`event.comment.permalink`). Linked from the credit line so readers of
+  // the reply can see who asked and where.
+  summonPermalink?: string;
 };
 
 export type TriggerOutcome =
@@ -89,12 +93,15 @@ export async function handleAmpTrigger(
   deps: TriggerDeps,
 ): Promise<TriggerOutcome> {
   // Self-reply guard — must run before anything that touches state. Reddit
-  // usernames are case-insensitive, so compare case-folded.
-  if (
+  // usernames are case-insensitive, so compare case-folded. The summoner is
+  // checked too: every reply footer now advertises "Summon: u/AmputatorBot",
+  // and while Reddit doesn't fire mention events for self-authored mentions,
+  // this makes a feedback loop impossible rather than just improbable.
+  const isBot = (name: string | undefined) =>
     deps.botUsername.length > 0 &&
-    input.author &&
-    input.author.toLowerCase() === deps.botUsername.toLowerCase()
-  ) {
+    name !== undefined &&
+    name.toLowerCase() === deps.botUsername.toLowerCase();
+  if (isBot(input.author) || isBot(input.summoner)) {
     return { status: 'skipped', reason: 'bot_self_reply' };
   }
 
@@ -158,9 +165,11 @@ export async function handleAmpTrigger(
   // Summons credit the summoner under the backend-generated comment. The
   // u/-mention doubles as their notification: the reply goes to the parent,
   // so Reddit's reply notification reaches the parent's author, not them.
+  // The u/-mention stays plain text (mentions inside link syntax don't
+  // notify); "Summoned" carries the link back to the summoning comment.
   const text =
     input.kind === 'mention' && input.summoner
-      ? `${result.comment}\n\n^(Summoned by u/${input.summoner})`
+      ? `${result.comment}\n\n${summonCredit(input.summoner, input.summonPermalink)}`
       : result.comment;
 
   // `submitComment` accepts both t1_ and t3_ fullnames on `id` — see
@@ -183,4 +192,12 @@ export async function handleAmpTrigger(
   }
   await markHandled(deps.redis, scope, input.id);
   return { status: 'replied' };
+}
+
+// "[Summoned](url) by u/xyz" — linkless when the trigger payload carried no
+// permalink. Devvit sends permalinks as site-relative paths.
+function summonCredit(summoner: string, permalink: string | undefined): string {
+  if (!permalink) return `Summoned by u/${summoner}`;
+  const url = permalink.startsWith('/') ? `https://www.reddit.com${permalink}` : permalink;
+  return `[Summoned](${url}) by u/${summoner}`;
 }
