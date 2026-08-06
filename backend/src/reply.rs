@@ -12,8 +12,13 @@ use crate::models::{Canonical, ConfidenceLevel, EntryType, Link};
 
 const FAQ_LINK: &str =
     "https://www.reddit.com/r/AmputatorBot/comments/ehrq3z/why_did_i_build_amputatorbot";
-const SUB_LINK: &str = "https://reddit.com/r/AmputatorBot";
+const COMMUNITY_LINK: &str = "https://reddit.com/r/AmputatorBot";
 const SOURCE_LINK: &str = "https://github.com/jvdburgh/AmputatorBot";
+// Footer ad for the summon feature (mention u/AmputatorBot under an AMP
+// comment/post to get the canonical) — ported from the legacy bot's outro.
+// Points at the old demo comment showing a summon in action.
+const SUMMON_INFO_LINK: &str =
+    "https://www.reddit.com/r/AmputatorBot/comments/cchly3/comment/hl4uc2r/";
 
 #[derive(Debug, Clone)]
 pub struct BuildReplyOptions {
@@ -94,7 +99,7 @@ pub fn build_reply(links: &[Link], options: &BuildReplyOptions) -> Option<String
         _ => String::new(),
     };
     let outro = format!(
-        "\n\n*****\n\n ^([Why & About]({FAQ_LINK})^( | )[r/AmputatorBot]({SUB_LINK})^( | )[Source]({SOURCE_LINK}){custom_footer_part})"
+        "\n\n*****\n\n ^([Why & About]({FAQ_LINK})^( | )[r/AmputatorBot]({COMMUNITY_LINK})^( | )[Source]({SOURCE_LINK})^( | )[Summon: u/AmputatorBot]({SUMMON_INFO_LINK}){custom_footer_part})"
     );
 
     Some(format!(
@@ -133,7 +138,7 @@ fn build_intro_why(n_amp: usize, n_cached: usize, who: &str, what: &str) -> Stri
         "some of the ones"
     };
     format!(
-        "AMP is supposed to be faster, but it — especially cached pages like {n_note} {who} {what} — is {why}"
+        "AMP is supposed to be faster, but it (especially cached pages like {n_note} {who} {what}) — is {why}"
     )
 }
 
@@ -297,7 +302,7 @@ mod tests {
         };
         let reply = build_reply(&[link], &opts(EntryType::Comment)).expect("reply");
         assert!(reply.contains(
-            "AMP is supposed to be faster, but it — especially cached pages like the one you shared — is controversial because of [concerns over privacy and the Open Web]"
+            "AMP is supposed to be faster, but it (especially cached pages like the one you shared) — is controversial because of [concerns over privacy and the Open Web]"
         ));
     }
 
@@ -330,6 +335,21 @@ mod tests {
         assert!(reply.contains(
             "**[https://example.eu/dead-end/amp/](https://example.eu/dead-end/amp/)** ^(Still AMP, but no longer cached - unable to process further)"
         ));
+    }
+
+    #[test]
+    fn footer_advertises_the_summon_feature() {
+        let amp = "https://www.google.com/amp/s/example.eu/x";
+        let link = Link {
+            origin: amp_origin(amp, false),
+            canonical: Some(canonical("https://example.eu/x", "example", false)),
+            canonicals: vec![],
+            amp_canonical: None,
+        };
+        let reply = build_reply(&[link], &opts(EntryType::Comment)).expect("reply");
+        assert!(reply.contains(&format!(
+            "^( | )[Summon: u/AmputatorBot]({SUMMON_INFO_LINK})"
+        )));
     }
 
     #[test]
