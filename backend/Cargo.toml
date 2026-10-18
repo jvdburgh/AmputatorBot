@@ -42,7 +42,7 @@ futures = "0.3"
 # — that's how the multi-source version switcher gets both specs.
 # `axum_extras` enables param-derive helpers; `chrono` matches the version
 # we already pull in.
-utoipa = { version = "5", features = ["axum_extras", "chrono"] }
+utoipa = { version = "6", features = ["axum_extras", "chrono"] }
 
 [dev-dependencies]
 insta = { version = "1", features = ["json"] }
